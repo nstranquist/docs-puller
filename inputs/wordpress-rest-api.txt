@@ -1,0 +1,15 @@
+# WordPress REST API docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: Typical WordPress package calls the wp-json/wp/v2 REST
+# API directly. Keep this source on the REST overview, global parameters, and
+# endpoints used by the local CMS client.
+#
+# Last refreshed: 2026-05-12.
+
+https://developer.wordpress.org/rest-api/
+https://developer.wordpress.org/rest-api/using-the-rest-api/global-parameters/
+https://developer.wordpress.org/rest-api/reference/posts/
+https://developer.wordpress.org/rest-api/reference/pages/
+https://developer.wordpress.org/rest-api/reference/categories/
+https://developer.wordpress.org/rest-api/reference/tags/
+https://developer.wordpress.org/rest-api/reference/media/

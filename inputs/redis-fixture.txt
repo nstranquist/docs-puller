@@ -1,0 +1,8 @@
+# redis -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 4 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs
+https://redis.io/docs/latest/develop/data-types/sorted-sets
+https://redis.io/docs/latest/develop/data-types/streams
+https://redis.io/docs/latest/develop/use-cases/leaderboard

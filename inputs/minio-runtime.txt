@@ -1,0 +1,12 @@
+# MinIO runtime docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: MinIO's docs are split by deployment target and the
+# public sitemap endpoints are inconsistent. Teams often use MinIO as local
+# object-storage infrastructure, so keep this focused on server, container, and
+# Kubernetes runtime docs.
+#
+# Last refreshed: 2026-05-12.
+
+https://min.io/docs/minio/linux/index.html
+https://min.io/docs/minio/container/index.html
+https://min.io/docs/minio/kubernetes/upstream/index.html

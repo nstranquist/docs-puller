@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>docs-puller search</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d2230;
+    --border: #2a3040;
+    --text: #e6e7eb;
+    --muted: #8b93a7;
+    --accent: #6ea8ff;
+    --accent-bg: #1e2c46;
+    --score: #9ed8a3;
+    --code: #f0c674;
+    --warn: #ffb86c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafbfc; --panel: #ffffff; --panel-2: #f1f3f6;
+      --border: #d6dae3; --text: #1a1d24; --muted: #5b6378;
+      --accent: #1f6feb; --accent-bg: #ddebff;
+      --score: #1d7027; --code: #6f5500; --warn: #b8541a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 14px; margin: 0 8px 0 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+  input, select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: 6px; font: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #q { flex: 1; min-width: 0; }
+  #stats { color: var(--muted); font-size: 12px; padding: 6px 20px; max-width: 1100px; margin: 0 auto; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+  .hit {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; margin: 12px 0;
+  }
+  .hit-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .hit-title { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; word-break: break-word; }
+  .hit-source {
+    font-size: 11px; padding: 2px 7px; border-radius: 10px;
+    background: var(--accent-bg); color: var(--accent); font-family: ui-monospace, monospace;
+  }
+  .hit-score { font-size: 11px; color: var(--score); font-family: ui-monospace, monospace; }
+  .hit-path { color: var(--muted); font-size: 12px; font-family: ui-monospace, "SF Mono", monospace; margin-top: 3px; word-break: break-all; }
+  .hit-url { color: var(--accent); font-size: 12px; text-decoration: none; word-break: break-all; }
+  .hit-url:hover { text-decoration: underline; }
+  .snippets { margin-top: 10px; padding: 8px 12px; background: var(--panel-2); border-radius: 6px; border-left: 3px solid var(--accent); }
+  .snip { font-size: 13px; padding: 2px 0; color: var(--text); word-break: break-word; }
+  .snip-line { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; margin-right: 6px; }
+  mark { background: rgba(110, 168, 255, 0.25); color: inherit; padding: 0 2px; border-radius: 2px; }
+  .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 4px 9px; border-radius: 5px; font-size: 12px; cursor: pointer;
+    text-decoration: none; display: inline-block;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: white; padding: 8px 16px; border-radius: 6px;
+    font-size: 13px; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  kbd { background: var(--panel-2); border: 1px solid var(--border); border-bottom-width: 2px; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>docs</h1>
+    <input id="q" placeholder="search local docs..." autofocus autocomplete="off" spellcheck="false">
+    <select id="source" title="filter by source"><option value="">all sources</option></select>
+    <select id="limit" title="result limit">
+      <option>10</option><option>20</option><option>50</option>
+    </select>
+    <select id="mode" title="search backend">
+      <option value="">FTS5 (default)</option>
+      <option value="scan">scan (substring)</option>
+    </select>
+  </div>
+</header>
+<div id="stats"></div>
+<main id="results"></main>
+<div id="toast" class="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const q = $("q"), srcSel = $("source"), limitSel = $("limit"), modeSel = $("mode");
+const stats = $("stats"), results = $("results"), toast = $("toast");
+let currentReq = 0;
+
+function show(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(show._t);
+  show._t = setTimeout(() => toast.classList.remove("show"), 1400);
+}
+
+async function copy(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    show(label + " copied");
+  } catch { show("copy failed (browser permission?)"); }
+}
+
+function highlight(text, tokens) {
+  if (!tokens.length) return escapeHTML(text);
+  // Build a single regex matching any token, case-insensitive, escaping regex chars.
+  const pat = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const re = new RegExp("(" + pat + ")", "gi");
+  return escapeHTML(text).replace(re, "<mark>$1</mark>");
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function vscodeURL(absPath) {
+  // vscode://file/<absolute path>
+  return "vscode://file" + encodeURI(absPath);
+}
+
+function renderHit(hit, root, query) {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const div = document.createElement("div");
+  div.className = "hit";
+  const titleHTML = highlight(hit.title || "(untitled)", tokens);
+  div.innerHTML = `
+    <div class="hit-head">
+      <div class="hit-title">${titleHTML}</div>
+      <span class="hit-source">${escapeHTML(hit.source)}</span>
+      <span class="hit-score">score ${hit.score}</span>
+    </div>
+    <div class="hit-path">${escapeHTML(hit.path)}</div>
+    ${hit.url ? `<a class="hit-url" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">${escapeHTML(hit.url)}</a>` : ""}
+  `;
+  if (hit.snippets && hit.snippets.length) {
+    const sn = document.createElement("div");
+    sn.className = "snippets";
+    sn.innerHTML = hit.snippets.map(s =>
+      `<div class="snip"><span class="snip-line">L${s.line}</span>${highlight(s.text, tokens)}</div>`
+    ).join("");
+    div.appendChild(sn);
+  }
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const absPath = root + "/" + hit.path;
+  actions.innerHTML = `
+    <a class="btn primary" href="${vscodeURL(absPath)}">Open in VS Code</a>
+    ${hit.url ? `<a class="btn" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">Open in browser</a>` : ""}
+    <button class="btn" data-act="copy-md">Copy markdown link</button>
+    <button class="btn" data-act="copy-url">Copy URL</button>
+    <button class="btn" data-act="copy-path">Copy path</button>
+    ${hit.snippets && hit.snippets.length ? `<button class="btn" data-act="copy-snip">Copy snippets</button>` : ""}
+  `;
+  actions.addEventListener("click", (e) => {
+    const act = e.target.dataset.act;
+    if (!act) return;
+    if (act === "copy-md") copy(`[${hit.title || hit.path}](${hit.url || ""})`, "Markdown link");
+    if (act === "copy-url") copy(hit.url || "", "URL");
+    if (act === "copy-path") copy(absPath, "Path");
+    if (act === "copy-snip") copy(hit.snippets.map(s => `L${s.line}: ${s.text}`).join("\n"), "Snippets");
+  });
+  div.appendChild(actions);
+  root.appendChild(div);
+}
+
+let docsRoot = "";
+
+async function loadSources() {
+  const r = await fetch("/api/sources").then(r => r.json());
+  docsRoot = r.root || "";
+  for (const s of (r.sources || [])) {
+    const opt = document.createElement("option");
+    opt.value = s.name; opt.textContent = `${s.name} (${s.docs})`;
+    srcSel.appendChild(opt);
+  }
+}
+
+async function runSearch() {
+  const query = q.value.trim();
+  if (!query) { stats.textContent = ""; results.innerHTML = ""; return; }
+  const params = new URLSearchParams({ q: query, limit: limitSel.value });
+  if (srcSel.value) params.set("source", srcSel.value);
+  if (modeSel.value) params.set("mode", modeSel.value);
+  const reqId = ++currentReq;
+  stats.textContent = "searching...";
+  let r;
+  try {
+    r = await fetch("/api/search?" + params).then(r => r.json());
+  } catch (e) {
+    if (reqId !== currentReq) return;
+    stats.textContent = "error: " + e.message;
+    return;
+  }
+  if (reqId !== currentReq) return;
+  results.innerHTML = "";
+  stats.textContent = `${r.results.length} match${r.results.length === 1 ? "" : "es"} for "${r.query}" — ${r.scanned} docs scanned via ${r.mode} (${r.elapsed_ms}ms)`;
+  if (!r.results.length) {
+    results.innerHTML = `<div class="empty">No matches. Try different terms or <kbd>--scan</kbd> mode.</div>`;
+    return;
+  }
+  for (const hit of r.results) renderHit(hit, results, r.query);
+}
+
+let debounce;
+q.addEventListener("input", () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(runSearch, 150);
+});
+srcSel.addEventListener("change", runSearch);
+limitSel.addEventListener("change", runSearch);
+modeSel.addEventListener("change", runSearch);
+q.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runSearch();
+  if (e.key === "Escape") { q.value = ""; runSearch(); }
+});
+
+loadSources().then(() => {
+  // If URL has ?q=foo, run that query
+  const u = new URLSearchParams(location.search);
+  if (u.get("q")) { q.value = u.get("q"); runSearch(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# go -- curated go.dev doc pages.
+# Curated 2026-05-28.
+
+https://go.dev/doc/effective_go
+https://go.dev/ref/spec
+https://go.dev/ref/mem
+https://go.dev/doc/code
+https://go.dev/doc/comment
+https://go.dev/doc/modules/managing-dependencies
+https://go.dev/doc/modules/gomod-ref
+https://go.dev/doc/modules/version-numbers
+https://go.dev/doc/tutorial/getting-started
+https://go.dev/doc/tutorial/create-module
+https://go.dev/doc/tutorial/call-module-code
+https://go.dev/doc/tutorial/handle-errors
+https://go.dev/doc/tutorial/generics
+https://go.dev/doc/tutorial/web-service-gin
+https://go.dev/doc/tutorial/database-access
+https://go.dev/doc/database/index
+https://go.dev/doc/database/execute-transactions
+https://go.dev/doc/database/query-rows
+https://go.dev/doc/security/best-practices
+https://go.dev/doc/gc-guide

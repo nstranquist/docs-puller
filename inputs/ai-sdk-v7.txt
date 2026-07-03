@@ -1,0 +1,18 @@
+# ai-sdk -- Vercel AI SDK v7 docs entrypoints.
+# Current public docs are served from ai-sdk.dev and expose Markdown mirrors.
+# Breadth pull command:
+#   docs-puller pull --sitemap https://ai-sdk.dev/sitemap.xml
+
+https://ai-sdk.dev/docs/introduction.md
+https://ai-sdk.dev/docs/getting-started.md
+https://ai-sdk.dev/docs/getting-started/navigating-the-library.md
+https://ai-sdk.dev/docs/agents.md
+https://ai-sdk.dev/docs/ai-sdk-core.md
+https://ai-sdk.dev/docs/ai-sdk-core/generating-text.md
+https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data.md
+https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling.md
+https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools.md
+https://ai-sdk.dev/docs/ai-sdk-core/embeddings.md
+https://ai-sdk.dev/docs/ai-sdk-ui.md
+https://ai-sdk.dev/providers/ai-sdk-providers.md
+https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway.md

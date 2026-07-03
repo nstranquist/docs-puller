@@ -1,0 +1,37 @@
+# tailwindcss -- curated v4 utility/concept pages.
+# Curated 2026-05-28 (no sitemap/llms.txt index upstream).
+
+https://tailwindcss.com/docs/installation/using-vite
+https://tailwindcss.com/docs/styling-with-utility-classes
+https://tailwindcss.com/docs/hover-focus-and-other-states
+https://tailwindcss.com/docs/responsive-design
+https://tailwindcss.com/docs/dark-mode
+https://tailwindcss.com/docs/theme
+https://tailwindcss.com/docs/colors
+https://tailwindcss.com/docs/adding-custom-styles
+https://tailwindcss.com/docs/detecting-classes-in-source-files
+https://tailwindcss.com/docs/functions-and-directives
+https://tailwindcss.com/docs/preflight
+https://tailwindcss.com/docs/display
+https://tailwindcss.com/docs/flex
+https://tailwindcss.com/docs/flex-direction
+https://tailwindcss.com/docs/grid-template-columns
+https://tailwindcss.com/docs/gap
+https://tailwindcss.com/docs/align-items
+https://tailwindcss.com/docs/justify-content
+https://tailwindcss.com/docs/padding
+https://tailwindcss.com/docs/margin
+https://tailwindcss.com/docs/width
+https://tailwindcss.com/docs/height
+https://tailwindcss.com/docs/max-width
+https://tailwindcss.com/docs/font-size
+https://tailwindcss.com/docs/font-weight
+https://tailwindcss.com/docs/text-color
+https://tailwindcss.com/docs/background-color
+https://tailwindcss.com/docs/border-radius
+https://tailwindcss.com/docs/border-width
+https://tailwindcss.com/docs/box-shadow
+https://tailwindcss.com/docs/position
+https://tailwindcss.com/docs/z-index
+https://tailwindcss.com/docs/overflow
+https://tailwindcss.com/docs/transition-property

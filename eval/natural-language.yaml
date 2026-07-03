@@ -1,0 +1,158 @@
+# Natural-language eval fixture for docs-puller.
+#
+# Keep this separate from fixture.yaml so the headline regression bench stays
+# stable while rerank and semantic experiments get a realistic query lane.
+
+query_type: tech_stack_search
+
+queries:
+  - q: how do I verify Slack request signatures
+    expect:
+      - slack/authentication/verifying-requests-from-slack.md
+    note: real agent phrasing for Slack signing-secret validation
+
+  - q: how do I set up row level security in Supabase
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+
+  - q: how do I upload files to Supabase storage
+    expect:
+      - supabase/guides/storage/uploads/standard-uploads.md
+      - supabase/guides/storage/uploads/resumable-uploads.md
+      - supabase/guides/storage.md
+
+  - q: how do I inspect a PostgreSQL query plan
+    expect:
+      - postgresql/docs/current/using-explain.md
+      - postgresql/docs/current/sql-explain.md
+
+  - q: how do I deploy Azure Functions from the CLI
+    expect:
+      - microsoft-learn/cli/azure/functionapp/deployment.md
+      - microsoft-learn/cli/azure/functionapp.md
+
+  - q: how do I configure an MDM passcode policy
+    expect:
+      - apple-devicemanagement/managing-passcodes.md
+      - apple-devicemanagement/passcode.md
+
+  - q: how do I add a Slack slash command
+    expect:
+      - slack/interactivity/implementing-slash-commands.md
+
+  - q: how do I create a Chrome extension manifest
+    expect:
+      - chrome/docs/extensions/reference/manifest.md
+
+  - q: how do I use Playwright locators
+    expect:
+      - playwright/docs/locators.md
+
+  - q: how do I count tokens with Anthropic
+    expect:
+      - anthropic/build-with-claude/token-counting.md
+
+  - q: what is the quickest way to create a Supabase Edge Function
+    expect:
+      - supabase/guides/functions.md
+      - supabase/guides/functions/quickstart.md
+
+  - q: how can I broadcast realtime events in Supabase
+    expect:
+      - supabase/guides/realtime/broadcast.md
+
+  - q: how do I use pgvector in Postgres with Supabase
+    expect:
+      - supabase/guides/database/extensions/pgvector.md
+
+  - q: how do I create a materialized view in ClickHouse
+    expect:
+      - clickhouse/best-practices/use-materialized-views.md
+      - clickhouse/materialized-views.md
+
+  - q: how do I configure async inserts in ClickHouse
+    expect:
+      - clickhouse/optimize/asynchronous-inserts.md
+
+  - q: how do I use a partial index in Postgres
+    expect:
+      - postgresql/docs/current/indexes-partial.md
+
+  - q: how do I vacuum analyze a PostgreSQL database
+    expect:
+      - postgresql/docs/current/sql-vacuum.md
+      - postgresql/docs/current/app-vacuumdb.md
+      - postgresql/docs/current/sql-analyze.md
+
+  - q: how do I sign in to the Azure CLI
+    expect:
+      - microsoft-learn/cli/azure/authenticate-azure-cli-interactively.md
+      - microsoft-learn/cli/azure/authenticate-azure-cli.md
+      - microsoft-learn/cli/azure/reference-index.md
+      - microsoft-learn/cli/azure/account.md
+    note: NL sign-in intent should accept auth guidance; terse `az login` remains in the default fixture for command-reference behavior
+
+  - q: how do I create an Azure service principal
+    expect:
+      - microsoft-learn/cli/azure/authenticate-azure-cli-service-principal.md
+      - microsoft-learn/cli/azure/ad/sp.md
+
+  - q: how do I post a Slack message from the API
+    expect:
+      - slack/reference/methods/chat.postmessage.md
+
+  - q: how do I define a Slack app manifest
+    expect:
+      - slack/app-manifests.md
+
+  - q: how do I use Go modules for a new project
+    expect:
+      - go/doc/tutorial/create-module.md
+
+  - q: where is the Go memory model documented
+    expect:
+      - go/ref/mem.md
+
+  - q: how do I optimize React Native FlatList performance
+    expect:
+      - react-native/docs/optimizing-flatlist-configuration.md
+      - react-native/docs/0.77/optimizing-flatlist-configuration.md
+
+  - q: how do I build an Expo app with EAS
+    expect:
+      - expo/build/introduction.md
+      - expo/build/eas-json.md
+
+  - q: how do I write an Obsidian plugin manifest
+    expect:
+      - obsidian-app-docs/Reference/Manifest.md
+
+  - q: how do I enable Anthropic prompt caching
+    expect:
+      - anthropic/build-with-claude/prompt-caching.md
+
+  - q: how do I stream responses from Anthropic
+    expect:
+      - anthropic/build-with-claude/streaming.md
+
+  - q: how do I create a Stripe checkout session
+    expect:
+      - stripe/api/checkout/sessions.md
+      - stripe/payments/checkout.md
+
+  - q: how do I use TanStack Router file based routes
+    expect:
+      - tanstack/router/latest/docs/routing/file-based-routing.md
+
+  - q: how do I use Cloudflare Durable Objects
+    expect:
+      - cloudflare/workers/platform/storage-options.md
+      - cloudflare/workers/testing/miniflare/storage/durable-objects.md
+
+  - q: how do I use React useEffect
+    expect:
+      - react/reference/react/useEffect.md
+
+  - q: how do I run Playwright API tests
+    expect:
+      - playwright/docs/api-testing.md

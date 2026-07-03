@@ -1,0 +1,14 @@
+# Google Cloud BigQuery docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: cloud.google.com is too broad for a default pull. Typical
+# package usage is @google-cloud/bigquery, so keep this source on BigQuery
+# libraries, Node.js reference, REST reference, and performance guidance.
+#
+# Last refreshed: 2026-05-12.
+
+https://cloud.google.com/bigquery/docs/reference/libraries
+https://cloud.google.com/nodejs/docs/reference/bigquery/latest
+https://cloud.google.com/bigquery/docs/reference/rest
+https://cloud.google.com/bigquery/docs/best-practices-performance-overview
+https://cloud.google.com/bigquery/docs/best-practices-costs
+https://cloud.google.com/bigquery/docs/samples

@@ -1,0 +1,11 @@
+# keystatic -- curated docs.
+# Refreshed 2026-06-29; confirmed upstream 404s pruned.
+
+https://keystatic.com/docs
+https://keystatic.com/docs/local-mode
+https://keystatic.com/docs/github-mode
+https://keystatic.com/docs/cloud
+https://keystatic.com/docs/reader-api
+https://keystatic.com/docs/collections
+https://keystatic.com/docs/singletons
+https://keystatic.com/docs/configuration

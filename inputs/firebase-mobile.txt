@@ -1,0 +1,15 @@
+# Firebase mobile docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: Firebase publishes a large llms.txt corpus. Typical
+# immediate gap is the React Native Firebase-backed Android/mobile slice, so use
+# native markdown payloads for the relevant setup, messaging, analytics,
+# crashlytics, and performance docs.
+#
+# Last refreshed: 2026-05-12.
+
+https://firebase.google.com/docs/android/setup.md.txt
+https://firebase.google.com/docs/cloud-messaging/android/client.md.txt
+https://firebase.google.com/docs/cloud-messaging/android/receive.md.txt
+https://firebase.google.com/docs/analytics/get-started.md.txt
+https://firebase.google.com/docs/crashlytics/get-started.md.txt
+https://firebase.google.com/docs/perf-mon/get-started-android.md.txt

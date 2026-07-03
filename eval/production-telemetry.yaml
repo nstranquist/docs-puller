@@ -1,0 +1,201 @@
+# Production-telemetry eval fixture for docs-puller.
+#
+# Curated 2026-05-04 from /tmp/docs-puller-production-telemetry.yaml, which
+# was generated from ~/code/docs/.cache/query-log.jsonl with the three
+# hand-authored fixtures excluded. Raw internal KB/local-workflow rows were
+# intentionally dropped before promotion; this checked-in fixture keeps only
+# safe public/vendor-style queries with hand-reviewed canonical paths.
+#
+# Corrections from observed telemetry top-1:
+#   - Supabase redirect URL queries accept the canonical Auth guide, not only
+#     the troubleshooting page that links to it.
+#   - Supabase row-level-security queries accept the canonical RLS guide, not
+#     the narrower security-definer troubleshooting page.
+
+query_type: production_telemetry
+
+queries:
+  # ────────────── LangChain / LangGraph real usage ──────────────
+  - q: ChatOpenAI LangChain JavaScript initChatModel model provider
+    source: langchain
+    expect:
+      - langchain/oss/javascript/concepts/providers-and-models.md
+    note: telemetry promoted; provider/model initialization intent
+
+  - q: LangChain JavaScript ChatOpenAI tool calling structured output agents LangGraph
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langchain/tools.md
+      - langchain/oss/javascript/langchain/structured-output.md
+    note: telemetry promoted; multi-topic agent/tool/structured-output query
+
+  - q: LangChain tools structured output
+    source: langchain
+    expect:
+      - langchain/oss/python/langchain/structured-output.md
+      - langchain/oss/javascript/langchain/structured-output.md
+      - langchain/oss/javascript/langchain/tools.md
+    note: telemetry promoted; accepts Python or JavaScript structured-output docs
+
+  - q: LangGraph JavaScript invoke stream checkpoints MemorySaver Annotation
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/interrupts.md
+      - langchain/oss/javascript/langgraph/persistence.md
+    note: telemetry promoted; stream/resume plus checkpoint terms span both docs
+
+  - q: LangGraph build agent durable execution human in the loop memory checkpoint TypeScript
+    source: langchain
+    expect:
+      - langchain/oss/javascript/deepagents/going-to-production.md
+      - langchain/oss/javascript/langgraph/thinking-in-langgraph.md
+      - langchain/oss/javascript/langgraph/durable-execution.md
+      - langchain/oss/javascript/langgraph/interrupts.md
+      - langchain/oss/javascript/langgraph/persistence.md
+    note: telemetry promoted; broad production-agent query, multiple canonical docs accepted
+
+  - q: LangGraph durable execution human in the loop
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/durable-execution.md
+      - langchain/oss/javascript/langgraph/interrupts.md
+    note: telemetry promoted; durable execution and HITL are adjacent docs
+
+  - q: LangGraph interrupt human in the loop JavaScript checkpointer
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/interrupts.md
+      - langchain/oss/javascript/langgraph/persistence.md
+    note: telemetry promoted; HITL with checkpointer
+
+  - q: LangGraph persistence checkpoint thread_id
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/persistence.md
+    note: telemetry promoted; exact thread_id/checkpoint intent
+
+  - q: StateGraph Annotation START END compile MemorySaver TypeScript LangGraph
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/use-graph-api.md
+      - langchain/oss/javascript/langgraph/persistence.md
+    note: telemetry promoted; graph API plus MemorySaver checkpointing
+
+  - q: StateSchema Annotation LangGraph JavaScript graph API addNode addEdge
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/use-graph-api.md
+    note: telemetry promoted; graph API terms
+
+  - q: langgraph state graph
+    source: langchain
+    expect:
+      - langchain/oss/javascript/langgraph/use-graph-api.md
+      - langchain/oss/python/langgraph/use-graph-api.md
+    note: telemetry promoted; terse state graph lookup
+
+  - q: langsmith trace dataset
+    source: langchain
+    expect:
+      - langchain/langsmith/manage-datasets.md
+      - langchain/langsmith/manage-datasets-programmatically.md
+      - langchain/langsmith/manage-datasets-in-application.md
+    note: telemetry promoted; dataset management around trace workflows
+
+  # ────────────── Anthropic / Azure / ClickHouse / PostgreSQL ──────────────
+  - q: anthropic sdk messages api
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/working-with-messages.md
+    note: telemetry promoted; SDK messages API lookup
+
+  - q: azure cli login
+    source: microsoft-learn
+    expect:
+      - microsoft-learn/cli/azure/authenticate-azure-cli.md
+      - microsoft-learn/cli/azure/authenticate-azure-cli-interactively.md
+    note: telemetry promoted; accepts overview or interactive auth guide
+
+  - q: azure containerapp job logs
+    source: microsoft-learn
+    expect:
+      - microsoft-learn/cli/azure/containerapp/job/logs.md
+    note: telemetry promoted; exact command group lookup
+
+  - q: clickhouse custom partition key
+    source: clickhouse
+    expect:
+      - clickhouse/engines/table-engines/mergetree-family/custom-partitioning-key.md
+    note: telemetry promoted; exact ClickHouse concept
+
+  - q: clickhouse materialized view
+    source: clickhouse
+    expect:
+      - clickhouse/materialized-views.md
+      - clickhouse/best-practices/use-materialized-views.md
+    note: telemetry promoted; accepts general or best-practice page
+
+  - q: clickhouse table engines
+    source: clickhouse
+    expect:
+      - clickhouse/engines/table-engines.md
+    note: telemetry promoted; exact table-engine overview
+
+  - q: postgres reindex command
+    source: postgresql
+    expect:
+      - postgresql/docs/current/sql-reindex.md
+    note: telemetry promoted; SQL command reference
+
+  - q: postgres vacuum analyze
+    source: postgresql
+    expect:
+      - postgresql/docs/current/app-vacuumdb.md
+      - postgresql/docs/current/sql-vacuum.md
+      - postgresql/docs/current/sql-analyze.md
+    note: telemetry promoted; accepts CLI or SQL maintenance command docs
+
+  # ────────────── Supabase real usage ──────────────
+  - q: Supabase redirect URLs
+    source: supabase
+    expect:
+      - supabase/guides/auth/redirect-urls.md
+      - supabase/guides/troubleshooting/why-am-i-being-redirected-to-the-wrong-url-when-using-auth-redirectto-option-_vqIeO.md
+    note: telemetry promoted; corrected to include canonical Auth redirect guide
+
+  - q: how do I add a Supabase RLS policy
+    source: supabase
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: telemetry promoted; policy intent maps to canonical RLS guide
+
+  - q: supabase cli link project
+    source: supabase
+    expect:
+      - supabase/reference/cli/supabase-link.md
+    note: telemetry promoted; exact CLI command lookup
+
+  - q: supabase edge functions secrets
+    source: supabase
+    expect:
+      - supabase/guides/functions/secrets.md
+    note: telemetry promoted; exact Edge Functions secret guide
+
+  - q: supabase realtime postgres changes
+    source: supabase
+    expect:
+      - supabase/guides/realtime/postgres-changes.md
+    note: telemetry promoted; exact Realtime feature page
+
+  - q: supabase row level security
+    source: supabase
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: telemetry promoted; corrected from narrower troubleshooting top-1
+
+  - q: supabase storage upload from javascript
+    source: supabase
+    expect:
+      - supabase/reference/javascript/storage-from-upload.md
+      - supabase/guides/storage/uploads/standard-uploads.md
+    note: telemetry promoted; accepts JS API reference or canonical upload guide

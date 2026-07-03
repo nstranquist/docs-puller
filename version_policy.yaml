@@ -1,0 +1,67 @@
+schema_version: 1
+sources:
+  - id: react-native
+    package_names:
+      - react-native
+    docs_version_strategy: semver_minor
+    latest_version: "0.83"
+    latest_url: https://reactnative.dev/docs/getting-started
+    version_url_template: https://reactnative.dev/docs/{{version_key}}/getting-started
+    pin_policy: workspace-hard
+  - id: expo
+    package_names:
+      - expo
+    docs_version_strategy: semver_major_minor_zero
+    latest_version: "55.0.0"
+    latest_url: https://docs.expo.dev/versions/latest/
+    version_url_template: https://docs.expo.dev/versions/v{{version_key}}/
+    pin_policy: workspace-hard
+  - id: react
+    package_names:
+      - react
+      - react-dom
+    docs_version_strategy: semver_major
+    latest_version: "19"
+    latest_url: https://react.dev/reference/react
+    version_url_template: https://{{version_key}}.react.dev/reference/react
+    pin_policy: workspace-hard
+    versioned_pages:
+      - path: reference/react.md
+        url_template: https://{{version_key}}.react.dev/reference/react
+      - path: reference/react/useState.md
+        url_template: https://{{version_key}}.react.dev/reference/react/useState
+      - path: reference/react/useEffect.md
+        url_template: https://{{version_key}}.react.dev/reference/react/useEffect
+      - path: reference/react-dom/client/createRoot.md
+        url_template: https://{{version_key}}.react.dev/reference/react-dom/client/createRoot
+  - id: playwright
+    package_names:
+      - "@playwright/test"
+      - playwright
+    docs_version_strategy: semver_patch
+    latest_version: "1.59.1"
+    latest_url: https://playwright.dev/docs/intro
+    version_url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/intro-js.md
+    pin_policy: workspace-hard
+    versioned_pages:
+      - path: docs/intro.md
+        url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/intro-js.md
+      - path: docs/writing-tests.md
+        url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/writing-tests-js.md
+      - path: docs/locators.md
+        url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/locators.md
+      - path: docs/test-assertions.md
+        url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/test-assertions-js.md
+      - path: docs/test-fixtures.md
+        url_template: https://raw.githubusercontent.com/microsoft/playwright/v{{version_key}}/docs/src/test-fixtures-js.md
+  - id: typescript
+    package_names:
+      - typescript
+    docs_version_strategy: semver_minor_hyphen
+    latest_version: "6-0"
+    latest_url: https://www.typescriptlang.org/docs/
+    version_url_template: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-{{version_key}}.html
+    pin_policy: workspace-hard
+    versioned_pages:
+      - path: release-notes/typescript-{{version_key}}.md
+        url_template: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-{{version_key}}.html

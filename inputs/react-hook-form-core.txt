@@ -1,0 +1,21 @@
+# react-hook-form -- curated API docs (/docs/* only; route requires /docs prefix).
+# Refreshed 2026-06-29; confirmed upstream 404s pruned.
+
+https://react-hook-form.com/docs
+https://react-hook-form.com/docs/useform
+https://react-hook-form.com/docs/useform/register
+https://react-hook-form.com/docs/useform/handlesubmit
+https://react-hook-form.com/docs/useform/watch
+https://react-hook-form.com/docs/useform/setvalue
+https://react-hook-form.com/docs/useform/getvalues
+https://react-hook-form.com/docs/useform/reset
+https://react-hook-form.com/docs/useform/seterror
+https://react-hook-form.com/docs/useform/trigger
+https://react-hook-form.com/docs/useform/control
+https://react-hook-form.com/docs/useform/formstate
+https://react-hook-form.com/docs/usecontroller
+https://react-hook-form.com/docs/usecontroller/controller
+https://react-hook-form.com/docs/useformcontext
+https://react-hook-form.com/docs/usefieldarray
+https://react-hook-form.com/docs/usewatch
+https://react-hook-form.com/docs/useformstate

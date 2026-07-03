@@ -1,0 +1,165 @@
+# Natural-language question fixture for docs-puller.
+#
+# Built 2026-05-04 to test the hypothesis: does retrieval over-fit to
+# identifier-style queries (the dominant shape in the hand-curated identifier
+# fixture)? Real users sometimes ask full sentences. This fixture has
+# 30 hand-curated NL questions whose canonical answer paths are
+# verified to exist in the corpus.
+#
+# Difficulty mix:
+#   - "How do I X?" — the bread-and-butter NL pattern
+#   - "What is the difference between X and Y?" — comparative
+#   - "Why does X?" — explainer
+#   - Long compound questions ("How do I configure X with Y in Z?")
+#
+# Source coverage spans 12 vendors so per-source breakdown remains
+# informative. Hit@5 expected to be lower than the identifier fixture;
+# if it's MUCH lower, that's the over-fit signal we're testing for.
+#
+# Usage:
+#   docs-puller eval --fixture eval/nl-questions.yaml \
+#     --rerank-llm --write-baseline ... --json
+
+query_type: tech_stack_search
+
+queries:
+  # ────────────── Supabase NL ──────────────
+  - q: how do I configure row level security on a postgres table in supabase
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: NL rephrase of "row level security"
+  - q: what's the easiest way to upload a file from my web app to supabase storage
+    expect:
+      - supabase/guides/storage/uploads/standard-uploads.md
+    note: NL rephrase of "supabase storage upload"
+  - q: how do I write a postgres function that runs when a row changes in supabase
+    expect:
+      - supabase/guides/database/webhooks.md
+    note: NL phrasing for webhooks; canonical uses "webhook" not "row changes"
+  - q: I need real-time updates pushed to multiple clients at once with supabase
+    expect:
+      - supabase/guides/realtime/broadcast.md
+    note: vocabulary mismatch — query says "real-time updates pushed", canonical says "broadcast"
+  - q: how do I add multi-factor authentication to my supabase users
+    expect:
+      - supabase/guides/auth/auth-mfa.md
+    note: NL rephrase; "mfa" is the identifier, "multi-factor authentication" is the question form
+
+  # ────────────── PostgreSQL NL ──────────────
+  - q: my postgres table is huge and queries are slow, what indexes should I create
+    expect:
+      - postgresql/docs/current/indexes-types.md
+    note: NL question covering both performance and index choice
+  - q: how do I find out why a postgres query is slow
+    expect:
+      - postgresql/docs/current/using-explain.md
+    note: NL rephrase of "explain analyze"
+  - q: what's the difference between a regular index and a partial index in postgres
+    expect:
+      - postgresql/docs/current/indexes-partial.md
+    note: comparative NL question
+  - q: how do I write a postgres query that references its own results recursively
+    expect:
+      - postgresql/docs/current/queries-with.md
+    note: NL rephrase of "recursive cte"; canonical is named "WITH Queries"
+  - q: how do I clean up dead rows in my postgres database to reclaim disk space
+    expect:
+      - postgresql/docs/current/sql-vacuum.md
+    note: NL rephrase of "vacuum"
+
+  # ────────────── ClickHouse NL ──────────────
+  - q: how should I partition my mergetree table in clickhouse
+    expect:
+      - clickhouse/engines/table-engines/mergetree-family/custom-partitioning-key.md
+    note: NL question form
+  - q: what is a low cardinality column in clickhouse and when should I use it
+    expect:
+      - clickhouse/sql-reference/data-types/lowcardinality.md
+    note: definitional NL question
+  - q: how do I get faster inserts in clickhouse without losing data
+    expect:
+      - clickhouse/optimize/asynchronous-inserts.md
+    note: NL phrasing — query says "faster inserts" + "without losing data"; canonical is "Asynchronous Inserts"
+
+  # ────────────── React / React Native NL ──────────────
+  - q: my react useEffect keeps running on every render, how do I stop that
+    expect:
+      - react/learn/synchronizing-with-effects.md
+      - react/reference/react/useEffect.md
+    note: NL bug-style query; multi-doc accept
+  - q: how do I render thousands of items in a react native list without lag
+    expect:
+      - react-native/docs/optimizing-flatlist-configuration.md
+    note: NL phrasing of "react native flatlist performance"
+
+  # ────────────── Anthropic / OpenAI / xAI NL ──────────────
+  - q: how do I count tokens before sending a request to claude
+    expect:
+      - anthropic/build-with-claude/token-counting.md
+    note: NL rephrase
+  - q: how do I cache parts of my prompt so repeated requests are cheaper with claude
+    expect:
+      - anthropic/build-with-claude/prompt-caching.md
+    note: NL rephrase — cost-driven framing
+  - q: how do I use openai codex cli to have an agent write code for me
+    expect:
+      - openai/codex/index.md
+    note: NL — Codex agent overview (openai corpus is Codex-focused)
+
+  # ────────────── Stripe / Linear / Slack NL ──────────────
+  - q: how do I design a recurring subscription integration with stripe in my web app
+    expect:
+      - stripe/billing/subscriptions/design-an-integration.md
+    note: NL rephrase
+  - q: how do I authenticate my own app with the linear api using oauth 2
+    expect:
+      - linear/oauth-2-0-authentication.md
+    note: NL rephrase
+  - q: my slack web api integration keeps getting rate limited, how do I avoid that
+    expect:
+      - slack/apis/web-api/rate-limits.md
+    note: NL bug-style query
+
+  # ────────────── Microsoft Learn / Azure NL ──────────────
+  - q: how do I deploy an azure function from my command line
+    expect:
+      - microsoft-learn/cli/azure/functionapp/deployment.md
+    note: NL rephrase
+  - q: how do I copy a file to azure blob storage using the cli
+    expect:
+      - microsoft-learn/cli/azure/storage/blob.md
+    note: NL rephrase
+
+  # ────────────── Vercel / Cloudflare / Next.js NL ──────────────
+  - q: how do I add custom http headers to all responses in my next.js app on vercel
+    expect:
+      - vercel/headers.md
+    note: NL phrasing — long compound question
+  - q: how do I configure a cloudflare worker to run code at the edge near users
+    expect:
+      - cloudflare/workers/get-started.md
+    note: NL rephrase
+
+  # ────────────── Drizzle / Tanstack NL ──────────────
+  - q: how do I define a relation between two tables in drizzle
+    expect:
+      - drizzle/relations.md
+    note: NL rephrase
+  - q: how do I make my first tanstack query in a react app
+    expect:
+      - tanstack/query/latest/docs/framework/react/quick-start.md
+    note: NL onboarding question
+
+  # ────────────── Cross-source / multi-vendor NL ──────────────
+  - q: how do I store openai embeddings in postgres for similarity search
+    expect:
+      - supabase/guides/database/extensions/pgvector.md
+    note: cross-vendor NL — query mentions openai but canonical is supabase pgvector
+  - q: how do I deploy a next.js app on vercel that talks to a supabase database
+    expect:
+      - supabase/guides/getting-started/quickstarts/nextjs.md
+    note: cross-vendor NL — three vendors mentioned
+  - q: how do I run an openai-compatible chat completion against the xai grok api
+    expect:
+      - xai/developers/rest-api-reference/inference/chat.md
+    note: cross-vendor NL — xai uses openai-compat API

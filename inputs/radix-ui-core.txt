@@ -1,0 +1,25 @@
+# radix-ui -- curated primitives docs.
+# Curated 2026-05-28 (no sitemap/llms.txt index upstream).
+
+https://www.radix-ui.com/primitives/docs/overview/introduction
+https://www.radix-ui.com/primitives/docs/overview/getting-started
+https://www.radix-ui.com/primitives/docs/guides/styling
+https://www.radix-ui.com/primitives/docs/guides/composition
+https://www.radix-ui.com/primitives/docs/components/dialog
+https://www.radix-ui.com/primitives/docs/components/alert-dialog
+https://www.radix-ui.com/primitives/docs/components/dropdown-menu
+https://www.radix-ui.com/primitives/docs/components/popover
+https://www.radix-ui.com/primitives/docs/components/select
+https://www.radix-ui.com/primitives/docs/components/tooltip
+https://www.radix-ui.com/primitives/docs/components/accordion
+https://www.radix-ui.com/primitives/docs/components/checkbox
+https://www.radix-ui.com/primitives/docs/components/radio-group
+https://www.radix-ui.com/primitives/docs/components/switch
+https://www.radix-ui.com/primitives/docs/components/tabs
+https://www.radix-ui.com/primitives/docs/components/toast
+https://www.radix-ui.com/primitives/docs/components/slider
+https://www.radix-ui.com/primitives/docs/components/scroll-area
+https://www.radix-ui.com/primitives/docs/components/avatar
+https://www.radix-ui.com/primitives/docs/components/separator
+https://www.radix-ui.com/primitives/docs/components/label
+https://www.radix-ui.com/primitives/docs/components/form

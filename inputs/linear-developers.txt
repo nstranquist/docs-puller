@@ -1,0 +1,38 @@
+# Linear developer docs — URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: linear.app/sitemap.xml does NOT enumerate /developers/*
+# (it lists 8 marketing pages only). Pages are prerendered Next.js, so HTTP +
+# html-to-markdown works fine — discovery is the only friction.
+#
+# Refresh: fetch linear.app/developers, regex out the href="/developers/*"
+# nav links from the prerendered HTML, prepend the linear.app host, dedupe,
+# and rewrite this file. Re-run `docs-puller pull --from <this file>` after.
+#
+# Last refreshed: 2026-04-29 (26 URLs).
+
+https://linear.app/developers
+https://linear.app/developers/advanced-usage
+https://linear.app/developers/agent-best-practices
+https://linear.app/developers/agent-interaction
+https://linear.app/developers/agent-signals
+https://linear.app/developers/agents
+https://linear.app/developers/aig
+https://linear.app/developers/attachments
+https://linear.app/developers/create-issues-using-linear-new
+https://linear.app/developers/deprecations
+https://linear.app/developers/file-storage-authentication
+https://linear.app/developers/filtering
+https://linear.app/developers/graphql
+https://linear.app/developers/how-to-upload-a-file-to-linear
+https://linear.app/developers/integration-directory
+https://linear.app/developers/managing-customers
+https://linear.app/developers/migrating-from-1-x-to-2-x
+https://linear.app/developers/oauth-2-0-authentication
+https://linear.app/developers/oauth-actor-authorization
+https://linear.app/developers/pagination
+https://linear.app/developers/rate-limiting
+https://linear.app/developers/sdk-errors
+https://linear.app/developers/sdk-fetching-and-modifying-data
+https://linear.app/developers/sdk-webhooks
+https://linear.app/developers/sdk
+https://linear.app/developers/webhooks

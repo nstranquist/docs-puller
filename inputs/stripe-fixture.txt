@@ -1,0 +1,12 @@
+# stripe -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 8 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://docs.stripe.com/api/checkout/sessions.md
+https://docs.stripe.com/api/payment_intents.md
+https://docs.stripe.com/api/subscriptions.md
+https://docs.stripe.com/connect/how-connect-works.md
+https://docs.stripe.com/payments/checkout.md
+https://docs.stripe.com/payments/subscriptions.md
+https://docs.stripe.com/tax/connect.md
+https://docs.stripe.com/webhooks.md

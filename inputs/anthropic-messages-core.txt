@@ -1,0 +1,5 @@
+# Anthropic Messages API hub — curated for ask-eval fixture.
+# Merge pull only (routeAnthropic maps platform.claude.com, not docs.anthropic.com).
+
+https://platform.claude.com/docs/en/build-with-claude/working-with-messages
+https://platform.claude.com/docs/en/api/messages

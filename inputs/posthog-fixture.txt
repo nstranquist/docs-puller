@@ -1,0 +1,7 @@
+# posthog -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 3 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://posthog.com/docs/data/cohorts
+https://posthog.com/docs/feature-flags/bootstrapping
+https://posthog.com/docs/session-replay/installation

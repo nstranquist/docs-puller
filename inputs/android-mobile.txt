@@ -1,0 +1,17 @@
+# Android mobile docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: developer.android.com has broad sitemap indexes that are
+# heavier than the mobile build/runtime slice typical React Native app
+# work. Keep this list focused on build, emulator, manifests, permissions, and
+# debugging.
+#
+# Last refreshed: 2026-05-12.
+
+https://developer.android.com/build
+https://developer.android.com/studio/build
+https://developer.android.com/studio/run/emulator
+https://developer.android.com/studio/debug
+https://developer.android.com/guide/topics/manifest/manifest-intro
+https://developer.android.com/guide/topics/manifest/uses-permission-element
+https://developer.android.com/training/permissions/requesting
+https://developer.android.com/develop/ui/compose/documentation

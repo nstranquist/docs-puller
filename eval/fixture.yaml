@@ -1,0 +1,760 @@
+# Retrieval bench fixture for docs-puller.
+#
+# Each entry: a (query, expected-paths) pair. Hit@K = an expected path
+# appears in the top K results. Expected paths are checked verbatim against
+# the search hit's `path` field — first segment must be the source dir.
+#
+# Mix:
+#   - canonical lookups   : "row level security" → the authoritative doc
+#   - cross-source        : queries phrased the way an agent would actually
+#     ask, where the right doc may be in a different source than the
+#     literal keyword vendor (e.g. "rate limit" → Slack web-api)
+#   - known-tricky        : queries we currently miss or rank poorly,
+#     kept here so embeddings/tuning experiments have a target to beat
+#
+# `source:` constrains the search to one source dir (mirrors the agent
+# pattern of pre-deciding which vendor to ask). Omitted = search all.
+#
+# `note:` is for humans; ignored by the runner.
+
+query_type: library_search
+
+queries:
+  # ────────────── Supabase ──────────────
+  - q: row level security
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: canonical RLS doc — high-frequency workspace query
+
+  - q: pgvector
+    expect:
+      - supabase/guides/database/extensions/pgvector.md
+
+  - q: supabase rls
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: |
+      Currently misses (canonical doc ranks ~5; troubleshooting docs win
+      because their paths/titles literally contain "rls" while the canonical
+      title is "Row Level Security" with no "rls" substring. Symptom of the
+      acronym-vs-expansion gap — "rls" needs to expand to "row level
+      security" the way "spec" expands to "specification". Surfaced
+      2026-04-29 by Phase A3 canary scan.
+
+  - q: supabase edge functions
+    expect:
+      - supabase/guides/functions.md
+      - supabase/guides/functions/quickstart.md
+    note: currently misses — top hit is a troubleshooting page
+
+  - q: supabase storage upload
+    expect:
+      - supabase/guides/storage/uploads/standard-uploads.md
+      - supabase/guides/storage/uploads/resumable-uploads.md
+      - supabase/guides/storage.md
+    note: post-A3 path-segment boost surfaces upload-specific docs first; treat as the canonical answer
+
+  - q: supabase realtime broadcast
+    expect:
+      - supabase/guides/realtime/broadcast.md
+
+  - q: supabase auth jwt
+    expect:
+      - supabase/guides/auth/jwts.md
+      - supabase/guides/auth.md
+    note: phrasing-sensitive — basename `jwts` (plural) doesn't exact-match query token `jwt`
+
+  - q: supabase mfa
+    expect:
+      - supabase/guides/auth/auth-mfa.md
+      - supabase/guides/auth/auth-mfa/totp.md
+      - supabase/guides/platform/multi-factor-authentication.md
+    note: |
+      acronym test — `mfa` expands to "multi factor authentication" via phraseSynonyms.
+      Multi-canonical: bare query "supabase mfa" can mean SDK MFA integration
+      (auth-mfa.md) OR org-level MFA enforcement (platform/multi-factor-authentication.md).
+      All three docs are legitimate top hits at ~275-282 score; accept any.
+
+  - q: supabase database functions
+    expect:
+      - supabase/guides/database/functions.md
+
+  - q: supabase realtime presence
+    expect:
+      - supabase/guides/realtime/realtime-user-presence.md
+
+  - q: supabase webhooks
+    expect:
+      - supabase/guides/database/webhooks.md
+
+  # ────────────── ClickHouse ──────────────
+  - q: MergeTree partition
+    expect:
+      - clickhouse/engines/table-engines/mergetree-family/custom-partitioning-key.md
+
+  - q: clickhouse materialized columns
+    expect:
+      - clickhouse/best-practices/use-materialized-views.md
+      - clickhouse/materialized-views.md
+    note: known-tricky — top hit is a posthog blog post
+
+  - q: clickhouse json type
+    expect:
+      - clickhouse/sql-reference/data-types/newjson.md
+
+  - q: clickhouse low cardinality
+    expect:
+      - clickhouse/sql-reference/data-types/lowcardinality.md
+
+  - q: clickhouse async insert
+    expect:
+      - clickhouse/optimize/asynchronous-inserts.md
+
+  - q: clickhouse arrayJoin
+    expect:
+      - clickhouse/sql-reference/functions/array-join.md
+    note: code-identifier query — exercises camelCase → kebab-case path mapping
+
+  - q: clickhouse projections
+    expect:
+      - clickhouse/data-modeling/projections.md
+
+  # ────────────── PostgreSQL ──────────────
+  - q: postgresql index types
+    expect:
+      - postgresql/docs/current/indexes-types.md
+      - postgresql/docs/current/indexes.md
+    note: known-tricky — currently returns clickhouse cross-bleed
+
+  - q: vacuum analyze
+    expect:
+      - postgresql/docs/current/sql-vacuum.md
+      - postgresql/docs/current/app-vacuumdb.md
+      - postgresql/docs/current/sql-analyze.md
+
+  - q: postgresql explain analyze
+    expect:
+      - postgresql/docs/current/using-explain.md
+      - postgresql/docs/current/sql-explain.md
+
+  - q: postgres partial index
+    expect:
+      - postgresql/docs/current/indexes-partial.md
+
+  - q: postgres window functions
+    expect:
+      - postgresql/docs/current/functions-window.md
+      - postgresql/docs/current/tutorial-window.md
+
+  - q: postgres recursive cte
+    expect:
+      - postgresql/docs/current/queries-with.md
+    note: acronym test — `cte` expands to "common table expression" via phraseSynonyms
+
+  - q: postgresql full text search
+    expect:
+      - postgresql/docs/current/textsearch.md
+
+  - q: vacuum full
+    expect:
+      - postgresql/docs/current/sql-vacuum.md
+      - postgresql/docs/current/routine-vacuuming.md
+
+  # ────────────── Azure / MS Learn ──────────────
+  - q: az login
+    expect:
+      - microsoft-learn/cli/azure/reference-index.md
+      - microsoft-learn/cli/azure/account.md
+    note: known-tricky — currently returns acr/task/credential, ranking issue
+
+  - q: azure blob storage cli
+    expect:
+      - microsoft-learn/cli/azure/storage/blob.md
+    note: known-tricky — keyword "blob" matches posthog cdp page first
+
+  - q: azure functions deploy
+    expect:
+      - microsoft-learn/cli/azure/functionapp/deployment.md
+      - microsoft-learn/cli/azure/functionapp.md
+
+  - q: azure storage account
+    expect:
+      - microsoft-learn/cli/azure/storage/account.md
+    note: known-tricky — query terms match many deep paths; canonical short-named doc loses
+
+  - q: azure service principal
+    expect:
+      - microsoft-learn/cli/azure/authenticate-azure-cli-service-principal.md
+      - microsoft-learn/cli/azure/ad/sp.md
+
+  - q: azure resource group
+    expect:
+      - microsoft-learn/cli/azure/group.md
+    note: known-tricky — short canonical title ("group") loses to long-titled blueprint variants
+
+  # ────────────── Slack ──────────────
+  - q: slack rate limits
+    expect:
+      - slack/apis/web-api/rate-limits.md
+    source: slack
+
+  - q: slack chat postMessage
+    expect:
+      - slack/reference/methods/chat.postmessage.md
+    note: known-tricky — currently returns slack-github-action page
+
+  - q: slack app manifest
+    expect:
+      - slack/app-manifests.md
+
+  - q: slack verify request signature
+    expect:
+      - slack/authentication/verifying-requests-from-slack.md
+
+  - q: slack auth tokens
+    expect:
+      - slack/authentication/tokens.md
+      - slack/authentication.md
+    note: synonym expansion auth↔authentication should let "auth" match canonical authentication docs
+
+  - q: slack reactions
+    expect:
+      - slack/reference/methods/reactions.add.md
+      - slack/reference/methods/reactions.get.md
+
+  - q: slack modal surface
+    expect:
+      - slack/surfaces.md
+      - slack/surfaces/modals.md
+    note: phrasing test — "modal surface" describes the modal UI surface; canonical may live under surfaces/
+
+  - q: slack slash commands
+    expect:
+      - slack/interactivity/implementing-slash-commands.md
+
+  # ────────────── Go ──────────────
+  - q: effective go
+    expect:
+      - go/doc/effective_go.md
+    note: known-tricky — title-only match goes to wiki/NonEnglish
+
+  - q: go modules tutorial
+    expect:
+      - go/doc/tutorial/create-module.md
+
+  - q: go language spec
+    expect:
+      - go/ref/spec.md
+
+  - q: go memory model
+    expect:
+      - go/ref/mem.md
+
+  - q: go generics tutorial
+    expect:
+      - go/doc/tutorial/generics.md
+
+  - q: go context cancel
+    expect:
+      - go/doc/database/cancel-operations.md
+    note: terse query — `context` is a Go std-lib package; corpus has cancellation in the database tutorial. Real go/pkg/context isn't ingested.
+
+  # ────────────── PostHog ──────────────
+  - q: session replay installation
+    expect:
+      - posthog/docs/session-replay/installation.md
+
+  - q: feature flag bootstrap
+    expect:
+      - posthog/docs/feature-flags/bootstrapping.md
+    note: phrasing-sensitive — "bootstrap" vs "bootstrapping"
+
+  - q: posthog cohorts
+    expect:
+      - posthog/docs/data/cohorts.md
+
+  # ────────────── Claude Code ──────────────
+  - q: claude code hooks
+    expect:
+      - claude-code/hooks-guide.md
+      - claude-code/hooks.md
+
+  - q: claude code skills
+    expect:
+      - claude-code/skills.md
+
+  - q: claude code memory
+    expect:
+      - claude-code/memory.md
+
+  - q: claude code mcp
+    expect:
+      - claude-code/mcp.md
+    note: acronym test — `mcp` expands to "model context protocol" via phraseSynonyms
+
+  # ────────────── Redis ──────────────
+  - q: redis sorted set leaderboard
+    expect:
+      - redis/develop/use-cases/leaderboard.md
+      - redis/develop/data-types/sorted-sets.md
+
+  - q: redis streams
+    expect:
+      - redis/develop/data-types/streams.md
+
+  - q: redis hyperloglog
+    expect:
+      - redis/develop/data-types/probabilistic/hyperloglogs.md
+    note: basename `hyperloglogs` (plural) doesn't exact-match query token `hyperloglog`
+
+  # ────────────── Sentry ──────────────
+  - q: sentry releases cli
+    expect:
+      - sentry/cli/releases.md
+    note: Sentry corpus is currently CLI-only (full docs.sentry.io not ingested)
+
+  # ────────────── React Native / Expo ──────────────
+  - q: react native flatlist performance
+    expect:
+      - react-native/docs/optimizing-flatlist-configuration.md
+      - react-native/docs/0.77/optimizing-flatlist-configuration.md
+
+  - q: react native pressable
+    expect:
+      - react-native/docs/pressable.md
+      - react-native/docs/0.77/pressable.md
+    note: versioned-vs-unversioned acceptable — fixture treats both as canonical
+
+  - q: expo eas build
+    expect:
+      - expo/build/introduction.md
+      - expo/build/eas-json.md
+
+  - q: expo push notifications
+    expect:
+      - expo/guides/using-push-notifications-services.md
+      - expo/push-notifications/overview.md
+      - expo/push-notifications/push-notifications-setup.md
+    note: zero-byte expo/push-notifications.md was dropped from FTS during index-nicos cleanup; accept the live non-empty guide/overview/setup docs
+
+  # ────────────── VS Code ──────────────
+  - q: vscode extension api
+    expect:
+      - vscode/api.md
+
+  # ────────────── Obsidian ──────────────
+  - q: obsidian plugin manifest
+    expect:
+      - obsidian-app-docs/Reference/Manifest.md
+
+  - q: obsidian build first plugin
+    expect:
+      - obsidian-app-docs/Plugins/Getting started/Build a plugin.md
+
+  # ────────────── Chrome ──────────────
+  - q: chrome extensions manifest
+    expect:
+      - chrome/docs/extensions/reference/manifest.md
+
+  # ────────────── Anthropic API (platform.claude.com/docs) ──────────────
+  - q: anthropic messages api
+    expect:
+      - anthropic/build-with-claude/working-with-messages.md
+      - anthropic/api/messages.md
+
+  - q: anthropic prompt caching
+    expect:
+      - anthropic/build-with-claude/prompt-caching.md
+
+  - q: anthropic tool use
+    expect:
+      - anthropic/agents-and-tools/tool-use/how-tool-use-works.md
+      - anthropic/agents-and-tools/tool-use/define-tools.md
+    note: known-tricky — top hit is `strict-tool-use.md` (a specific feature) over the conceptual canonical
+
+  - q: anthropic batch processing
+    expect:
+      - anthropic/build-with-claude/batch-processing.md
+
+  - q: anthropic vision
+    expect:
+      - anthropic/build-with-claude/vision.md
+
+  - q: anthropic streaming
+    expect:
+      - anthropic/build-with-claude/streaming.md
+
+  - q: anthropic citations
+    expect:
+      - anthropic/build-with-claude/citations.md
+
+  - q: anthropic rate limits
+    expect:
+      - anthropic/build-with-claude/rate-limits-api.md
+
+  - q: anthropic count tokens
+    expect:
+      - anthropic/build-with-claude/token-counting.md
+
+  # ────────────── Stripe ──────────────
+  - q: stripe webhooks
+    expect:
+      - stripe/webhooks.md
+
+  - q: stripe checkout session
+    expect:
+      - stripe/api/checkout/sessions.md
+      - stripe/payments/checkout.md
+
+  - q: stripe payment intent
+    expect:
+      - stripe/api/payment_intents.md
+
+  - q: stripe subscriptions
+    expect:
+      - stripe/api/subscriptions.md
+      - stripe/payments/subscriptions.md
+
+  - q: stripe connect
+    expect:
+      - stripe/tax/connect.md
+    note: stripe Connect's canonical hub doc is missing — only `stripe/tax/connect.md` ingested. Re-pull may help.
+
+  # ────────────── TanStack ──────────────
+  - q: tanstack router file-based routing
+    expect:
+      - tanstack/router/latest/docs/routing/file-based-routing.md
+
+  - q: tanstack query devtools
+    expect:
+      - tanstack/query/latest/docs/framework/react/devtools.md
+
+  # ────────────── Vercel ──────────────
+  - q: vercel edge runtime
+    expect:
+      - vercel/functions/runtimes/edge.md
+
+  - q: vercel environment variables
+    expect:
+      - vercel/environment-variables.md
+
+  - q: vercel cli deploy
+    expect:
+      - vercel/cli/deploying-from-cli.md
+
+  # ────────────── Hono ──────────────
+  - q: hono getting started
+    expect:
+      - hono/getting-started/basic.md
+
+  - q: hono middleware
+    expect:
+      - hono/guides/middleware.md
+
+  - q: hono jsx
+    expect:
+      - hono/guides/jsx.md
+
+  - q: hono validation
+    expect:
+      - hono/guides/validation.md
+
+  # ────────────── Drizzle ──────────────
+  - q: drizzle migrations
+    expect:
+      - drizzle/migrations.md
+
+  - q: drizzle schema
+    expect:
+      - drizzle/schemas.md
+
+  - q: drizzle relations
+    expect:
+      - drizzle/relations-v2.md
+      - drizzle/relations.md
+
+  # ────────────── Cloudflare Workers ──────────────
+  - q: cloudflare workers fetch
+    expect:
+      - cloudflare/workers/runtime-apis/fetch.md
+
+  - q: cloudflare wrangler
+    expect:
+      - cloudflare/workers/wrangler.md
+
+  - q: cloudflare workers durable objects
+    expect:
+      - cloudflare/workers/platform/storage-options.md
+      - cloudflare/workers/testing/miniflare/storage/durable-objects.md
+    note: Durable Objects has its own /durable-objects/ section on developers.cloudflare.com that we didn't pull (only /workers/). Best-canonical-in-corpus is the storage-options overview.
+
+  # ────────────── React ──────────────
+  - q: react useState
+    expect:
+      - react/reference/react/useState.md
+
+  - q: react useEffect
+    expect:
+      - react/reference/react/useEffect.md
+
+  - q: react context
+    expect:
+      - react/reference/react/createContext.md
+      - react/reference/react/useContext.md
+
+  - q: react suspense
+    expect:
+      - react/reference/react/Suspense.md
+
+  # ────────────── Bun ──────────────
+  - q: bun install
+    expect:
+      - bun/pm/cli/install.md
+      - bun/installation.md
+
+  - q: bun sqlite
+    expect:
+      - bun/runtime/sqlite.md
+
+  - q: bun test
+    expect:
+      - bun/test.md
+      - bun/test/writing-tests.md
+
+  # ────────────── Playwright ──────────────
+  - q: playwright locators
+    expect:
+      - playwright/docs/locators.md
+
+  - q: playwright assertions
+    expect:
+      - playwright/docs/test-assertions.md
+    note: known-tricky — `mcp/tools/assertions.md` (basename match) outranks the docs/test-assertions canonical
+
+  - q: playwright fixtures
+    expect:
+      - playwright/docs/test-fixtures.md
+      - playwright/docs/next/test-fixtures.md
+
+  - q: playwright api testing
+    expect:
+      - playwright/docs/api-testing.md
+
+  # ────────────── Linear ──────────────
+  - q: linear create issue
+    expect:
+      - linear/create-issues-using-linear-new.md
+
+  # ────────────── Apple DocC (MDM) ──────────────
+  # Added 2026-04-29 alongside the DocC ingester. Every expected path is
+  # deterministic from a DocC reference URL (/documentation/devicemanagement/
+  # <slug> → apple-devicemanagement/<slug>.md), so a green run here proves the
+  # crawler reached + rendered the canonical payload pages.
+
+  - q: macos desktop wallpaper payload
+    expect:
+      - apple-devicemanagement/desktop.md
+    note: canonical Desktop payload — the live URL the user originally cited
+
+  - q: filevault disk encryption mdm
+    expect:
+      - apple-devicemanagement/fdefilevault.md
+
+  - q: vpn payload mdm profile
+    expect:
+      - apple-devicemanagement/vpn.md
+      - apple-devicemanagement/applayervpn.md
+
+  - q: device restrictions payload
+    expect:
+      - apple-devicemanagement/restrictions.md
+
+  - q: passcode policy mdm
+    expect:
+      - apple-devicemanagement/managing-passcodes.md
+      - apple-devicemanagement/passcode.md
+    note: |
+      Multi-canonical: managing-passcodes.md is the article about passcode
+      policy (the agent intent); passcode.md is the dictionary schema.
+      Either is a legitimate top hit; the article ranks first because the
+      query phrasing matches the policy/management framing.
+
+  - q: extensible single sign on
+    expect:
+      - apple-devicemanagement/extensiblesinglesignon.md
+      - apple-devicemanagement/extensiblesinglesignonkerberos.md
+
+  - q: MDM check-in protocol
+    expect:
+      - apple-devicemanagement/check-in.md
+
+  - q: declarative management data model
+    expect:
+      - apple-devicemanagement/leveraging-the-declarative-management-data-model-to-scale-devices.md
+      - apple-devicemanagement/integrating-declarative-management.md
+
+  - q: profile-specific payload keys
+    expect:
+      - apple-devicemanagement/profile-specific-payload-keys.md
+
+  - q: mdm push notifications
+    expect:
+      - apple-devicemanagement/setting-up-push-notifications-for-your-device-magagement-customers.md
+    note: |
+      Replaced the original "device management overview" query (which
+      cross-source-bled to Stripe terminal/MSFT IoT because "device" +
+      "overview" are too generic) with a tighter MDM-shaped query whose
+      canonical doc is unambiguous. Apple renamed the slug (2026): mdm-customers
+      → device-magagement-customers (typo preserved upstream).
+
+  # ────────────── Natural-language queries (added 2026-05-01) ──────────────
+  # Hypothesis to test: LLM rerank wins even bigger on NL queries because
+  # BM25's title-/path-/exact-match boosts have less to grip when the
+  # surface tokens don't directly match the canonical doc's identifier.
+  # Each query is a paraphrase of an identifier query above; expected
+  # paths are identical so we measure pure rank quality on the rephrasing.
+
+  - q: how do I restrict users to seeing only their own rows in postgres
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: NL paraphrase of "row level security"
+
+  - q: what's the recommended way to scope per-user data access in supabase
+    expect:
+      - supabase/guides/database/postgres/row-level-security.md
+    note: NL paraphrase of "supabase rls"
+
+  - q: how do I deploy serverless code on supabase
+    expect:
+      - supabase/guides/functions.md
+    note: NL paraphrase of "supabase edge functions"
+
+  - q: what's the standard way to upload a file to supabase storage
+    expect:
+      - supabase/guides/storage/uploads/standard-uploads.md
+    note: NL paraphrase of "supabase storage upload"
+
+  - q: how do I send a custom message to many subscribers with supabase realtime
+    expect:
+      - supabase/guides/realtime/broadcast.md
+    note: NL paraphrase of "supabase realtime broadcast"
+
+  - q: working with supabase JWT tokens
+    expect:
+      - supabase/guides/auth/jwts.md
+    note: NL paraphrase of "supabase auth jwt"
+
+  - q: how can I optimize a column that only has a few distinct values in clickhouse
+    expect:
+      - clickhouse/sql-reference/data-types/lowcardinality.md
+    note: NL paraphrase of "clickhouse low cardinality"
+
+  - q: how do I batch lots of small writes efficiently in clickhouse
+    expect:
+      - clickhouse/optimize/asynchronous-inserts.md
+    note: NL paraphrase of "clickhouse async insert"
+
+  - q: how do I speed up queries with precomputed aggregates in clickhouse
+    expect:
+      - clickhouse/data-modeling/projections.md
+    note: NL paraphrase of "clickhouse projections"
+
+  - q: what are the different kinds of indexes available in postgres
+    expect:
+      - postgresql/docs/current/indexes-types.md
+    note: NL paraphrase of "postgresql index types"
+
+  - q: how do I clean up dead rows and update statistics in postgres
+    expect:
+      - postgresql/docs/current/sql-vacuum.md
+    note: NL paraphrase of "vacuum analyze"
+
+  - q: how do I store and update local state in a react function component
+    expect:
+      - react/reference/react/useState.md
+    note: NL paraphrase of "react useState"
+
+  - q: how do I run side effects when a react component mounts
+    expect:
+      - react/reference/react/useEffect.md
+    note: NL paraphrase of "react useEffect"
+
+  - q: how do I send a message to a slack channel programmatically
+    expect:
+      - slack/reference/methods/chat.postmessage.md
+    note: NL paraphrase of "slack chat postMessage"
+
+  - q: how do I verify that a webhook request actually came from slack
+    expect:
+      - slack/authentication/verifying-requests-from-slack.md
+    note: NL paraphrase of "slack verify request signature"
+
+  - q: what are slack's API rate limits and how do I handle 429 responses
+    expect:
+      - slack/apis/web-api/rate-limits.md
+    note: NL paraphrase of "slack rate limits"
+
+  - q: how do I open a popup modal in slack with my app
+    expect:
+      - slack/surfaces/modals.md
+    note: NL paraphrase of "slack modal surface"
+
+  - q: how do I receive notifications when a charge succeeds in stripe
+    expect:
+      - stripe/webhooks.md
+    note: NL paraphrase of "stripe webhooks"
+
+  - q: how do I create recurring subscription billing in stripe
+    expect:
+      - stripe/payments/subscriptions.md
+    note: NL paraphrase of "stripe subscriptions"
+
+  - q: how do I let users connect their own stripe account to my platform
+    expect:
+      - stripe/connect/how-connect-works.md
+    note: NL paraphrase of "stripe connect"
+
+  - q: how do I build a message queue using redis streams
+    expect:
+      - redis/develop/data-types/streams.md
+    note: NL paraphrase of "redis streams"
+
+  - q: how do I count unique items efficiently in redis
+    expect:
+      - redis/develop/data-types/probabilistic/hyperloglogs.md
+    note: NL paraphrase of "redis hyperloglog"
+
+  - q: how do I assert that something is visible in a playwright test
+    expect:
+      - playwright/docs/test-assertions.md
+    note: NL paraphrase of "playwright assertions"
+
+  - q: what's the recommended way to find an element in playwright tests
+    expect:
+      - playwright/docs/locators.md
+    note: NL paraphrase of "playwright locators"
+
+  - q: how do I write a postgres function I can call from the supabase client
+    expect:
+      - supabase/guides/database/functions.md
+    note: NL paraphrase of "supabase database functions"
+
+  - q: how do I configure environment variables for a vercel deployment
+    expect:
+      - vercel/environment-variables.md
+    note: NL paraphrase of "vercel environment variables"
+
+  - q: how do I generate and run schema migrations with drizzle
+    expect:
+      - drizzle/migrations.md
+    note: NL paraphrase of "drizzle migrations"
+
+  - q: how do I get started writing a tsx file with bun
+    expect:
+      - bun/guides/runtime/typescript.md
+    note: NL paraphrase, no direct identifier match
+
+  - q: what are the rules for writing typescript that narrows a union type
+    expect:
+      - typescript/handbook-v2/Narrowing.md
+    note: NL paraphrase, runs against the typescript handbook

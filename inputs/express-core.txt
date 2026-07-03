@@ -1,0 +1,26 @@
+# Express core docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: expressjs.com/sitemap.xml includes localized alternates
+# and repeated host chrome. Common use: Express for API/demo apps, so keep this
+# source on the English starter, guide, middleware, migration, and API pages.
+#
+# Last refreshed: 2026-05-12.
+
+https://expressjs.com/
+https://expressjs.com/en/starter/installing.html
+https://expressjs.com/en/starter/hello-world.html
+https://expressjs.com/en/starter/generator.html
+https://expressjs.com/en/starter/basic-routing.html
+https://expressjs.com/en/starter/static-files.html
+https://expressjs.com/en/starter/faq.html
+https://expressjs.com/en/guide/routing.html
+https://expressjs.com/en/guide/writing-middleware.html
+https://expressjs.com/en/guide/using-middleware.html
+https://expressjs.com/en/guide/using-template-engines.html
+https://expressjs.com/en/guide/error-handling.html
+https://expressjs.com/en/guide/debugging.html
+https://expressjs.com/en/guide/behind-proxies.html
+https://expressjs.com/en/guide/migrating-4.html
+https://expressjs.com/en/guide/migrating-5.html
+https://expressjs.com/en/4x/api.html
+https://expressjs.com/en/5x/api.html

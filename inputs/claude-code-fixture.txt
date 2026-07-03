@@ -1,0 +1,8 @@
+# claude-code -- fixture-seeded (eval Hit@K). code.claude.com/docs/en/<page>.md mirror.
+# Reconstructed 2026-05-28.
+
+https://code.claude.com/docs/en/hooks-guide.md
+https://code.claude.com/docs/en/hooks.md
+https://code.claude.com/docs/en/mcp.md
+https://code.claude.com/docs/en/memory.md
+https://code.claude.com/docs/en/skills.md

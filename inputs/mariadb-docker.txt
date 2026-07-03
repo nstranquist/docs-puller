@@ -1,0 +1,11 @@
+# MariaDB Docker docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: Common use: MariaDB only as the local WordPress backing
+# service. Keep this source on Docker usage, environment variables, and
+# healthcheck docs rather than the full MariaDB server corpus.
+#
+# Last refreshed: 2026-05-12.
+
+https://mariadb.com/kb/en/installing-and-using-mariadb-via-docker/
+https://mariadb.com/kb/en/mariadb-server-docker-official-image-environment-variables/
+https://mariadb.com/kb/en/mariadb-server-docker-official-image-healthcheck/

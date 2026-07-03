@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "patterns": [
+    {
+      "pattern": "generated/local-ai/human-command-prompts/",
+      "reason": "generated-human-command-prompt-export",
+      "penalty": 20,
+      "exclude_context": true
+    },
+    {
+      "pattern": "local-ai/human-command-prompts/",
+      "reason": "human-command-prompt-replay",
+      "penalty": 20,
+      "exclude_context": true
+    },
+    {
+      "pattern": "hermes/evals/runs/",
+      "reason": "hermes-eval-log",
+      "penalty": 20,
+      "exclude_context": true
+    },
+    {
+      "pattern": "cmd/docs-puller/eval/",
+      "reason": "docs-puller-eval-artifact",
+      "penalty": 20,
+      "exclude_context": true
+    },
+    {
+      "pattern": ".claude/worktrees/",
+      "reason": "agent-scratch-worktree",
+      "penalty": 20,
+      "exclude_context": true
+    }
+  ]
+}

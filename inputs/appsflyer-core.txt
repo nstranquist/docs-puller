@@ -1,0 +1,11 @@
+# appsflyer -- curated dev-hub SDK docs (may be client-rendered; partial OK).
+# Refreshed 2026-06-29; confirmed upstream 404s pruned.
+
+https://dev.appsflyer.com/hc/docs/getting-started
+https://dev.appsflyer.com/hc/docs/integrate-android-sdk
+https://dev.appsflyer.com/hc/docs/integrate-ios-sdk
+https://dev.appsflyer.com/hc/docs/in-app-events-android
+https://dev.appsflyer.com/hc/docs/in-app-events-ios
+https://dev.appsflyer.com/hc/docs/deep-linking
+https://dev.appsflyer.com/hc/docs/conversion-data-android
+https://dev.appsflyer.com/hc/docs/react-native-plugin

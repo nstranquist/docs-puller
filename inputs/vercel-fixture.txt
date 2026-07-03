@@ -1,0 +1,7 @@
+# vercel -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 3 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://vercel.com/docs/cli/deploying-from-cli.md
+https://vercel.com/docs/environment-variables.md
+https://vercel.com/docs/functions/runtimes/edge.md

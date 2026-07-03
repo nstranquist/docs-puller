@@ -1,0 +1,5 @@
+# chrome -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 1 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://developer.chrome.com/docs/extensions/reference/manifest

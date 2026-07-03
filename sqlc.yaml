@@ -1,0 +1,30 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "sqlc/query.sql"
+    schema: "sqlc/schema.sql"
+    gen:
+      go:
+        package: "ftsdb"
+        out: "internal/ftsdb"
+        sql_package: "database/sql"
+        emit_interface: false
+        emit_json_tags: false
+        emit_prepared_queries: false
+        emit_exact_table_names: false
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true
+  - engine: "sqlite"
+    queries: "sqlc/embed_query.sql"
+    schema: "sqlc/embed_schema.sql"
+    gen:
+      go:
+        package: "embeddb"
+        out: "internal/embeddb"
+        sql_package: "database/sql"
+        emit_interface: false
+        emit_json_tags: false
+        emit_prepared_queries: false
+        emit_exact_table_names: false
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true

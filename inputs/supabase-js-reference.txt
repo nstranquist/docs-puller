@@ -1,0 +1,9 @@
+# Supabase JavaScript reference — curated URLs for ask-eval + agent retrieval.
+# Merge pull only (partial list — do NOT use --replace-source or it prunes the whole supabase tree).
+# Storage method pages moved off /reference/javascript/* (404 as of 2026-06); use guides in supabase-ask-eval-core.txt.
+
+https://supabase.com/docs/reference/javascript/auth-signup
+https://supabase.com/docs/reference/javascript/auth-signinwithpassword
+https://supabase.com/docs/reference/javascript/auth-signinwithoauth
+https://supabase.com/docs/reference/javascript/rpc
+https://supabase.com/docs/reference/javascript/subscribe

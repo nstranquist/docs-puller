@@ -1,0 +1,36 @@
+# pnpm core docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: pnpm.io has a useful sitemap, but a narrow docs profile
+# needs the workspace, package metadata, and CLI command surface rather than the
+# whole site. Refresh from https://pnpm.io/sitemap.xml when adding commands.
+#
+# Last refreshed: 2026-05-12.
+
+https://pnpm.io/workspaces
+https://pnpm.io/pnpm-workspace_yaml
+https://pnpm.io/package_json
+https://pnpm.io/npmrc
+https://pnpm.io/settings
+https://pnpm.io/catalogs
+https://pnpm.io/cli/add
+https://pnpm.io/cli/install
+https://pnpm.io/cli/run
+https://pnpm.io/cli/exec
+https://pnpm.io/cli/dlx
+https://pnpm.io/cli/recursive
+https://pnpm.io/cli/deploy
+https://pnpm.io/cli/fetch
+https://pnpm.io/cli/link
+https://pnpm.io/cli/list
+https://pnpm.io/cli/outdated
+https://pnpm.io/cli/update
+https://pnpm.io/cli/why
+https://pnpm.io/cli/config
+https://pnpm.io/cli/store
+https://pnpm.io/cli/env
+https://pnpm.io/cli/rebuild
+https://pnpm.io/cli/prune
+https://pnpm.io/cli/dedupe
+https://pnpm.io/cli/audit
+https://pnpm.io/cli/licenses
+https://pnpm.io/cli/approve-builds

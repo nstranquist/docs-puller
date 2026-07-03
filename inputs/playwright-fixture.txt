@@ -1,0 +1,9 @@
+# playwright -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 5 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://playwright.dev/docs/api-testing
+https://playwright.dev/docs/locators
+https://playwright.dev/docs/next/test-fixtures
+https://playwright.dev/docs/test-assertions
+https://playwright.dev/docs/test-fixtures

@@ -1,0 +1,55 @@
+# Retrieval bench fixture for the `refs-dissections` source — synthesized
+# code-adoption narratives (~/code/refs/_cases/<slug>/*.md), ingested by
+# `docs-puller crawl-refs`.
+# All queries are constrained to `source: refs-dissections` (the agent pattern of
+# "search my code-adoption corpus"). KEP: docs/active/06-08-0604-docs-puller-productization/.
+
+query_type: refs_dissection_search
+
+queries:
+  # ───────── clean hits (canonical dissection ranks in top-K) ─────────
+  - q: event-sourced resume
+    source: refs-dissections
+    expect:
+      - refs-dissections/Archon/08-adoption-assessment.md
+      - refs-dissections/Archon/09-leverage-plan.md
+    note: Archon is the DAG/agent-workflow ref whose resume-caching contract we want to port
+
+  - q: ambient agents
+    source: refs-dissections
+    expect:
+      - refs-dissections/warp/09-leverage-plan.md
+      - refs-dissections/warp/03-code-patterns.md
+    note: warp's app/src/ambient_agents/ is where the "ambient" agent lane was named
+
+  - q: DAG workflow
+    source: refs-dissections
+    expect:
+      - refs-dissections/Archon/03-code-patterns.md
+      - refs-dissections/Archon/09-leverage-plan.md
+    note: Archon's YAML-driven DAG workflow engine
+
+  - q: kill switch
+    source: refs-dissections
+    expect:
+      - refs-dissections/goose/09-leverage-plan.md
+    note: goose is the ToolInspector/governance ref behind our toolguard port
+
+  # ───────── known-tricky (canonical ref exists but is out-ranked — tuning targets) ─────────
+  - q: knowledge graph code intelligence
+    source: refs-dissections
+    expect:
+      - refs-dissections/GitNexus/02-api-surface.md
+    note: KNOWN-TRICKY — GitNexus is literally "Git → knowledge-graph code intelligence" but understand-anything/repowise currently out-rank it
+
+  - q: retrieval eval
+    source: refs-dissections
+    expect:
+      - refs-dissections/hindsight/09-leverage-plan.md
+    note: KNOWN-TRICKY — hindsight is the RAG retrieval-eval ref; gbrain/tantivy currently win
+
+  - q: incremental indexing RAG
+    source: refs-dissections
+    expect:
+      - refs-dissections/cocoindex/09-leverage-plan.md
+    note: KNOWN-TRICKY — cocoindex is the incremental real-time RAG indexing ref; verbose AND-query currently returns nothing

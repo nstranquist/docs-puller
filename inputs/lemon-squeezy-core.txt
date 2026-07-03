@@ -1,0 +1,16 @@
+# Lemon Squeezy docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: docs.lemonsqueezy.com does not expose a useful sitemap.
+# Common use: the Lemon Squeezy JS package for billing, so keep this on developer
+# guide and API resources most relevant to server integrations.
+#
+# Last refreshed: 2026-05-12.
+
+https://docs.lemonsqueezy.com/guides/developer-guide/getting-started
+https://docs.lemonsqueezy.com/guides/developer-guide/webhooks
+https://docs.lemonsqueezy.com/api
+https://docs.lemonsqueezy.com/api/products
+https://docs.lemonsqueezy.com/api/variants
+https://docs.lemonsqueezy.com/api/checkouts
+https://docs.lemonsqueezy.com/api/orders
+https://docs.lemonsqueezy.com/api/subscriptions

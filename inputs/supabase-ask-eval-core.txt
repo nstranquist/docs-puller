@@ -1,0 +1,12 @@
+# Supabase guides required by ndev ask-eval fixture (merge pull — never --replace-source).
+# Full corpus refresh: docs-puller pull --from inputs/supabase-guides.txt --out ~/code/docs
+
+https://supabase.com/docs/guides/database/postgres/row-level-security
+https://supabase.com/docs/guides/storage/uploads/standard-uploads
+https://supabase.com/docs/guides/storage/uploads/resumable-uploads
+https://supabase.com/docs/guides/storage/quickstart
+https://supabase.com/docs/guides/functions/secrets
+https://supabase.com/docs/guides/realtime/postgres-changes
+https://supabase.com/docs/guides/auth/redirect-urls
+https://supabase.com/docs/reference/cli/supabase-link
+https://supabase.com/docs/guides/cli

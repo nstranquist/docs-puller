@@ -1,0 +1,17 @@
+# Axiom runtime docs -- curated URL list for `docs-puller pull --from`.
+#
+# Why this is pinned: Axiom's sitemap is broad and includes a large APL/API
+# reference. Teams often use the JavaScript logger path, so keep this
+# source focused on JS ingest, OpenTelemetry, datasets, and tokens.
+#
+# Last refreshed: 2026-05-12.
+
+https://axiom.co/docs/guides/javascript
+https://axiom.co/docs/guides/opentelemetry-nodejs
+https://axiom.co/docs/query-data/datasets
+https://axiom.co/docs/reference/datasets
+https://axiom.co/docs/reference/tokens
+https://axiom.co/docs/restapi/api-limits
+https://axiom.co/docs/restapi/endpoints/ingestToDataset
+https://axiom.co/docs/restapi/endpoints/queryApl
+https://axiom.co/docs/restapi/endpoints/queryDataset

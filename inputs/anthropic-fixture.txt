@@ -1,0 +1,15 @@
+# anthropic -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 11 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools.md
+https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works.md
+https://platform.claude.com/docs/en/api/messages.md
+https://platform.claude.com/docs/en/build-with-claude/batch-processing.md
+https://platform.claude.com/docs/en/build-with-claude/citations.md
+https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md
+https://platform.claude.com/docs/en/build-with-claude/rate-limits-api.md
+https://platform.claude.com/docs/en/build-with-claude/streaming.md
+https://platform.claude.com/docs/en/build-with-claude/token-counting.md
+https://platform.claude.com/docs/en/build-with-claude/vision.md
+https://platform.claude.com/docs/en/build-with-claude/working-with-messages.md

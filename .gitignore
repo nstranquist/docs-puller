@@ -1,0 +1,16 @@
+# Compiled CLI binary (built locally; not committed)
+/docs-puller
+*.test
+*.exe
+coverage.out
+**/.build/
+# Local FTS5 / embedding indexes and state
+*.db
+*.db-*
+.cache/
+.docs-puller/
+# VS Code extension build output
+vscode-extension/node_modules/
+vscode-extension/out/
+# OS files
+.DS_Store

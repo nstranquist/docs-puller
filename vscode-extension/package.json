@@ -1,0 +1,56 @@
+{
+  "name": "docs-puller-search",
+  "displayName": "Docs Puller Search",
+  "description": "Search the local vendor docs mirror (~/code/docs/) from inside VS Code. Backed by docs-puller serve.",
+  "version": "0.2.0",
+  "publisher": "nstranquist",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "docsPuller.search",
+        "title": "Docs Puller: Search",
+        "category": "Docs Puller"
+      },
+      {
+        "command": "docsPuller.searchScoped",
+        "title": "Docs Puller: Search in Source...",
+        "category": "Docs Puller"
+      }
+    ],
+    "configuration": {
+      "title": "Docs Puller Search",
+      "properties": {
+        "docsPuller.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:7799",
+          "description": "Base URL of the docs-puller serve endpoint."
+        },
+        "docsPuller.resultLimit": {
+          "type": "number",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum number of search results."
+        }
+      }
+    },
+    "keybindings": []
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,9 @@
+name: example
+description: Example stack profile for local docs-puller development.
+sources:
+  - id: supabase
+  - id: postgresql
+  - id: react
+  - id: nextjs
+  - id: go
+  - id: stripe

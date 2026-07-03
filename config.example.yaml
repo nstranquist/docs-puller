@@ -1,0 +1,34 @@
+# docs-puller operator config (optional).
+#
+# Basic pull / search / eval work without this file. Use it when you want:
+#   - cwd-based auto profile selection
+#   - lockfile pin scanning from your monorepo paths
+#   - custom source keyword boosts
+#
+# Quick start:
+#   docs-puller config init
+#
+# Manual setup:
+#   mkdir -p ~/.docs-puller/profiles
+#   cp config.example.yaml ~/.docs-puller/config.yaml
+#   cp profiles/example.yaml ~/.docs-puller/profiles/my-stack.yaml
+#   # edit paths and profile name, then: docs-puller profile list
+
+cwd_profiles:
+  - profile: my-stack
+    roots:
+      - ~/projects/my-app
+      - ~/code/my-monorepo
+
+pin_scan_roots:
+  - ~/projects/my-app
+  - ~/code/my-monorepo
+
+tools_pin_scopes:
+  - path_contains: /my-monorepo
+    scope: my-monorepo
+  - basename: my-monorepo
+    scope: my-monorepo
+
+# source_keywords:
+#   my-stack: [my-stack]

@@ -1,0 +1,8 @@
+# hono -- fixture-seeded URL list (eval Hit@K coverage).
+# Reconstructed 2026-05-28 from eval/fixture.yaml expect-paths.
+# 4 canonical pages. Breadth added separately via sitemap/llms.txt.
+
+https://hono.dev/docs/getting-started/basic
+https://hono.dev/docs/guides/jsx
+https://hono.dev/docs/guides/middleware
+https://hono.dev/docs/guides/validation
