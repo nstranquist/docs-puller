@@ -16,6 +16,7 @@ var targetRoutes = []targetRoute{
 	{name: "supabase-pages", match: routeSupabasePages},
 	{name: "github-readme", match: routeGithubReadme},
 	{name: "postgresql", match: routePostgresql},
+	{name: "sqlite", match: routeSQLite},
 	{name: "clickhouse", match: routeClickHouse},
 	{name: "microsoft-learn", match: routeMicrosoftLearn},
 	{name: "openai", match: routeOpenAI},
@@ -212,6 +213,13 @@ func routePostgresql(u *url.URL) (string, string, bool) {
 		return "", "", false
 	}
 	return "postgresql", relHTMLPath(u), true
+}
+
+func routeSQLite(u *url.URL) (string, string, bool) {
+	if u.Host != "sqlite.org" && u.Host != "www.sqlite.org" {
+		return "", "", false
+	}
+	return "sqlite", relHTMLPath(u), true
 }
 
 func routeClickHouse(u *url.URL) (string, string, bool) {

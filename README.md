@@ -184,6 +184,7 @@ See `config.example.yaml` for the schema (`cwd_profiles`, `pin_scan_roots`,
 - Index: `<out>/.cache/search.db`
 - Embeddings: `<out>/.cache/embeddings.db` plus optional flat vector sidecars
 - Query log: opt-in, controlled by `--log-query` or `DOCS_PULLER_QUERY_LOG=1`
+- Ranking-hygiene policy: `DOCS_PULLER_HYGIENE_POLICY=/path/to/policy.json` appends your own downranked path patterns (same JSON shape as `internal/sourcehygiene/policy.json`) to the built-in set — useful for keeping generated notes or scratch exports out of results
 - Legacy shared-state paths: set `DOCS_PULLER_LEGACY_NDEV_PATHS=1` only when intentionally sharing corpus state with a private wrapper install (operator builds only)
 
 ## Quality Gates
@@ -212,13 +213,19 @@ docs-puller eval --check-fixture
 docs-puller eval-suite --json
 ```
 
-A **public sample corpus** with a fully reproducible leaderboard baseline is coming next (`eval/sample-corpus/`). Until then, treat published Hit@K numbers on the hosted leaderboard as **operator-measured on a private mirror**, not as something an outsider can replay without building the same corpus.
-
-When the sample corpus lands, regenerate the public leaderboard from it:
+A **fully reproducible baseline** ships in [`eval/sample-corpus/`](eval/sample-corpus/):
+24 pinned public doc pages (SQLite, Go, PostgreSQL) + 24 queries + a frozen
+BM25-only baseline (**Hit@1 95.8% / Hit@5 100% / MRR 0.979**) that anyone can
+replay with no API key:
 
 ```sh
-docs-puller eval-leaderboard --fixtures eval/sample-corpus --leaderboard-out docs-puller-leaderboard.html
-docs-puller eval-leaderboard --format json
+corpus="$(mktemp -d)"
+docs-puller pull --from eval/sample-corpus/sources.md --out "$corpus"
+docs-puller reindex --out "$corpus"
+docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus"
+docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --format json
 ```
 
-The leaderboard reports BM25-only Hit@1, Hit@5, and MRR without requiring an API key.
+The main `eval/*.yaml` fixture numbers are measured on the maintainer's larger
+multi-vendor corpus mirror — treat those as operator-measured until you rebuild
+an equivalent corpus.

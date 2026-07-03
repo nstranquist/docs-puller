@@ -1,0 +1,61 @@
+# docs-puller sample-corpus fixture — 24 queries over the 24 pinned public
+# pages in sources.md. Fully reproducible: build the corpus with
+#   docs-puller pull --from eval/sample-corpus/sources.md --out <dir>
+#   docs-puller reindex --out <dir>
+# then score with
+#   docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out <dir>
+# Mixed identifier-style and natural-language queries; a few are deliberately
+# cross-source ambiguous (e.g. WAL exists in both SQLite and PostgreSQL) —
+# that competition is the retrieval problem being measured, not a fixture
+# defect to phrase away.
+query_type: sample_corpus
+queries:
+  - q: fts5 external content tables
+    expect: [sqlite/fts5.md]
+  - q: sqlite wal mode checkpoint
+    expect: [sqlite/wal.md]
+  - q: json_extract function
+    expect: [sqlite/json1.md]
+  - q: r-tree spatial range queries
+    expect: [sqlite/rtree.md]
+  - q: PRAGMA journal_mode
+    expect: [sqlite/pragma.md]
+  - q: read uncommitted shared cache isolation
+    expect: [sqlite/isolation.md]
+  - q: query planner index selection
+    expect: [sqlite/queryplanner.md]
+  - q: compound select order by
+    expect: [sqlite/lang_select.md]
+  - q: method sets pointer receiver
+    expect: [go/ref/spec.md]
+  - q: happens before memory model
+    expect: [go/ref/mem.md]
+  - q: defer panic and recover idioms
+    expect: [go/doc/effective_go.md]
+  - q: How do slices grow when appending?
+    expect: [go/blog/slices-intro.md]
+  - q: map iteration order randomized
+    expect: [go/blog/maps.md, go/ref/spec.md]
+    note: the language spec also answers this — either doc is a correct hit
+  - q: fan-in fan-out channel pipelines
+    expect: [go/blog/pipelines.md]
+  - q: go.mod require upgrade dependency
+    expect: [go/doc/modules/managing-dependencies.md]
+  - q: type parameters constraints tutorial
+    expect: [go/doc/tutorial/generics.md]
+  - q: declarative partitioning range and list
+    expect: [postgresql/docs/current/ddl-partitioning.md]
+  - q: gin and gist index types
+    expect: [postgresql/docs/current/indexes-types.md]
+  - q: partial index with where clause
+    expect: [postgresql/docs/current/indexes-partial.md]
+  - q: jsonb containment operators
+    expect: [postgresql/docs/current/functions-json.md]
+  - q: create index concurrently locking
+    expect: [postgresql/docs/current/sql-createindex.md]
+  - q: multiversion concurrency control snapshots
+    expect: [postgresql/docs/current/mvcc-intro.md]
+  - q: select distinct on expression
+    expect: [postgresql/docs/current/sql-select.md]
+  - q: write ahead logging reduced disk writes
+    expect: [postgresql/docs/current/wal-intro.md]

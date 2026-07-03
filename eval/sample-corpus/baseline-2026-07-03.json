@@ -1,0 +1,647 @@
+{
+  "summary": {
+    "mode": "fts5",
+    "n": 24,
+    "hit_at_1": 0.9583333333333334,
+    "hit_at_3": 1,
+    "hit_at_5": 1,
+    "hit_at_10": 1,
+    "recall_at_5": 0.9791666666666666,
+    "mrr": 0.9791666666666666,
+    "p50_ms": 0.726,
+    "p99_ms": 5.068,
+    "by_source_hit_at_5": {
+      "go": 1,
+      "postgresql": 1,
+      "sqlite": 1
+    },
+    "token_budget_tokens": 4000,
+    "token_budget_hit_rate": 1,
+    "p50_tokens_returned": 49,
+    "p99_tokens_returned": 181
+  },
+  "results": [
+    {
+      "query": "fts5 external content tables",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/fts5.md",
+      "expect": [
+        "sqlite/fts5.md"
+      ],
+      "got_paths": [
+        "sqlite/fts5.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 17,
+      "tokens_to_first_hit": 17,
+      "token_budget_hit": true,
+      "latency_ms": 4.609,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "sqlite wal mode checkpoint",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/wal.md",
+      "expect": [
+        "sqlite/wal.md"
+      ],
+      "got_paths": [
+        "sqlite/wal.md",
+        "sqlite/pragma.md",
+        "sqlite/isolation.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 52,
+      "tokens_to_first_hit": 16,
+      "token_budget_hit": true,
+      "latency_ms": 1.357,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "json_extract function",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/json1.md",
+      "expect": [
+        "sqlite/json1.md"
+      ],
+      "got_paths": [
+        "sqlite/json1.md",
+        "postgresql/docs/current/functions-json.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 53,
+      "tokens_to_first_hit": 19,
+      "token_budget_hit": true,
+      "latency_ms": 0.726,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "r-tree spatial range queries",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/rtree.md",
+      "expect": [
+        "sqlite/rtree.md"
+      ],
+      "got_paths": [
+        "sqlite/rtree.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 18,
+      "tokens_to_first_hit": 18,
+      "token_budget_hit": true,
+      "latency_ms": 1.4,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "PRAGMA journal_mode",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/pragma.md",
+      "expect": [
+        "sqlite/pragma.md"
+      ],
+      "got_paths": [
+        "sqlite/pragma.md",
+        "sqlite/wal.md",
+        "sqlite/isolation.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 52,
+      "tokens_to_first_hit": 17,
+      "token_budget_hit": true,
+      "latency_ms": 0.684,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "read uncommitted shared cache isolation",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/isolation.md",
+      "expect": [
+        "sqlite/isolation.md"
+      ],
+      "got_paths": [
+        "sqlite/isolation.md",
+        "sqlite/pragma.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 36,
+      "tokens_to_first_hit": 19,
+      "token_budget_hit": true,
+      "latency_ms": 13.494,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "query planner index selection",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/queryplanner.md",
+      "expect": [
+        "sqlite/queryplanner.md"
+      ],
+      "got_paths": [
+        "sqlite/queryplanner.md",
+        "postgresql/docs/current/indexes-partial.md",
+        "postgresql/docs/current/indexes-types.md",
+        "postgresql/docs/current/ddl-partitioning.md",
+        "sqlite/pragma.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 131,
+      "tokens_to_first_hit": 19,
+      "token_budget_hit": true,
+      "latency_ms": 0.807,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "compound select order by",
+      "query_type": "sample_corpus",
+      "expected_source": "sqlite",
+      "expected_doc": "sqlite/lang_select.md",
+      "expect": [
+        "sqlite/lang_select.md"
+      ],
+      "got_paths": [
+        "sqlite/lang_select.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 18,
+      "tokens_to_first_hit": 18,
+      "token_budget_hit": true,
+      "latency_ms": 0.48,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "method sets pointer receiver",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/ref/spec.md",
+      "expect": [
+        "go/ref/spec.md"
+      ],
+      "got_paths": [
+        "go/ref/spec.md",
+        "go/doc/effective_go.md",
+        "go/ref/mem.md",
+        "sqlite/rtree.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 69,
+      "tokens_to_first_hit": 20,
+      "token_budget_hit": true,
+      "latency_ms": 0.591,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "happens before memory model",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/ref/mem.md",
+      "expect": [
+        "go/ref/mem.md"
+      ],
+      "got_paths": [
+        "go/ref/mem.md",
+        "go/doc/effective_go.md",
+        "sqlite/rtree.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 49,
+      "tokens_to_first_hit": 14,
+      "token_budget_hit": true,
+      "latency_ms": 2.212,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "defer panic and recover idioms",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/doc/effective_go.md",
+      "expect": [
+        "go/doc/effective_go.md"
+      ],
+      "got_paths": [
+        "go/doc/effective_go.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 17,
+      "tokens_to_first_hit": 17,
+      "token_budget_hit": true,
+      "latency_ms": 2.884,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "How do slices grow when appending?",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/blog/slices-intro.md",
+      "expect": [
+        "go/blog/slices-intro.md"
+      ],
+      "got_paths": [
+        "go/blog/slices-intro.md",
+        "go/doc/effective_go.md",
+        "go/ref/spec.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 57,
+      "tokens_to_first_hit": 20,
+      "token_budget_hit": true,
+      "latency_ms": 2.953,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "map iteration order randomized",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/blog/maps.md",
+      "expect": [
+        "go/blog/maps.md",
+        "go/ref/spec.md"
+      ],
+      "got_paths": [
+        "go/ref/spec.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 0.5,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 20,
+      "tokens_to_first_hit": 20,
+      "token_budget_hit": true,
+      "latency_ms": 0.5,
+      "note": "the language spec also answers this — either doc is a correct hit",
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "fan-in fan-out channel pipelines",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/blog/pipelines.md",
+      "expect": [
+        "go/blog/pipelines.md"
+      ],
+      "got_paths": [
+        "go/blog/pipelines.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 18,
+      "tokens_to_first_hit": 18,
+      "token_budget_hit": true,
+      "latency_ms": 0.414,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "go.mod require upgrade dependency",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/doc/modules/managing-dependencies.md",
+      "expect": [
+        "go/doc/modules/managing-dependencies.md"
+      ],
+      "got_paths": [
+        "go/doc/modules/managing-dependencies.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 28,
+      "tokens_to_first_hit": 28,
+      "token_budget_hit": true,
+      "latency_ms": 0.421,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "type parameters constraints tutorial",
+      "query_type": "sample_corpus",
+      "expected_source": "go",
+      "expected_doc": "go/doc/tutorial/generics.md",
+      "expect": [
+        "go/doc/tutorial/generics.md"
+      ],
+      "got_paths": [
+        "go/doc/tutorial/generics.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 26,
+      "tokens_to_first_hit": 26,
+      "token_budget_hit": true,
+      "latency_ms": 0.382,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "declarative partitioning range and list",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/ddl-partitioning.md",
+      "expect": [
+        "postgresql/docs/current/ddl-partitioning.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/ddl-partitioning.md",
+        "postgresql/docs/current/sql-createindex.md",
+        "postgresql/docs/current/indexes-partial.md",
+        "postgresql/docs/current/sql-select.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 119,
+      "tokens_to_first_hit": 33,
+      "token_budget_hit": true,
+      "latency_ms": 0.472,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "gin and gist index types",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/indexes-types.md",
+      "expect": [
+        "postgresql/docs/current/indexes-types.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/indexes-types.md",
+        "postgresql/docs/current/sql-createindex.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 59,
+      "tokens_to_first_hit": 30,
+      "token_budget_hit": true,
+      "latency_ms": 0.388,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "partial index with where clause",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/indexes-partial.md",
+      "expect": [
+        "postgresql/docs/current/indexes-partial.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/indexes-partial.md",
+        "postgresql/docs/current/sql-createindex.md",
+        "sqlite/queryplanner.md",
+        "sqlite/pragma.md",
+        "go/ref/spec.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 117,
+      "tokens_to_first_hit": 32,
+      "token_budget_hit": true,
+      "latency_ms": 0.57,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "jsonb containment operators",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/functions-json.md",
+      "expect": [
+        "postgresql/docs/current/functions-json.md"
+      ],
+      "got_paths": [
+        "sqlite/json1.md",
+        "postgresql/docs/current/functions-json.md"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 2,
+      "rank": 2,
+      "tokens_returned": 53,
+      "tokens_to_first_hit": 53,
+      "token_budget_hit": true,
+      "latency_ms": 2.206,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "create index concurrently locking",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/sql-createindex.md",
+      "expect": [
+        "postgresql/docs/current/sql-createindex.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/sql-createindex.md",
+        "sqlite/isolation.md",
+        "sqlite/pragma.md",
+        "sqlite/wal.md",
+        "go/blog/maps.md",
+        "go/doc/effective_go.md",
+        "go/ref/mem.md",
+        "go/ref/spec.md",
+        "postgresql/docs/current/ddl-partitioning.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 181,
+      "tokens_to_first_hit": 29,
+      "token_budget_hit": true,
+      "latency_ms": 4.478,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "multiversion concurrency control snapshots",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/mvcc-intro.md",
+      "expect": [
+        "postgresql/docs/current/mvcc-intro.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/mvcc-intro.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 28,
+      "tokens_to_first_hit": 28,
+      "token_budget_hit": true,
+      "latency_ms": 0.635,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "select distinct on expression",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/sql-select.md",
+      "expect": [
+        "postgresql/docs/current/sql-select.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/sql-select.md",
+        "sqlite/lang_select.md",
+        "sqlite/fts5.md",
+        "sqlite/json1.md",
+        "sqlite/pragma.md",
+        "go/doc/effective_go.md",
+        "go/ref/spec.md",
+        "postgresql/docs/current/ddl-partitioning.md",
+        "postgresql/docs/current/functions-json.md",
+        "postgresql/docs/current/sql-createindex.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 229,
+      "tokens_to_first_hit": 25,
+      "token_budget_hit": true,
+      "latency_ms": 5.068,
+      "backend_mode": "fts5"
+    },
+    {
+      "query": "write ahead logging reduced disk writes",
+      "query_type": "sample_corpus",
+      "expected_source": "postgresql",
+      "expected_doc": "postgresql/docs/current/wal-intro.md",
+      "expect": [
+        "postgresql/docs/current/wal-intro.md"
+      ],
+      "got_paths": [
+        "postgresql/docs/current/wal-intro.md",
+        "sqlite/pragma.md"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "hit_at_5": true,
+      "hit_at_10": true,
+      "recall_at_5": 1,
+      "first_hit_rank": 1,
+      "rank": 1,
+      "tokens_returned": 48,
+      "tokens_to_first_hit": 31,
+      "token_budget_hit": true,
+      "latency_ms": 3.525,
+      "backend_mode": "fts5"
+    }
+  ]
+}

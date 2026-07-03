@@ -1,6 +1,10 @@
 package sourcehygiene
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestClassifyGeneratedAndScratchPaths(t *testing.T) {
 	cases := []struct {
@@ -45,5 +49,43 @@ func TestExpandedLimit(t *testing.T) {
 	}
 	if got := ExpandedLimit(20); got != 50 {
 		t.Fatalf("ExpandedLimit(20) = %d, want cap 50", got)
+	}
+}
+
+func TestLoadPolicyMergesUserPatterns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy.json")
+	user := `{"version":1,"patterns":[{"pattern":"my-scratch-notes/","reason":"user-scratch","penalty":20,"exclude_context":true}]}`
+	if err := os.WriteFile(path, []byte(user), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DOCS_PULLER_HYGIENE_POLICY", path)
+
+	p := loadPolicy()
+	found := false
+	for _, pat := range p.Patterns {
+		if pat.Pattern == "my-scratch-notes/" && pat.Reason == "user-scratch" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("user pattern not merged; patterns = %d", len(p.Patterns))
+	}
+	if len(p.Patterns) < 2 {
+		t.Fatal("embedded patterns must be retained alongside user patterns")
+	}
+}
+
+func TestLoadPolicySkipsMalformedUserFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy.json")
+	if err := os.WriteFile(path, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DOCS_PULLER_HYGIENE_POLICY", path)
+
+	p := loadPolicy()
+	if len(p.Patterns) == 0 {
+		t.Fatal("embedded policy must survive a malformed user file")
 	}
 }

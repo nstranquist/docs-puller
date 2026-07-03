@@ -3,8 +3,11 @@ package sourcehygiene
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 //go:embed policy.json
@@ -31,13 +34,40 @@ type Classification struct {
 	Pattern        string
 }
 
-var loadedPolicy = mustLoadPolicy()
+var (
+	policyOnce   sync.Once
+	loadedPolicy policy
+)
 
-func mustLoadPolicy() policy {
+func getPolicy() policy {
+	policyOnce.Do(func() { loadedPolicy = loadPolicy() })
+	return loadedPolicy
+}
+
+// loadPolicy parses the embedded policy and, when DOCS_PULLER_HYGIENE_POLICY
+// names a JSON file of the same shape, appends its patterns. User patterns
+// extend (never replace) the embedded set. A broken user file warns and is
+// skipped — ranking hygiene must never take down search.
+func loadPolicy() policy {
 	var p policy
 	if err := json.Unmarshal(policyBytes, &p); err != nil {
 		panic(err)
 	}
+	path := os.Getenv("DOCS_PULLER_HYGIENE_POLICY")
+	if path == "" {
+		return p
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sourcehygiene: skipping user policy %s: %v\n", path, err)
+		return p
+	}
+	var user policy
+	if err := json.Unmarshal(data, &user); err != nil {
+		fmt.Fprintf(os.Stderr, "sourcehygiene: skipping malformed user policy %s: %v\n", path, err)
+		return p
+	}
+	p.Patterns = append(p.Patterns, user.Patterns...)
 	return p
 }
 
@@ -46,7 +76,7 @@ func mustLoadPolicy() policy {
 func Classify(values ...string) Classification {
 	haystack := normalize(strings.Join(values, "\n"))
 	var out Classification
-	for _, pattern := range loadedPolicy.Patterns {
+	for _, pattern := range getPolicy().Patterns {
 		if pattern.Pattern == "" || !strings.Contains(haystack, normalize(pattern.Pattern)) {
 			continue
 		}
