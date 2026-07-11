@@ -1133,6 +1133,10 @@ func writeManifests(outRoot string, results []result, replaceSource bool, pruned
 		} else {
 			mergeIntoManifest(&m, fresh)
 		}
+		if n := dedupeManifestPaths(&m); n > 0 {
+			fmt.Fprintf(os.Stderr, "manifest: %s: pruned %d stale duplicate-path entr%s (older URL variants of the same file)\n",
+				source, n, map[bool]string{true: "y", false: "ies"}[n == 1])
+		}
 		if err := writeManifestAtomic(dir, m); err != nil {
 			return searchruntime.ManifestWriteSourceError(source, err)
 		}

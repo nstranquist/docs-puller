@@ -122,6 +122,42 @@ func writeManifestAtomic(srcDir string, m manifest) error {
 	return nil
 }
 
+// dedupeManifestPaths removes entries whose Path is claimed by another URL
+// with a newer fetch (ties break to the lexicographically smaller URL).
+// Two URLs can converge on one on-disk file when a page is pulled under
+// URL variants (e.g. with and without a trailing .md); the file's content
+// belongs to exactly one fetch, so keeping both rows misrepresents the
+// corpus and forces every reader to re-resolve the collision. Returns the
+// number of entries removed.
+func dedupeManifestPaths(m *manifest) int {
+	winnerByPath := map[string]string{} // path → winning URL
+	for url, r := range m.Entries {
+		if r.Path == "" {
+			continue
+		}
+		prevURL, seen := winnerByPath[r.Path]
+		if !seen {
+			winnerByPath[r.Path] = url
+			continue
+		}
+		prev := m.Entries[prevURL]
+		if r.FetchedAt > prev.FetchedAt || (r.FetchedAt == prev.FetchedAt && url < prevURL) {
+			winnerByPath[r.Path] = url
+		}
+	}
+	removed := 0
+	for url, r := range m.Entries {
+		if r.Path == "" {
+			continue
+		}
+		if winnerByPath[r.Path] != url {
+			delete(m.Entries, url)
+			removed++
+		}
+	}
+	return removed
+}
+
 // loadManifestMaps returns the (urlByPath, fetchedByPath) maps that the
 // _INDEX.md regen + FTS rebuild + agent listings consume. Keys are the
 // in-source relative path ("guides/database/drizzle.md") — same shape as
@@ -138,6 +174,15 @@ func loadManifestMaps(srcDir, srcName string) (urlByPath, fetchedByPath map[stri
 		rel := strings.TrimPrefix(r.Path, prefix)
 		if rel == "" || rel == r.Path {
 			continue
+		}
+		// Two URLs can map to one on-disk path (e.g. a page pulled both
+		// with and without a trailing .md). Resolve the collision
+		// deterministically — newest fetch wins, ties break on URL — so
+		// map iteration order never decides last_pull or the URL column.
+		if prev, seen := fetchedByPath[rel]; seen {
+			if r.FetchedAt < prev || (r.FetchedAt == prev && r.URL > urlByPath[rel]) {
+				continue
+			}
 		}
 		urlByPath[rel] = r.URL
 		fetchedByPath[rel] = r.FetchedAt

@@ -31,6 +31,7 @@ type docsStatus struct {
 	IngestLog      statusIngestLog    `json:"ingest_log"`
 	Pins           statusPins         `json:"pins"`
 	StaleSources   []statusSourceInfo `json:"stale_sources,omitempty"`
+	DupPathSources []statusSourceInfo `json:"dup_path_sources,omitempty"`
 	Warnings       []string           `json:"warnings,omitempty"`
 }
 
@@ -42,6 +43,7 @@ type statusSourceInfo struct {
 	LastPullOldest string `json:"last_pull_oldest,omitempty"`
 	AgeHours       int    `json:"age_hours,omitempty"`
 	MissingFresh   bool   `json:"missing_freshness,omitempty"`
+	DupPathEntries int    `json:"dup_path_entries,omitempty"`
 }
 
 type statusProfile struct {
@@ -184,7 +186,16 @@ func collectDocsStatus(out string, staleAfter time.Duration) (docsStatus, error)
 		if info.MissingFresh || info.AgeHours > 0 {
 			status.StaleSources = append(status.StaleSources, info)
 		}
+		if info.DupPathEntries > 0 {
+			status.DupPathSources = append(status.DupPathSources, info)
+		}
 	}
+	sort.Slice(status.DupPathSources, func(i, j int) bool {
+		if status.DupPathSources[i].DupPathEntries != status.DupPathSources[j].DupPathEntries {
+			return status.DupPathSources[i].DupPathEntries > status.DupPathSources[j].DupPathEntries
+		}
+		return status.DupPathSources[i].Name < status.DupPathSources[j].Name
+	})
 	sort.Slice(status.StaleSources, func(i, j int) bool {
 		if status.StaleSources[i].MissingFresh != status.StaleSources[j].MissingFresh {
 			return status.StaleSources[i].MissingFresh
@@ -236,6 +247,9 @@ func collectStatusSource(out, src string, staleAfter time.Duration) statusSource
 		if info.LastPullOldest == "" || t < info.LastPullOldest {
 			info.LastPullOldest = t
 		}
+	}
+	if m, err := loadOrMigrateManifest(srcDir); err == nil {
+		info.DupPathEntries = dedupeManifestPaths(&m)
 	}
 	if staleAfter <= 0 {
 		return info
@@ -493,6 +507,9 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings bool) [
 			continue
 		}
 		warnings = append(warnings, fmt.Sprintf("source %s last pulled %d hours ago", src.Name, src.AgeHours))
+	}
+	for _, src := range status.DupPathSources {
+		warnings = append(warnings, fmt.Sprintf("source %s has %d duplicate-path manifest entr%s (older URL variants of the same file); the next pull of that source prunes them", src.Name, src.DupPathEntries, map[bool]string{true: "y", false: "ies"}[src.DupPathEntries == 1]))
 	}
 	return warnings
 }
