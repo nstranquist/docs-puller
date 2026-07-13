@@ -47,7 +47,7 @@ func TestSearchScoresAndRanks(t *testing.T) {
 	if len(hits) != 2 {
 		t.Fatalf("got %d hits, want 2", len(hits))
 	}
-	if !filepath.HasPrefix(hits[0].Path, "a/doc2") {
+	if filepath.Clean(hits[0].Path) != filepath.Join("a", "doc2.md") {
 		t.Errorf("rank 0 path = %q, want a/doc2.md", hits[0].Path)
 	}
 	if hits[0].Score != 7 {

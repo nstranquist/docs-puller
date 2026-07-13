@@ -36,8 +36,6 @@ const (
 	versionLaneOtherPinned     = "other-pinned"
 )
 
-var errAtomicDirSwapUnsupported = errors.New("atomic directory swap unsupported")
-
 type versionPolicyRegistry struct {
 	SchemaVersion int                   `yaml:"schema_version" json:"schema_version"`
 	Sources       []versionPolicySource `yaml:"sources" json:"sources"`
@@ -1355,14 +1353,6 @@ func parsePinnedSourceID(source string, reg *versionPolicyRegistry) (family, ver
 		})
 	}
 	return searchruntime.ParseVersionPolicyPinnedSourceID(source, nil)
-}
-
-func sourceFamilyMatches(source, family string, reg *versionPolicyRegistry) bool {
-	if family == "" {
-		return true
-	}
-	info := sourceInfoForSource(source, nil, reg)
-	return info.SourceFamily == family
 }
 
 func resolveSearchVersionPolicy(query string, opts *searchOpts) {

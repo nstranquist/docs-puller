@@ -464,7 +464,7 @@ func runEvalBySource(fix *evalFixture, outDir string, useScan bool, limit int, t
 }
 
 // === Corpus-agnostic boundary starts here ===
-// The fixture loader, `runEval`/`runEvalWithIdx` core, eval JSON shape
+// The fixture loader, `runEvalWithIdx` core, eval JSON shape
 // (evalCaseResult, evalSummary), `emitEvalDiff`, and the metric helpers
 // (Hit@K, MRR, Recall@5, P50/P99) below this line do not depend on the
 // docs-vs-refs distinction. They take a fixture of (query, expected_paths)
@@ -473,10 +473,6 @@ func runEvalBySource(fix *evalFixture, outDir string, useScan bool, limit int, t
 // needs the same shape. The cmdEval flag plumbing above this line is
 // doc-specific and stays here.
 // See docs/active/05-02-2244-corpus-core-extraction-strategy.md.
-
-func runEval(fix *evalFixture, outDir string, useScan bool, limit int) ([]evalCaseResult, evalSummary) {
-	return runEvalWithIdx(fix, outDir, useScan, limit, nil, searchOpts{}, defaultEvalTokenBudget, false)
-}
 
 // runEvalWithIdx is the inner runEval that accepts a pre-opened shared FTS
 // index. When `preopened` is nil, falls through to the pre-flight wait + open

@@ -506,10 +506,7 @@ type ProfileProcessingDecision struct {
 // profile metadata is only meaningful when a profile is active, and strict
 // filtering only applies after that annotation step.
 func PlanProfileProcessing(plan ProfileProcessingPlan) ProfileProcessingDecision {
-	strict := PlanStrictProfileFilter(StrictProfileFilterPlan{
-		Strict:        plan.Strict,
-		ProfileActive: plan.ProfileActive,
-	})
+	strict := PlanStrictProfileFilter(StrictProfileFilterPlan(plan))
 	return ProfileProcessingDecision{
 		Annotate:          plan.ProfileActive,
 		ApplyStrictFilter: strict.Apply,
@@ -634,12 +631,7 @@ type VersionPolicyProcessingDecision struct {
 // active policies run the pre-rerank scoring/filtering pass, while only hard
 // version constraints run the order-preserving post-rerank filter.
 func PlanVersionPolicyProcessing(plan VersionPolicyProcessingPlan) VersionPolicyProcessingDecision {
-	post := PlanPostRerankVersionFilter(PostRerankVersionFilterPlan{
-		PolicyActive: plan.PolicyActive,
-		SourceID:     plan.SourceID,
-		LatestOnly:   plan.LatestOnly,
-		Version:      plan.Version,
-	})
+	post := PlanPostRerankVersionFilter(PostRerankVersionFilterPlan(plan))
 	return VersionPolicyProcessingDecision{
 		ApplyPreRerank:        plan.PolicyActive,
 		ApplyPostRerankFilter: post.Apply,

@@ -311,7 +311,7 @@ func TestHostToSource(t *testing.T) {
 
 func TestCleanMarkdownStripsEmptyAnchors(t *testing.T) {
 	cases := map[string]string{
-		"## [​](#x) Title":          "## Title",
+		"## [\u200b](#x) Title":     "## Title",
 		"# [](#section)Heading":     "# Heading",
 		"plain text":                "plain text",
 		"## [ ](#nope) Header":      "## Header",

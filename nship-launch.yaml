@@ -4,12 +4,12 @@ endpoint: docs-puller/oss
 target_launch: launched
 deploy:
   name: install-public-release
-  argv: [go, install, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.2.2]
+  argv: [go, install, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.2.3]
   timeout_seconds: 900
 verify:
   - name: version-contract
     category: runtime
-    argv: [go, run, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.2.2, version, --expect, v0.2.2, --json]
+    argv: [go, run, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.2.3, version, --expect, v0.2.3, --json]
     timeout_seconds: 900
   - name: public-repository
     category: distribution

@@ -6,7 +6,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,66 +58,6 @@ func TestCosineSimilarity(t *testing.T) {
 		if math.Abs(float64(got-c.want)) > 1e-5 {
 			t.Errorf("CosineSimilarity(%v, %v) = %v, want %v", c.a, c.b, got, c.want)
 		}
-	}
-}
-
-// fakeOpenAIServer returns embeddings of the requested dimension where each
-// vector is a hash of the input text. Stable, deterministic, lets us assert
-// rerank ordering on synthetic queries that share tokens with target docs.
-func fakeOpenAIServer(t *testing.T, dim int) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/v1/embeddings" {
-			http.Error(w, "unexpected request", 400)
-			return
-		}
-		if r.Header.Get("Authorization") != "Bearer test-key" {
-			http.Error(w, "missing auth", 401)
-			return
-		}
-		body, _ := io.ReadAll(r.Body)
-		var req openAIEmbeddingRequestForTest
-		if err := json.Unmarshal(body, &req); err != nil {
-			http.Error(w, err.Error(), 400)
-			return
-		}
-		var resp struct {
-			Data []struct {
-				Embedding []float32 `json:"embedding"`
-				Index     int       `json:"index"`
-			} `json:"data"`
-		}
-		for i, text := range req.Input {
-			vec := make([]float32, dim)
-			// Embed each token character into a slot — same chars produce
-			// similar vectors. Crude but deterministic and lets us write
-			// rerank assertions: a query sharing tokens with a doc gets
-			// a high cosine.
-			for _, r := range text {
-				vec[int(r)%dim] += 1
-			}
-			normalize(vec)
-			resp.Data = append(resp.Data, struct {
-				Embedding []float32 `json:"embedding"`
-				Index     int       `json:"index"`
-			}{Embedding: vec, Index: i})
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-}
-
-func normalize(v []float32) {
-	var sum float64
-	for _, f := range v {
-		sum += float64(f) * float64(f)
-	}
-	if sum == 0 {
-		return
-	}
-	n := float32(math.Sqrt(sum))
-	for i := range v {
-		v[i] /= n
 	}
 }
 

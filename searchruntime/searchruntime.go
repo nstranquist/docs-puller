@@ -2745,7 +2745,7 @@ func PlanEvalRunArtifacts(plan EvalRunArtifactPlan) (EvalRunArtifactPaths, error
 			return EvalRunArtifactPaths{}, err
 		}
 	}
-	stamp := plan.Timestamp
+	var stamp string
 	if parsed, err := time.Parse(time.RFC3339, plan.Timestamp); err == nil {
 		stamp = parsed.UTC().Format("20060102T150405Z")
 	} else {

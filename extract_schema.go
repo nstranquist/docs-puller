@@ -711,16 +711,6 @@ func sanitizeTableFilename(q string) string {
 	return out
 }
 
-// latestMigrationURL returns the file:// URL of the chronologically last
-// migration that touched the table. Empty string if the table has no
-// migration touches recorded (only policies/indexes).
-func latestMigrationURL(t *tableState) string {
-	if len(t.migrations) == 0 {
-		return ""
-	}
-	return t.migrations[len(t.migrations)-1].sourceURL
-}
-
 // qualify joins schema + table into "schema.table". Bare table names get
 // the "public." prefix because Supabase/PG default the search path to
 // public. Without this, the same table referenced once as "public.users"

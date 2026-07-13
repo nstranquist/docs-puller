@@ -8,6 +8,29 @@ must name both the old and new behavior.
 
 No changes yet.
 
+## v0.2.3 — 2026-07-13
+
+### Fixed
+
+- A malformed embedded source-hygiene policy now degrades to an empty policy
+  with a warning instead of panicking inside the reusable library package.
+
+### Changed
+
+- Removed unreachable helpers, used equivalent typed record conversions, and
+  cleared the current Go 1.26 staticcheck findings without changing CLI output
+  or retrieval scoring.
+
+### Verification
+
+- `go build -tags sqlite_fts5 ./...`
+- `go vet -tags sqlite_fts5 ./...`
+- `go test -tags sqlite_fts5 -count=1 ./...`
+- `go test -race -tags sqlite_fts5 -count=1 ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck@latest -tags sqlite_fts5 ./...`
+- Go footgun audit: zero critical/high findings, including tests.
+- `npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension`
+
 ## v0.2.2 — 2026-07-13
 
 ### Fixed

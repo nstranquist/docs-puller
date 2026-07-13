@@ -51,7 +51,8 @@ func getPolicy() policy {
 func loadPolicy() policy {
 	var p policy
 	if err := json.Unmarshal(policyBytes, &p); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "sourcehygiene: skipping malformed embedded policy: %v\n", err)
+		return policy{}
 	}
 	path := os.Getenv("DOCS_PULLER_HYGIENE_POLICY")
 	if path == "" {

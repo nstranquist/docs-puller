@@ -48,7 +48,6 @@ import (
 type evalDiagnoseOpts struct {
 	baselinePath string
 	currentPath  string
-	out          string
 	source       string // optional: filter to one source
 	minDelta     int    // minimum rank-delta to count as a regression (default 1)
 	asJSON       bool   // emit JSON instead of markdown

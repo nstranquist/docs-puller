@@ -296,13 +296,7 @@ func copyLegacyWholeEmbeddings(src, dst *sql.DB) (int, error) {
 	q := embeddb.New(tx)
 	n := 0
 	for _, row := range rows {
-		if err := q.UpsertEmbedding(ctx, embeddb.UpsertEmbeddingParams{
-			Path:    row.Path,
-			MtimeNs: row.MtimeNs,
-			Model:   row.Model,
-			Dim:     row.Dim,
-			Vec:     row.Vec,
-		}); err != nil {
+		if err := q.UpsertEmbedding(ctx, embeddb.UpsertEmbeddingParams(row)); err != nil {
 			return 0, err
 		}
 		n++
@@ -327,15 +321,7 @@ func copyLegacyChunkEmbeddings(src, dst *sql.DB) (int, error) {
 	q := embeddb.New(tx)
 	n := 0
 	for _, row := range rows {
-		if err := q.UpsertEmbeddingChunk(ctx, embeddb.UpsertEmbeddingChunkParams{
-			Path:      row.Path,
-			ChunkIdx:  row.ChunkIdx,
-			ChunkSize: row.ChunkSize,
-			MtimeNs:   row.MtimeNs,
-			Model:     row.Model,
-			Dim:       row.Dim,
-			Vec:       row.Vec,
-		}); err != nil {
+		if err := q.UpsertEmbeddingChunk(ctx, embeddb.UpsertEmbeddingChunkParams(row)); err != nil {
 			return 0, err
 		}
 		n++
@@ -998,13 +984,6 @@ func rerankCandidates(db *sql.DB, hits []searchHit, queryVec []float32) ([]searc
 		}
 	}
 	return searchruntime.OrderRerankCandidates(ordered), nil
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
 }
 
 // chunkedDoc carries enough context to embed and store one chunk.

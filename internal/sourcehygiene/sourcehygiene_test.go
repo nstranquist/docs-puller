@@ -89,3 +89,14 @@ func TestLoadPolicySkipsMalformedUserFile(t *testing.T) {
 		t.Fatal("embedded policy must survive a malformed user file")
 	}
 }
+
+func TestLoadPolicyFailsSafeOnMalformedEmbeddedPolicy(t *testing.T) {
+	original := policyBytes
+	policyBytes = []byte("{not json")
+	t.Cleanup(func() { policyBytes = original })
+
+	p := loadPolicy()
+	if len(p.Patterns) != 0 || p.Version != 0 {
+		t.Fatalf("malformed embedded policy = %#v, want empty fail-safe policy", p)
+	}
+}

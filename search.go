@@ -172,12 +172,6 @@ const (
 	// /authentication/verifying-requests-from-slack guide should beat the
 	// python SDK signature module page.
 	searchTitleBasenameAlignmentBoost = 1
-	// searchDelegatingReferencePenalty: small demotion for generated API /
-	// reference leaves that explicitly point readers to a user guide when the
-	// query itself does not ask for API, CLI, SDK, or reference material. This
-	// keeps exact endpoint searches intact while letting conceptual guide pages
-	// surface for natural-language "how do I..." questions.
-	searchDelegatingReferencePenalty = -15
 	// searchDepthPenaltyPerSegment: applied per slash in the path past
 	// the source dir. Targets "deep-page bias on hub queries" — sub-
 	// pages whose paths repeat all query tokens crowd out the canonical
@@ -434,14 +428,6 @@ var synonymClasses = [][]string{
 	{"count", "counting"},                                // "how do I count tokens with Anthropic" → token-counting.md
 	{"deploy", "deployment"},                             // "deploy Azure Functions from the CLI" → functionapp/deployment.md
 	{"new", "create"},                                    // "Go modules for a new project" → create-module.md
-}
-
-// naturalLanguageTokenRewrites maps broad intent verbs to the canonical docs
-// term they imply. Unlike synonymClasses, these replace the original token:
-// "inspect a PostgreSQL query plan" should search/score as EXPLAIN, not also
-// boost every page with an `inspect` path segment.
-var naturalLanguageTokenRewrites = map[string][]string{
-	"inspect": {"explain"},
 }
 
 type naturalLanguageCanonicalQuery struct {
@@ -841,8 +827,6 @@ func applyRerank(query string, hits []searchHit, o searchOpts) ([]searchHit, err
 		RerankChunked: searchruntime.NewEmbeddingRerankChunkedCall(rerankCandidatesChunked),
 	})
 }
-
-func must(n int, _ error) int { return n }
 
 // splitSearchArgs separates flag args from positional query words so flags
 // can appear in any position. valueFlags is the list of flags that take a
