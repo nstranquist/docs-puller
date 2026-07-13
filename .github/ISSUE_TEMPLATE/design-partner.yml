@@ -1,0 +1,61 @@
+name: Hosted Team design partner
+description: Apply for the paid, single-tenant founding Team pilot.
+title: "[Design partner] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for considering the founding pilot. This issue is public. Do not include credentials, private repository names or URLs, customer data, or confidential content.
+  - type: dropdown
+    id: team_size
+    attributes:
+      label: Engineering team size
+      options:
+        - 1-4
+        - 5-10
+        - 11-30
+        - 31+
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Retrieval workflow
+      description: What do your developers or coding agents need to find today, and where does the current workflow fail?
+    validations:
+      required: true
+  - type: textarea
+    id: source_categories
+    attributes:
+      label: Source categories
+      description: List categories only, such as private Git repos, internal Markdown, Notion, or vendor docs. Do not name private systems.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Preferred deployment boundary
+      options:
+        - Customer-controlled account
+        - Isolated managed instance
+        - Need to review both
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: What would make the 30-day pilot successful?
+      description: Include a measurable workflow outcome if possible.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Pilot terms
+      options:
+        - label: I understand the founding pilot is $1,500 fixed for 30 days with no automatic renewal.
+          required: true
+        - label: I can provide one technical owner and at least 25 real queries for evaluation.
+          required: true
+        - label: I have not included confidential information in this public issue.
+          required: true

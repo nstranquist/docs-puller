@@ -406,6 +406,56 @@ func TestFlatEmbeddingIndexRanksWithoutSQLiteScan(t *testing.T) {
 	}
 }
 
+func TestFlatEmbeddingIndexSourceScopeFiltersBeforeTopK(t *testing.T) {
+	out := t.TempDir()
+	db, err := openEmbeddingsDB(out, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, row := range []struct {
+		path string
+		vec  []float32
+	}{
+		{"wanted/a.md", []float32{0.8, 0.2}},
+		{"other/b.md", []float32{1, 0}},
+	} {
+		if _, err := db.Exec(
+			"INSERT INTO embeddings (path, mtime_ns, model, dim, vec) VALUES (?, ?, ?, ?, ?)",
+			row.path, 0, "test-model", len(row.vec), serializeVec(row.vec),
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writeFlatEmbeddingIndex(db, out, "test-model"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok, err := topFlatEmbeddingPathsForSource(out, "test-model", []float32{1, 0}, 1, 0, "wanted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("flat index not used")
+	}
+	if len(got) != 1 || got[0].path != "wanted/a.md" {
+		t.Fatalf("source-scoped flat top paths = %+v, want wanted/a.md", got)
+	}
+}
+
+func TestFilterEmbeddingVectorsBySourceUsesExactDirectory(t *testing.T) {
+	vecs := map[string][]float32{
+		"wanted/a.md":        {1},
+		"wanted\\windows.md": {4},
+		"wanted-extra/b.md":  {2},
+		"other/c.md":         {3},
+	}
+	got := filterEmbeddingVectorsBySource(vecs, "wanted")
+	if len(got) != 2 || got["wanted/a.md"] == nil || got["wanted\\windows.md"] == nil {
+		t.Fatalf("filtered vectors = %+v, want only wanted source paths", got)
+	}
+}
+
 func TestRunEmbedWriteFlatOnlyWritesCachedModelWithoutDocs(t *testing.T) {
 	out := t.TempDir()
 	db, err := openEmbeddingsDB(out, false)
@@ -465,6 +515,68 @@ func TestRunEmbedWriteFlatOnlyRejectsSourceScope(t *testing.T) {
 	err := runEmbedWriteFlatOnly(embedOpts{out: t.TempDir(), model: "test-model", source: "supabase"})
 	if err == nil || !strings.Contains(err.Error(), "--write-flat-only writes a model-wide sidecar") {
 		t.Fatalf("err = %v, want source-scope rejection", err)
+	}
+}
+
+func TestPruneStaleEmbeddingsRespectsSourceAndModel(t *testing.T) {
+	out := t.TempDir()
+	db, err := openEmbeddingsDB(out, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	for _, row := range []struct {
+		path  string
+		model string
+	}{
+		{"alpha/live.md", "text-embedding-3-small"},
+		{"alpha/stale.md", "text-embedding-3-small"},
+		{"beta/stale.md", "text-embedding-3-small"},
+		{"alpha/stale.md", "text-embedding-3-large"},
+	} {
+		if _, err := db.Exec(
+			"INSERT INTO embeddings (path, mtime_ns, model, dim, vec) VALUES (?, ?, ?, ?, ?)",
+			row.path, 0, row.model, 1, serializeVec([]float32{1}),
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	pruned, err := pruneStaleEmbeddings(
+		db,
+		"text-embedding-3-small",
+		"alpha",
+		[]docToEmbed{{path: "alpha/live.md"}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pruned != 1 {
+		t.Fatalf("pruned = %d, want 1", pruned)
+	}
+
+	for _, check := range []struct {
+		path  string
+		model string
+		want  int
+	}{
+		{"alpha/live.md", "text-embedding-3-small", 1},
+		{"alpha/stale.md", "text-embedding-3-small", 0},
+		{"beta/stale.md", "text-embedding-3-small", 1},
+		{"alpha/stale.md", "text-embedding-3-large", 1},
+	} {
+		var got int
+		if err := db.QueryRow(
+			"SELECT COUNT(*) FROM embeddings WHERE path = ? AND model = ?",
+			check.path,
+			check.model,
+		).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != check.want {
+			t.Fatalf("count(%s, %s) = %d, want %d", check.path, check.model, got, check.want)
+		}
 	}
 }
 
