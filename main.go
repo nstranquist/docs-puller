@@ -157,7 +157,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `docs-puller — pull vendor docs into ~/code/docs/<source>/
 
 Usage:
-  docs-puller version [--json]                # build identity + CLI contract
+  docs-puller version [--json] [--expect VERSION] # build identity + CLI contract
   docs-puller init [--source-cache DIR]
   docs-puller config init [--profile NAME] [--force]
   docs-puller config path [--json]

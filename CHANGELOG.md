@@ -6,7 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
-No changes yet.
+### Fixed
+
+- Top-level help now advertises the existing `version --expect VERSION`
+  release gate instead of only showing `version --json`.
 
 ## v0.2.1 — 2026-07-13
 
