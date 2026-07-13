@@ -6,10 +6,22 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+No changes yet.
+
+## v0.2.2 — 2026-07-13
+
 ### Fixed
 
 - Top-level help now advertises the existing `version --expect VERSION`
   release gate instead of only showing `version --json`.
+
+### Verification
+
+- `go build -tags sqlite_fts5 ./...`
+- `go vet -tags sqlite_fts5 ./...`
+- `go test -tags sqlite_fts5 -count=1 ./...`
+- `go test -race -tags sqlite_fts5 -count=1 ./...`
+- `npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension`
 
 ## v0.2.1 — 2026-07-13
 

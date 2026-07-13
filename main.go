@@ -153,8 +153,7 @@ func main() {
 	}
 }
 
-func usage() {
-	fmt.Fprint(os.Stderr, `docs-puller — pull vendor docs into ~/code/docs/<source>/
+const topLevelUsage = `docs-puller — pull vendor docs into ~/code/docs/<source>/
 
 Usage:
   docs-puller version [--json] [--expect VERSION] # build identity + CLI contract
@@ -246,7 +245,10 @@ GitHub clone for .md/.mdx; useful for private monorepo docs.
 HTTP fetches retry on 5xx/429 (3 attempts, 500ms exponential backoff, honors
 Retry-After). Pages with <200 bytes of converted content emit a low-content
 warning (likely client-rendered). Run 'init' once before the first pull.
-`)
+`
+
+func usage() {
+	fmt.Fprint(os.Stderr, topLevelUsage)
 }
 
 type pullOpts struct {

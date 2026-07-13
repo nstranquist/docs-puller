@@ -38,3 +38,9 @@ func TestCheckExpectedVersion(t *testing.T) {
 		t.Fatalf("mismatch error = %v", err)
 	}
 }
+
+func TestTopLevelUsageAdvertisesVersionExpectationGate(t *testing.T) {
+	if !strings.Contains(topLevelUsage, "docs-puller version [--json] [--expect VERSION]") {
+		t.Fatalf("top-level usage does not advertise the exact-version gate:\n%s", topLevelUsage)
+	}
+}
