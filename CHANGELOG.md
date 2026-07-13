@@ -8,6 +8,14 @@ must name both the old and new behavior.
 
 No changes yet.
 
+## v0.2.1 — 2026-07-13
+
+### Fixed
+
+- The nship release contract now verifies the versioned public Go module
+  directly. It no longer risks resolving an older `docs-puller` earlier on the
+  operator's `PATH` after `go install` writes to a different `GOBIN`.
+
 ## v0.2.0 — 2026-07-13
 
 ### Added
