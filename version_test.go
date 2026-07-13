@@ -19,7 +19,7 @@ func TestCurrentVersionInfoPublishesStableContract(t *testing.T) {
 			t.Errorf("commands missing %q: %v", command, info.Commands)
 		}
 	}
-	for _, capability := range []string{"contract.version-json.v1", "pull.llms-txt", "pull.replace-source-guard.v1", "search.fts5", "search.fts5.self-heal.v1"} {
+	for _, capability := range []string{"contract.version-json.v1", "embed.stale-prune.v1", "pull.llms-txt", "pull.replace-source-guard.v1", "search.fts5", "search.fts5.self-heal.v1", "search.hybrid-source-scope.v1", "telemetry.provenance.v1"} {
 		if !slices.Contains(info.Capabilities, capability) {
 			t.Errorf("capabilities missing %q: %v", capability, info.Capabilities)
 		}

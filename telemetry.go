@@ -25,6 +25,8 @@ func cmdTelemetry(args []string) {
 	switch args[0] {
 	case "log":
 		cmdTelemetryLog(args[1:])
+	case "summary":
+		cmdTelemetrySummary(args[1:])
 	case "fixture":
 		cmdTelemetryFixture(args[1:])
 	case "-h", "--help", "help":
@@ -50,6 +52,8 @@ func newSearchQueryLogEntry(query string, scanned int, hits []searchHit, mode st
 		Timestamp:    time.Now(),
 		Query:        query,
 		Intent:       o.queryIntent,
+		Client:       o.queryClient,
+		RunContext:   o.queryRunContext,
 		SourceFilter: o.source,
 		Mode:         mode,
 		Scanned:      scanned,
@@ -60,6 +64,96 @@ func newSearchQueryLogEntry(query string, scanned int, hits []searchHit, mode st
 		RerankLLM:    o.rerankLLM,
 		RerankHybrid: o.rerankHybrid,
 	})
+}
+
+type queryTelemetryBucket struct {
+	TrafficClass  string  `json:"traffic_class"`
+	Entries       int     `json:"entries"`
+	UniqueQueries int     `json:"unique_queries"`
+	ZeroResults   int     `json:"zero_results"`
+	ZeroRatePct   float64 `json:"zero_rate_pct"`
+}
+
+type queryTelemetrySummary struct {
+	SchemaVersion int                    `json:"schema_version"`
+	TotalEntries  int                    `json:"total_entries"`
+	UniqueQueries int                    `json:"unique_queries"`
+	ByClass       []queryTelemetryBucket `json:"by_traffic_class"`
+}
+
+func summarizeQueryTelemetry(entries []queryLogEntry) queryTelemetrySummary {
+	type accumulator struct {
+		entries int
+		zero    int
+		queries map[string]bool
+	}
+	allQueries := map[string]bool{}
+	byClass := map[string]*accumulator{}
+	for _, entry := range entries {
+		class := entry.TrafficClass
+		if class == "" {
+			class = searchruntime.SearchTelemetryTrafficClass(entry.RunContext)
+		}
+		bucket := byClass[class]
+		if bucket == nil {
+			bucket = &accumulator{queries: map[string]bool{}}
+			byClass[class] = bucket
+		}
+		bucket.entries++
+		if entry.ResultCount == 0 {
+			bucket.zero++
+		}
+		key := searchruntime.SearchTelemetryQueryKey(entry.Query)
+		if key != "" {
+			bucket.queries[key] = true
+			allQueries[key] = true
+		}
+	}
+	summary := queryTelemetrySummary{SchemaVersion: 1, TotalEntries: len(entries), UniqueQueries: len(allQueries)}
+	for _, class := range []string{"real", "synthetic", "unknown"} {
+		bucket := byClass[class]
+		if bucket == nil {
+			bucket = &accumulator{queries: map[string]bool{}}
+		}
+		zeroRate := 0.0
+		if bucket.entries > 0 {
+			zeroRate = float64(bucket.zero) * 100 / float64(bucket.entries)
+		}
+		summary.ByClass = append(summary.ByClass, queryTelemetryBucket{
+			TrafficClass:  class,
+			Entries:       bucket.entries,
+			UniqueQueries: len(bucket.queries),
+			ZeroResults:   bucket.zero,
+			ZeroRatePct:   zeroRate,
+		})
+	}
+	return summary
+}
+
+func cmdTelemetrySummary(args []string) {
+	o := defaultOpts()
+	fs := flag.NewFlagSet("telemetry summary", flag.ExitOnError)
+	limit := fs.Int("limit", 0, "max newest entries to summarize (0 = all)")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable")
+	fs.StringVar(&o.out, "out", o.out, "output root dir")
+	fs.Parse(args)
+	entries, err := readSearchQueryLog(o.out, *limit)
+	if err != nil {
+		die(err)
+	}
+	summary := summarizeQueryTelemetry(entries)
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(summary); err != nil {
+			die(searchruntime.SearchTelemetryJSONEncodeError(err))
+		}
+		return
+	}
+	fmt.Printf("telemetry summary: entries=%d unique_queries=%d\n", summary.TotalEntries, summary.UniqueQueries)
+	for _, bucket := range summary.ByClass {
+		fmt.Printf("  %-9s entries=%d unique=%d zero_results=%d (%.1f%%)\n", bucket.TrafficClass, bucket.Entries, bucket.UniqueQueries, bucket.ZeroResults, bucket.ZeroRatePct)
+	}
 }
 
 func appendSearchQueryLog(out string, e queryLogEntry) error {
@@ -154,6 +248,7 @@ func cmdTelemetryFixture(args []string) {
 	fs := flag.NewFlagSet("telemetry fixture", flag.ExitOnError)
 	limit := fs.Int("limit", 200, "max telemetry entries to consider (0 = all)")
 	intent := fs.String("intent", "", "only include entries with this intent label")
+	trafficClass := fs.String("traffic-class", "real", "only include real|synthetic|unknown traffic; use all for legacy behavior")
 	since := fs.String("since", "", "only include entries at or after this RFC3339 timestamp")
 	outFile := fs.String("out-file", "", "fixture YAML path to write")
 	excludeFixture := fs.String("exclude-fixture", "", "skip queries already present (exact, case-insensitive) in this fixture YAML; pass multiple times via comma-separated list. Use to avoid re-sampling eval-fixture queries that polluted the telemetry log.")
@@ -190,7 +285,7 @@ func cmdTelemetryFixture(args []string) {
 			}
 		}
 	}
-	fixture := fixtureFromTelemetry(entries, *intent, sinceTime, excludeQueries)
+	fixture := fixtureFromTelemetry(entries, *intent, *trafficClass, sinceTime, excludeQueries)
 	if len(fixture.Queries) == 0 {
 		die(searchruntime.SearchTelemetryFixtureNoMatchesError())
 	}
@@ -215,13 +310,14 @@ func cmdTelemetryFixture(args []string) {
 	fmt.Print(searchruntime.SearchTelemetryFixtureWrittenMessage(len(fixture.Queries), *outFile))
 }
 
-func fixtureFromTelemetry(entries []queryLogEntry, intent string, since time.Time, exclude map[string]bool) evalFixture {
+func fixtureFromTelemetry(entries []queryLogEntry, intent, trafficClass string, since time.Time, exclude map[string]bool) evalFixture {
 	var fixture evalFixture
 	for _, candidate := range searchruntime.SearchTelemetryFixtureQueries(searchruntime.SearchTelemetryFixtureInput{
-		Entries: entries,
-		Intent:  intent,
-		Since:   since,
-		Exclude: exclude,
+		Entries:      entries,
+		Intent:       intent,
+		TrafficClass: trafficClass,
+		Since:        since,
+		Exclude:      exclude,
 	}) {
 		q := evalQuery{
 			Q:      candidate.Query,
