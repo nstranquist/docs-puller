@@ -19,6 +19,7 @@
 //	docs-puller init                              # sparse-clone supabase upstream cache
 //	docs-puller pull --from <file-or-url>         # extract URLs from text file (or fetch URL first)
 //	docs-puller pull --sitemap <url>              # pull every URL in a sitemap.xml
+//	docs-puller pull --llms-txt <url>             # pull every document named by llms.txt
 //	docs-puller pull --gatsby-pagedata <url>      # discover URLs via Gatsby page-data.json (allMdx.nodes[].slug)
 //	docs-puller pull --local <path>               # walk a local dir for .md/.mdx
 //	docs-puller pull --github-repo <owner/repo>   # walk a GitHub repo for .md/.mdx
@@ -141,12 +142,11 @@ func main() {
 		cmdTelemetry(os.Args[2:])
 	case "emit-llmstxt":
 		cmdEmitLLMsTxt(os.Args[2:])
+	case "version":
+		cmdVersion(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
-		if dispatchInternalCommands(os.Args[1], os.Args[2:]) {
-			return
-		}
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", os.Args[1])
 		usage()
 		os.Exit(2)
@@ -157,11 +157,13 @@ func usage() {
 	fmt.Fprint(os.Stderr, `docs-puller — pull vendor docs into ~/code/docs/<source>/
 
 Usage:
+  docs-puller version [--json]                # build identity + CLI contract
   docs-puller init [--source-cache DIR]
   docs-puller config init [--profile NAME] [--force]
   docs-puller config path [--json]
   docs-puller pull --from <file-or-url>      [common-flags]
   docs-puller pull --sitemap <url>           [--filter PREFIX] [--max N] [common-flags]
+  docs-puller pull --llms-txt <url>          [--filter PREFIX] [--max N] [common-flags]
   docs-puller pull --gatsby-pagedata <url>   [--filter PREFIX] [--max N] [common-flags]
   docs-puller pull --docc <url>              [--filter PREFIX] [--max N] [--name NAME]
                                              [--follow-see-also] [--follow-relationships] [common-flags]
@@ -171,11 +173,7 @@ Usage:
   docs-puller pull --github-repo <o/r>       [--ref REF] [--name NAME] [--subdir SUBDIR]
   docs-puller pull-url <url>                 [common-flags]
   docs-puller pull-article <url>             [--name SLUG] [common-flags]
-`)
-	if extra := usageInternalLines(); extra != "" {
-		fmt.Fprint(os.Stderr, extra)
-	}
-	fmt.Fprint(os.Stderr, `  docs-puller crawl-refs                     [--cases-root DIR] [--source NAME] [--out DIR]
+  docs-puller crawl-refs                     [--cases-root DIR] [--source NAME] [--out DIR]
                                              # ingest ~/code/refs/_cases/<slug>/*.md → refs-dissections
   docs-puller curation lint                  [--json]
   docs-puller refresh [--source-cache DIR]
@@ -225,6 +223,7 @@ Usage:
 
 Common flags: --out DIR  --source-cache DIR  --concurrency N (default 8)
               --source-only (skip HTTP fallback)
+              --replace-source [--allow-large-prune]
 
 Recommended rerank invocations (gpt-4.1-mini cross-encoder; eval discipline
 in eval/CONTRIBUTING.md):
@@ -251,11 +250,12 @@ warning (likely client-rendered). Run 'init' once before the first pull.
 }
 
 type pullOpts struct {
-	out           string
-	sourceCache   string
-	sourceOnly    bool
-	concurrency   int
-	replaceSource bool // with --from: prune manifest entries (and files) not in this run per source
+	out             string
+	sourceCache     string
+	sourceOnly      bool
+	concurrency     int
+	replaceSource   bool // prune manifest entries (and files) not in this run per source
+	allowLargePrune bool // explicit acknowledgement for destructive replacement plans
 }
 
 func defaultOpts() pullOpts {
@@ -282,7 +282,7 @@ func bindOpts(fs *flag.FlagSet, o *pullOpts) {
 	fs.StringVar(&o.out, "out", o.out, "output root dir")
 	fs.StringVar(&o.sourceCache, "source-cache", o.sourceCache, "source-repo cache dir")
 	fs.BoolVar(&o.sourceOnly, "source-only", false, "do not fall back to HTTP fetch")
-	fs.BoolVar(&o.replaceSource, "replace-source", false, "with --from: replace each touched source's manifest (prune URLs/files not in the input list)")
+	fs.BoolVar(&o.replaceSource, "replace-source", false, "replace each touched source's manifest (prune URLs/files not in this pull)")
 	fs.IntVar(&o.concurrency, "concurrency", o.concurrency, "parallel HTTP fetches")
 }
 
@@ -291,10 +291,11 @@ func cmdPull(args []string) {
 	fs := flag.NewFlagSet("pull", flag.ExitOnError)
 	from := fs.String("from", "", "input file or URL (urls or markdown notes; URLs fetch first — useful for vendor llms-sitemap.md)")
 	sitemap := fs.String("sitemap", "", "sitemap.xml URL — pull every URL it lists")
+	llmsTxt := fs.String("llms-txt", "", "llms.txt URL — pull linked docs or native markdown pages named by ===/path=== sections")
 	gatsbyPageData := fs.String("gatsby-pagedata", "", "Gatsby page-data.json URL — discover URLs via allMdx.nodes[].slug")
 	doccURL := fs.String("docc", "", "DocC archive root URL — BFS-walk an Apple-style JSON-driven doc archive (developer.apple.com / Swift package docs)")
-	filter := fs.String("filter", "", "with --sitemap/--gatsby-pagedata/--from/--docc: keep only URLs starting with this prefix")
-	maxN := fs.Int("max", 0, "with --sitemap/--gatsby-pagedata/--from/--docc: cap the URL count (0 = no cap)")
+	filter := fs.String("filter", "", "with --sitemap/--llms-txt/--gatsby-pagedata/--from/--docc: keep only URLs starting with this prefix")
+	maxN := fs.Int("max", 0, "with --sitemap/--llms-txt/--gatsby-pagedata/--from/--docc: cap the URL count (0 = no cap)")
 	local := fs.String("local", "", "ingest .md/.mdx from a local directory")
 	githubRepo := fs.String("github-repo", "", "ingest .md/.mdx from a GitHub repo (owner/repo)")
 	name := fs.String("name", "", "with --local/--github-repo/--docc: override source dir name")
@@ -302,20 +303,25 @@ func cmdPull(args []string) {
 	ref := fs.String("ref", "", "with --github-repo: git ref/branch (default: main)")
 	followSeeAlso := fs.Bool("follow-see-also", false, "with --docc: include See Also identifiers in BFS frontier (default: render-only)")
 	followRel := fs.Bool("follow-relationships", false, "with --docc: include Relationships identifiers in BFS frontier (default: render-only)")
+	allowLargePrune := fs.Bool("allow-large-prune", false, "with --replace-source: allow a guarded large source deletion after reviewing discovery input")
 	var excludes stringSliceFlag
 	fs.Var(&excludes, "exclude", "with --local/--github-repo: skip paths matching glob (repeatable; e.g. 'internal-notes/**', 'attachments/**', '*.tmp.md')")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	o.allowLargePrune = *allowLargePrune
+	if err := validateReplacementFlags(o.replaceSource, o.allowLargePrune, *filter, *maxN); err != nil {
+		die(err)
+	}
 
 	modes := 0
-	for _, s := range []string{*from, *sitemap, *gatsbyPageData, *doccURL, *local, *githubRepo} {
+	for _, s := range []string{*from, *sitemap, *llmsTxt, *gatsbyPageData, *doccURL, *local, *githubRepo} {
 		if s != "" {
 			modes++
 		}
 	}
 	if modes != 1 {
 		fmt.Fprintln(os.Stderr,
-			"pull: pass exactly one of --from <file>, --sitemap <url>, --gatsby-pagedata <url>, --docc <url>, --local <path>, or --github-repo <owner/repo>")
+			"pull: pass exactly one of --from <file>, --sitemap <url>, --llms-txt <url>, --gatsby-pagedata <url>, --docc <url>, --local <path>, or --github-repo <owner/repo>")
 		os.Exit(2)
 	}
 
@@ -367,6 +373,15 @@ func cmdPull(args []string) {
 		}
 		urls = filterURLs(urls, *filter, *maxN)
 		fmt.Fprintf(os.Stderr, "sitemap → %d URLs (filter=%q max=%d)\n", len(urls), *filter, *maxN)
+	case *llmsTxt != "":
+		mode = "llms-txt"
+		fmt.Fprintf(os.Stderr, "loading llms.txt %s ...\n", *llmsTxt)
+		urls, err = loadLLMsTxt(*llmsTxt)
+		if err != nil {
+			die(err)
+		}
+		urls = filterURLs(urls, *filter, *maxN)
+		fmt.Fprintf(os.Stderr, "llms.txt → %d URLs (filter=%q max=%d)\n", len(urls), *filter, *maxN)
 	case *gatsbyPageData != "":
 		mode = "gatsby-pagedata"
 		fmt.Fprintf(os.Stderr, "loading gatsby page-data %s ...\n", *gatsbyPageData)
@@ -707,6 +722,7 @@ type result struct {
 	FetchedAt string `json:"fetched_at"`
 	Skipped   string `json:"skipped,omitempty"`
 	Warning   string `json:"warning,omitempty"` // e.g. "low-content"
+	Unchanged bool   `json:"unchanged,omitempty"`
 }
 
 // thinContentThreshold is the byte length below which a converted page is
@@ -736,13 +752,16 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 		}()
 	}
 	wg.Wait()
-	elapsed := time.Since(start)
+	fetchElapsed := time.Since(start)
 
-	var pulled, skipped, warned int
+	var pulled, unchanged, skipped, warned int
 	for _, r := range results {
-		if r.Skipped != "" {
+		switch {
+		case r.Skipped != "":
 			skipped++
-		} else {
+		case r.Unchanged:
+			unchanged++
+		default:
 			pulled++
 		}
 		if r.Warning != "" {
@@ -754,7 +773,7 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 	// `pull` invocations don't race on the shared corpus state.
 	if err := withWriteLock(o.out, func() error {
 		var prunedPaths []string
-		if err := writeManifests(o.out, results, o.replaceSource, &prunedPaths); err != nil {
+		if err := writeManifestsWithPolicy(o.out, results, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
 			return err
 		}
 		if len(prunedPaths) > 0 {
@@ -767,9 +786,13 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 		// on a cold start. Failure here is logged but not fatal — search
 		// falls back to substring scan. We also pass the touched sources to
 		// regenerateIndex so untouched sources skip their O(N) title walk.
-		var changedPaths []string
+		var changedPaths, successfulPaths []string
 		for _, r := range results {
-			if r.Skipped == "" && r.Path != "" {
+			if r.Skipped != "" || r.Path == "" {
+				continue
+			}
+			successfulPaths = append(successfulPaths, r.Path)
+			if !r.Unchanged {
 				changedPaths = append(changedPaths, r.Path)
 			}
 		}
@@ -778,8 +801,11 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 			return err
 		}
 		if idx, err := openFTSIndex(o.out); err == nil {
-			if rerr := idx.updateFTS(o.out, changedPaths); rerr != nil {
+			repaired, rerr := idx.updateFTSAndRepair(o.out, changedPaths, successfulPaths)
+			if rerr != nil {
 				fmt.Fprintf(os.Stderr, "fts5: update failed: %v (search will fall back to scan)\n", rerr)
+			} else if repaired > 0 {
+				fmt.Fprintf(os.Stderr, "fts5: repaired %d missing path entr%s\n", repaired, map[bool]string{true: "y", false: "ies"}[repaired == 1])
 			}
 			idx.close()
 		}
@@ -793,6 +819,7 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 			Sources:    distinctSources(results),
 			URLs:       len(results),
 			Pulled:     pulled,
+			Unchanged:  unchanged,
 			Skipped:    skipped,
 			Warned:     warned,
 		}
@@ -805,15 +832,16 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 	}
 
 	throughput := ""
-	if elapsed.Seconds() > 0 {
-		throughput = fmt.Sprintf(" (%.0f URLs/s)", float64(len(results))/elapsed.Seconds())
+	if fetchElapsed.Seconds() > 0 {
+		throughput = fmt.Sprintf(" (fetch %.0f URLs/s)", float64(len(results))/fetchElapsed.Seconds())
 	}
+	totalElapsed := time.Since(start)
 	if warned > 0 {
-		fmt.Printf("pulled: %d  skipped: %d  warned: %d  total: %d  in %s%s\n",
-			pulled, skipped, warned, len(results), elapsed.Round(time.Millisecond), throughput)
+		fmt.Printf("pulled: %d  unchanged: %d  skipped: %d  warned: %d  total: %d  in %s%s\n",
+			pulled, unchanged, skipped, warned, len(results), totalElapsed.Round(time.Millisecond), throughput)
 	} else {
-		fmt.Printf("pulled: %d  skipped: %d  total: %d  in %s%s\n",
-			pulled, skipped, len(results), elapsed.Round(time.Millisecond), throughput)
+		fmt.Printf("pulled: %d  unchanged: %d  skipped: %d  total: %d  in %s%s\n",
+			pulled, unchanged, skipped, len(results), totalElapsed.Round(time.Millisecond), throughput)
 	}
 	for _, r := range results {
 		switch {
@@ -821,10 +849,22 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 			fmt.Printf("  SKIP %s — %s\n", r.URL, r.Skipped)
 		case r.Warning != "":
 			fmt.Printf("  WARN %s — %s\n", r.URL, r.Warning)
+		case r.Unchanged:
+			continue
 		case r.Mode != "" && r.Mode != "source":
 			fmt.Printf("  %-14s %s\n", r.Mode, r.URL)
 		}
 	}
+}
+
+func validateReplacementFlags(replaceSource, allowLargePrune bool, filter string, maxN int) error {
+	if allowLargePrune && !replaceSource {
+		return fmt.Errorf("--allow-large-prune requires --replace-source")
+	}
+	if replaceSource && !allowLargePrune && (strings.TrimSpace(filter) != "" || maxN > 0) {
+		return fmt.Errorf("--replace-source with --filter or --max can prune documents outside the selected subset; review the discovery input and pass --allow-large-prune to acknowledge the deletion")
+	}
+	return nil
 }
 
 func processURL(raw string, o pullOpts, now string) result {
@@ -885,18 +925,30 @@ func processURL(raw string, o pullOpts, now string) result {
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return result{URL: raw, FetchedAt: now, Source: source, Skipped: err.Error()}
 	}
-	if err := os.WriteFile(outPath, data, 0o644); err != nil {
+	unchanged, err := writeFileIfChanged(outPath, data)
+	if err != nil {
 		return result{URL: raw, FetchedAt: now, Source: source, Skipped: err.Error()}
 	}
 	sum := sha256.Sum256(data)
 	r := result{
 		URL: raw, Source: source, Path: filepath.Join(source, rel),
-		Mode: mode, SHA256: hex.EncodeToString(sum[:]), FetchedAt: now,
+		Mode: mode, SHA256: hex.EncodeToString(sum[:]), FetchedAt: now, Unchanged: unchanged,
 	}
 	if mode == "http" && len(strings.TrimSpace(string(data))) < thinContentThreshold {
 		r.Warning = fmt.Sprintf("low-content (%d bytes) — selector may have missed real content or page is client-rendered", len(data))
 	}
 	return r
+}
+
+func writeFileIfChanged(path string, data []byte) (bool, error) {
+	existing, err := os.ReadFile(path)
+	if err == nil && bytes.Equal(existing, data) {
+		return true, nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	return false, os.WriteFile(path, data, 0o644)
 }
 
 func pullSupabaseGuide(u *url.URL, o pullOpts, now string) (result, error) {
@@ -1112,6 +1164,27 @@ func isRetryable(status int, err error) bool {
 // run summary but NOT persisted to disk — those entries don't represent a
 // real artifact and would otherwise leave an `_unmapped/` directory behind.
 func writeManifests(outRoot string, results []result, replaceSource bool, prunedPaths *[]string) error {
+	return writeManifestsWithPolicy(outRoot, results, replaceSource, false, prunedPaths)
+}
+
+const (
+	largePruneAbsoluteLimit = 50
+	largePruneMinimum       = 5
+	largePruneRatio         = 0.10
+)
+
+type manifestWritePlan struct {
+	source string
+	dir    string
+	value  manifest
+	pruned []string
+}
+
+// writeManifestsWithPolicy plans every touched source before committing any
+// manifest. Authoritative replacement fails closed when discovery would remove
+// a suspiciously large portion of an existing source unless the operator has
+// explicitly acknowledged the plan with --allow-large-prune.
+func writeManifestsWithPolicy(outRoot string, results []result, replaceSource, allowLargePrune bool, prunedPaths *[]string) error {
 	bySource := map[string][]result{}
 	for _, r := range results {
 		if r.Source == "" {
@@ -1119,48 +1192,92 @@ func writeManifests(outRoot string, results []result, replaceSource bool, pruned
 		}
 		bySource[r.Source] = append(bySource[r.Source], r)
 	}
-	for source, fresh := range bySource {
+	sources := make([]string, 0, len(bySource))
+	for source := range bySource {
+		sources = append(sources, source)
+	}
+	sort.Strings(sources)
+
+	plans := make([]manifestWritePlan, 0, len(sources))
+	for _, source := range sources {
+		fresh := bySource[source]
 		dir := filepath.Join(outRoot, source)
 		m, err := loadOrMigrateManifest(dir)
 		if err != nil {
 			return searchruntime.ManifestLoadSourceError(source, err)
 		}
+		plan := manifestWritePlan{source: source, dir: dir, value: m}
 		if replaceSource {
-			removed := replaceManifestForSource(&m, fresh)
-			if prunedPaths != nil {
-				*prunedPaths = append(*prunedPaths, removed...)
+			existingDocs, err := sourceDocPaths(outRoot, source)
+			if err != nil {
+				return fmt.Errorf("scan %s before replacement: %w", source, err)
 			}
+			removed := replaceManifestForSource(&plan.value, fresh)
+			unmanifested, err := findUnmanifestedDocPaths(outRoot, source, plan.value)
+			if err != nil {
+				return fmt.Errorf("scan %s for unmanifested docs: %w", source, err)
+			}
+			removed = appendUniqueStrings(removed, unmanifested...)
+			existingCount := max(len(m.Entries), len(existingDocs))
+			if err := validateSourceReplacement(source, existingCount, len(removed), allowLargePrune); err != nil {
+				return err
+			}
+			plan.pruned = removed
 		} else {
-			mergeIntoManifest(&m, fresh)
+			mergeIntoManifest(&plan.value, fresh)
 		}
-		if n := dedupeManifestPaths(&m); n > 0 {
+		if n := dedupeManifestPaths(&plan.value); n > 0 {
 			fmt.Fprintf(os.Stderr, "manifest: %s: pruned %d stale duplicate-path entr%s (older URL variants of the same file)\n",
 				source, n, map[bool]string{true: "y", false: "ies"}[n == 1])
 		}
-		if err := writeManifestAtomic(dir, m); err != nil {
-			return searchruntime.ManifestWriteSourceError(source, err)
+		plans = append(plans, plan)
+	}
+
+	for _, plan := range plans {
+		if err := writeManifestAtomic(plan.dir, plan.value); err != nil {
+			return searchruntime.ManifestWriteSourceError(plan.source, err)
+		}
+		if prunedPaths != nil {
+			*prunedPaths = append(*prunedPaths, plan.pruned...)
 		}
 	}
 	return nil
 }
 
-// replaceManifestForSource keeps only URLs present in fresh (successful pulls),
-// records pruned relative paths, then merges fresh results.
+func validateSourceReplacement(source string, existing, pruning int, allowLargePrune bool) error {
+	if allowLargePrune || pruning == 0 || existing == 0 {
+		return nil
+	}
+	ratio := float64(pruning) / float64(existing)
+	if pruning < largePruneAbsoluteLimit && (pruning < largePruneMinimum || ratio <= largePruneRatio) {
+		return nil
+	}
+	return fmt.Errorf("replace-source safety: source %q would prune %d of %d existing documents (%.1f%%); verify discovery completeness and rerun with --allow-large-prune to acknowledge the deletion", source, pruning, existing, ratio*100)
+}
+
+// replaceManifestForSource treats the fresh URL set as authoritative while
+// preserving last-known-good artifacts for URLs that were requested but
+// temporarily skipped. Only URLs absent from fresh are pruned; successful
+// results replace prior entries. This prevents a transient 429/5xx/timeout from
+// deleting a healthy cached document during --replace-source.
 func replaceManifestForSource(m *manifest, fresh []result) []string {
 	if m.Entries == nil {
 		m.Entries = map[string]result{}
 	}
-	keep := map[string]bool{}
+	present := map[string]bool{}
 	successful := make([]result, 0, len(fresh))
 	for _, r := range fresh {
-		if r.URL != "" && r.Skipped == "" {
-			keep[r.URL] = true
+		if r.URL == "" {
+			continue
+		}
+		present[r.URL] = true
+		if r.Skipped == "" {
 			successful = append(successful, r)
 		}
 	}
 	var pruned []string
 	for url, r := range m.Entries {
-		if keep[url] {
+		if present[url] {
 			continue
 		}
 		if r.Path != "" {
@@ -1180,6 +1297,74 @@ func deletePrunedDocPaths(outRoot string, relPaths []string) error {
 		}
 	}
 	return nil
+}
+
+// findUnmanifestedDocPaths closes a replace-source hygiene gap: files left by
+// much older manifests (or interrupted/manual pulls) are otherwise invisible
+// to replaceManifestForSource and remain searchable forever. Explicit source
+// replacement means the successful fresh manifest is authoritative, so any
+// other Markdown-family document is stale. Generated _INDEX.md is rebuilt by
+// the normal finalize path and is never a vendor document.
+func findUnmanifestedDocPaths(outRoot, source string, m manifest) ([]string, error) {
+	kept := make(map[string]bool, len(m.Entries))
+	for _, r := range m.Entries {
+		if r.Path != "" {
+			kept[filepath.Clean(filepath.FromSlash(r.Path))] = true
+		}
+	}
+
+	paths, err := sourceDocPaths(outRoot, source)
+	if err != nil {
+		return nil, err
+	}
+	var stale []string
+	for _, rel := range paths {
+		clean := filepath.Clean(filepath.FromSlash(rel))
+		if !kept[clean] {
+			stale = append(stale, filepath.ToSlash(clean))
+		}
+	}
+	sort.Strings(stale)
+	return stale, nil
+}
+
+func sourceDocPaths(outRoot, source string) ([]string, error) {
+	sourceDir := filepath.Join(outRoot, source)
+	var paths []string
+	err := filepath.WalkDir(sourceDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		if d.IsDir() || d.Name() == "_INDEX.md" || !isMarkdownDocName(strings.ToLower(d.Name())) {
+			return nil
+		}
+		rel, err := filepath.Rel(outRoot, path)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, filepath.ToSlash(filepath.Clean(rel)))
+		return nil
+	})
+	sort.Strings(paths)
+	return paths, err
+}
+
+func appendUniqueStrings(base []string, values ...string) []string {
+	seen := make(map[string]bool, len(base)+len(values))
+	for _, value := range base {
+		seen[value] = true
+	}
+	for _, value := range values {
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		base = append(base, value)
+	}
+	return base
 }
 
 // mergeIntoManifest applies fresh results to m in-place. URLs already in m

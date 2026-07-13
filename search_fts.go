@@ -344,6 +344,47 @@ func (f *ftsIndex) updateFTS(out string, changedPaths []string) error {
 	return f.upsertPaths(out, changedPaths)
 }
 
+// updateFTSAndRepair preserves cheap incremental updates while making repeat
+// pulls self-healing. Successful unchanged paths are probed in docs_path; only
+// missing rows join the changed-path upsert set.
+func (f *ftsIndex) updateFTSAndRepair(out string, changedPaths, successfulPaths []string) (int, error) {
+	n, _ := f.totalDocs()
+	if n == 0 {
+		return 0, f.rebuild(out)
+	}
+	missing, err := f.missingPaths(successfulPaths)
+	if err != nil {
+		return 0, err
+	}
+	paths := uniqueStrings(append(append([]string{}, changedPaths...), missing...))
+	return len(missing), f.upsertPaths(out, paths)
+}
+
+func (f *ftsIndex) missingPaths(paths []string) ([]string, error) {
+	ctx := context.Background()
+	var missing []string
+	for _, relPath := range uniqueStrings(paths) {
+		if _, _, ok := splitFTSPath(relPath); !ok {
+			continue
+		}
+		var indexed int
+		err := f.db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM docs_path AS p
+				JOIN docs AS d ON d.rowid = p.rowid
+				WHERE p.path = ?
+			)`, relPath).Scan(&indexed)
+		if err != nil {
+			return nil, err
+		}
+		if indexed == 0 {
+			missing = append(missing, relPath)
+		}
+	}
+	return missing, nil
+}
+
 // replaceSources refreshes complete source directories after an on-disk
 // replacement. It deletes every indexed row for each source, then re-indexes
 // the current files under <out>/<source> in one transaction. This is the
@@ -466,8 +507,9 @@ func (f *ftsIndex) updateFTSFromMemory(out string, changedPaths []string, docs [
 
 // upsertPaths replaces (or inserts) FTS5 rows for the given paths. Each
 // path is rooted at <out> (e.g. "supabase/guides/rls.md"). Inside one
-// transaction: SELECT rowid via the docs_path side table, DELETE that
-// rowid from docs, INSERT fresh, REPLACE docs_path with the new rowid.
+// transaction it deletes both the side-table mapping and every FTS row for the
+// path before inserting fresh state. Deleting by path also repairs an orphaned
+// docs row when docs_path was lost or partially written.
 // Caller is expected to hold the write lock.
 //
 // A path whose underlying file no longer exists results in just the DELETE
@@ -500,18 +542,10 @@ func (f *ftsIndex) upsertPaths(out string, paths []string) error {
 			continue
 		}
 
-		var oldRowID int64
-		switch oldRowID, err = q.LookupDocRowIDByPath(ctx, relPath); err {
-		case nil:
-			if err := q.DeleteDocByRowID(ctx, oldRowID); err != nil {
-				return err
-			}
-			if err := q.DeletePathByPath(ctx, relPath); err != nil {
-				return err
-			}
-		case sql.ErrNoRows:
-			// Not previously indexed; insert is fresh.
-		default:
+		if err := q.DeletePathByPath(ctx, relPath); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM docs WHERE path = ?`, relPath); err != nil {
 			return err
 		}
 
@@ -898,8 +932,7 @@ var nonEnglishLocaleCodes = map[string]bool{
 
 // benchmarkNoteSources are note-corpus source names checked for
 // self-referential docs-puller benchmark notes: notes ABOUT the retrieval
-// bench pollute results FOR the bench, so the indexer skips them. Internal
-// builds extend both lists (see the nicosinternal build tag).
+// bench pollute results FOR the bench, so the indexer skips them.
 var benchmarkNoteSources = map[string]bool{"kb": true, "vault": true}
 
 var benchmarkNoteNameMarkers = []string{

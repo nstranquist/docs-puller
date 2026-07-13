@@ -8,7 +8,7 @@ import (
 
 // DispatchFunc is the direct search implementation supplied by an owning
 // binary or package. It lets searchcore expose an in-process Searcher without
-// importing cmd/docs-puller's package main.
+// importing the root CLI's package main.
 type DispatchFunc func(context.Context, Query) ([]Hit, error)
 
 // InProcessSearcher satisfies Searcher by calling a provided in-process

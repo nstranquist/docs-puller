@@ -1,0 +1,17 @@
+schema_version: 1
+product_id: product.docs-puller
+endpoint: docs-puller/oss
+target_launch: launched
+deploy:
+  name: install-public-release
+  argv: [go, install, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.2.0]
+  timeout_seconds: 900
+verify:
+  - name: version-contract
+    category: runtime
+    argv: [docs-puller, version, --expect, v0.2.0, --json]
+    timeout_seconds: 60
+  - name: public-repository
+    category: distribution
+    argv: [curl, --fail, --silent, --show-error, --location, https://github.com/nstranquist/docs-puller]
+    timeout_seconds: 60

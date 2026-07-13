@@ -8,8 +8,8 @@ import (
 )
 
 // Request is the structured input to a docs-puller search dispatch run.
-// Type parameters keep this package independent from cmd/docs-puller's
-// current option, hit, and shared-index types while the engine is extracted.
+// Type parameters keep this package independent from the root CLI's option,
+// hit, and shared-index types.
 type Request[Opts any, Shared any] struct {
 	Query     string
 	Opts      Opts

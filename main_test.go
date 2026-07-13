@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -435,16 +437,147 @@ func TestReplaceManifestForSourcePrunesStaleURLs(t *testing.T) {
 	}
 }
 
-func TestReplaceManifestForSourceDropsSkippedURLs(t *testing.T) {
+func TestReplaceManifestForSourcePreservesLastKnownGoodForSkippedURLs(t *testing.T) {
 	m := newManifest()
-	m.Entries["https://gone.example/x"] = result{URL: "https://gone.example/x", Source: "s", Path: "s/gone.md"}
-	fresh := []result{{URL: "https://gone.example/x", Source: "s", Path: "s/gone.md", Skipped: "HTTP 404"}}
+	prior := result{URL: "https://keep.example/x", Source: "s", Path: "s/keep.md", SHA256: "known-good", FetchedAt: "2026-06-29"}
+	m.Entries[prior.URL] = prior
+	fresh := []result{{URL: prior.URL, Source: "s", Skipped: "HTTP 503"}}
 	pruned := replaceManifestForSource(&m, fresh)
-	if len(pruned) != 1 || pruned[0] != "s/gone.md" {
-		t.Fatalf("pruned = %v, want [s/gone.md]", pruned)
+	if len(pruned) != 0 {
+		t.Fatalf("pruned = %v, want none", pruned)
 	}
-	if _, ok := m.Entries["https://gone.example/x"]; ok {
-		t.Fatal("skipped URL should not be re-added during replace")
+	if got := m.Entries[prior.URL]; got.Path != prior.Path || got.SHA256 != prior.SHA256 || got.Skipped != "" {
+		t.Fatalf("skipped URL lost its last-known-good entry: got %+v, want %+v", got, prior)
+	}
+	out := t.TempDir()
+	path := filepath.Join(out, filepath.FromSlash(prior.Path))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# cached good doc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stale, err := findUnmanifestedDocPaths(out, "s", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) != 0 {
+		t.Fatalf("last-known-good file was marked stale after skipped refresh: %v", stale)
+	}
+}
+
+func TestFindUnmanifestedDocPaths(t *testing.T) {
+	out := t.TempDir()
+	sourceDir := filepath.Join(out, "s")
+	if err := os.MkdirAll(filepath.Join(sourceDir, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for rel, body := range map[string]string{
+		"kept.md":          "# kept",
+		"stale.md":         "# stale",
+		"nested/stale.mdx": "# stale mdx",
+		"_INDEX.md":        "# generated",
+		"notes.txt":        "not indexed",
+	} {
+		path := filepath.Join(sourceDir, filepath.FromSlash(rel))
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := newManifest()
+	m.Entries["https://example.com/kept.md"] = result{Path: "s/kept.md"}
+	got, err := findUnmanifestedDocPaths(out, "s", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"s/nested/stale.mdx", "s/stale.md"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findUnmanifestedDocPaths() = %v, want %v", got, want)
+	}
+}
+
+func TestWriteFileIfChanged(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.md")
+	unchanged, err := writeFileIfChanged(path, []byte("first"))
+	if err != nil || unchanged {
+		t.Fatalf("initial write: unchanged=%v err=%v", unchanged, err)
+	}
+	unchanged, err = writeFileIfChanged(path, []byte("first"))
+	if err != nil || !unchanged {
+		t.Fatalf("same content: unchanged=%v err=%v", unchanged, err)
+	}
+	unchanged, err = writeFileIfChanged(path, []byte("second"))
+	if err != nil || unchanged {
+		t.Fatalf("changed content: unchanged=%v err=%v", unchanged, err)
+	}
+}
+
+func TestValidateReplacementFlags(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		replace, allow bool
+		filter         string
+		maxN           int
+		wantErr        bool
+	}{
+		{name: "normal replacement", replace: true},
+		{name: "filter refused", replace: true, filter: "https://docs.example.com/keep", wantErr: true},
+		{name: "max refused", replace: true, maxN: 10, wantErr: true},
+		{name: "explicit filter override", replace: true, allow: true, filter: "https://docs.example.com/keep"},
+		{name: "override requires replacement", allow: true, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateReplacementFlags(tc.replace, tc.allow, tc.filter, tc.maxN)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("error = %v, wantErr=%v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestWriteManifestsRefusesLargePruneBeforeMutation(t *testing.T) {
+	out := t.TempDir()
+	sourceDir := filepath.Join(out, "s")
+	prior := newManifest()
+	for i := 0; i < 20; i++ {
+		url := fmt.Sprintf("https://example.com/%02d", i)
+		rel := fmt.Sprintf("s/%02d.md", i)
+		prior.Entries[url] = result{URL: url, Source: "s", Path: rel}
+		path := filepath.Join(out, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("# doc\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writeManifestAtomic(sourceDir, prior); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh := []result{{URL: "https://example.com/00", Source: "s", Path: "s/00.md"}}
+	err := writeManifestsWithPolicy(out, fresh, true, false, nil)
+	if err == nil || !strings.Contains(err.Error(), "would prune 19 of 20") {
+		t.Fatalf("large replacement error = %v", err)
+	}
+	got, err := loadOrMigrateManifest(sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Entries) != len(prior.Entries) {
+		t.Fatalf("manifest mutated after refused replacement: got %d entries, want %d", len(got.Entries), len(prior.Entries))
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, "19.md")); err != nil {
+		t.Fatalf("document deleted after refused replacement: %v", err)
+	}
+
+	var pruned []string
+	if err := writeManifestsWithPolicy(out, fresh, true, true, &pruned); err != nil {
+		t.Fatal(err)
+	}
+	if len(pruned) != 19 {
+		t.Fatalf("override pruned %d paths, want 19", len(pruned))
 	}
 }
 

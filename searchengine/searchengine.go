@@ -1,5 +1,5 @@
 // Package searchengine contains importable docs-puller dispatch engine pieces
-// that no longer need cmd/docs-puller's package main.
+// that do not depend on the root CLI's package main.
 package searchengine
 
 import (
@@ -115,7 +115,7 @@ func RunScan(query string, opts ScanOptions, callbacks ScanCallbacks) searchrunt
 }
 
 // DefaultScanCallbacks returns standalone helpers for importers that cannot
-// reach cmd/docs-puller's package-main helpers.
+// reach the root CLI's package-main helpers.
 func DefaultScanCallbacks() ScanCallbacks {
 	return ScanCallbacks{
 		ListSources:     ListSources,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1164,6 +1165,65 @@ func TestFTSDocsPathStaysInSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkSync("after upsert deleted-file", 2)
+}
+
+func TestFTSRepeatPullRepairsMissingUnchangedPath(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "s")
+	writeFTSDoc(t, src, "a.md", "# A\n\nalpha\n")
+	writeFTSDoc(t, src, "b.md", "# B\n\nrepairabletoken\n")
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	rowID, err := idx.q.LookupDocRowIDByPath(context.Background(), "s/b.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.q.DeleteDocByRowID(context.Background(), rowID); err != nil {
+		t.Fatal(err)
+	}
+
+	repaired, err := idx.updateFTSAndRepair(out, nil, []string{"s/a.md", "s/b.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repaired != 1 {
+		t.Fatalf("repaired = %d, want 1", repaired)
+	}
+	hits, err := idx.search("repairabletoken", "", 10, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].Path != "s/b.md" {
+		t.Fatalf("repaired search hits = %+v, want s/b.md", hits)
+	}
+
+	// The inverse partial drift (orphaned FTS row with no side-table mapping)
+	// must also repair without duplicating the document.
+	if err := idx.q.DeletePathByPath(context.Background(), "s/b.md"); err != nil {
+		t.Fatal(err)
+	}
+	repaired, err = idx.updateFTSAndRepair(out, nil, []string{"s/a.md", "s/b.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repaired != 1 {
+		t.Fatalf("orphan repair count = %d, want 1", repaired)
+	}
+	n, err := idx.totalDocs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("total docs after orphan repair = %d, want 2", n)
+	}
 }
 
 func TestFTSReplaceSourcesPrunesStalePinnedDocs(t *testing.T) {

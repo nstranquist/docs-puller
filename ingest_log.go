@@ -26,11 +26,12 @@ type logEntry struct {
 	StartedAt  string   `json:"started_at"`
 	FinishedAt string   `json:"finished_at"`
 	ElapsedMs  int64    `json:"elapsed_ms"`
-	Mode       string   `json:"mode"` // sitemap | gatsby-pagedata | from-file | pull-url | local | github-repo
+	Mode       string   `json:"mode"` // sitemap | llms-txt | gatsby-pagedata | from-file | pull-url | local | github-repo
 	Args       []string `json:"args,omitempty"`
 	Sources    []string `json:"sources,omitempty"`
 	URLs       int      `json:"urls"`
 	Pulled     int      `json:"pulled"`
+	Unchanged  int      `json:"unchanged,omitempty"`
 	Skipped    int      `json:"skipped"`
 	Warned     int      `json:"warned,omitempty"`
 }

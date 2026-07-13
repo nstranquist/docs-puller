@@ -1,7 +1,7 @@
 // Package searchruntime exposes docs-puller's importable in-process search
 // adapter. During M7+2 it owns the searchcore.Query-to-dispatch caller
-// boundary while the concrete dispatch engine continues to move out of
-// cmd/docs-puller's package main.
+// boundary while keeping the concrete dispatch engine independent from the
+// root CLI's package main.
 package searchruntime
 
 import (

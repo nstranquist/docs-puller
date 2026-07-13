@@ -182,6 +182,21 @@ func TestDefaultFixturesDirFromRoot(t *testing.T) {
 	}
 }
 
+func TestRunEvalSuiteReportsFixtureProgress(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.yaml")
+	var gotIndex, gotTotal int
+	var gotPath string
+	rows := runEvalSuiteWithProgress([]string{missing}, t.TempDir(), false, 10, 0, false, searchOpts{}, func(index, total int, path string) {
+		gotIndex, gotTotal, gotPath = index, total, path
+	})
+	if gotIndex != 1 || gotTotal != 1 || gotPath != missing {
+		t.Fatalf("progress = (%d, %d, %q), want (1, 1, %q)", gotIndex, gotTotal, gotPath, missing)
+	}
+	if len(rows) != 1 || rows[0].Error == "" {
+		t.Fatalf("rows = %+v, want one fixture load error", rows)
+	}
+}
+
 func writeTestJSON(t *testing.T, path string, v any) {
 	t.Helper()
 	body, err := json.Marshal(v)

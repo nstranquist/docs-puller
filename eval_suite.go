@@ -91,7 +91,9 @@ func cmdEvalSuite(args []string) {
 		}
 	}
 	answerContextForRun := *answerContext || *overviewMD != "" || *overviewHTML != ""
-	rows := runEvalSuite(paths, o.out, *useScan, *limit, *tokenBudget, answerContextForRun, perQueryOpts)
+	rows := runEvalSuiteWithProgress(paths, o.out, *useScan, *limit, *tokenBudget, answerContextForRun, perQueryOpts, func(index, total int, path string) {
+		fmt.Fprintf(os.Stderr, "eval-suite: fixture %d/%d %s\n", index, total, filepath.Base(path))
+	})
 	hasErrors := evalSuiteHasErrors(rows)
 	var diff *evalSuiteDiffReport
 	if *diffPath != "" {
@@ -256,8 +258,15 @@ func evalSuiteFixturePathsForSelection(dir string, selection evalSuiteFixtureSel
 }
 
 func runEvalSuite(paths []string, outDir string, useScan bool, limit int, tokenBudget int, answerContext bool, perQueryOpts searchOpts) []evalSuiteRow {
+	return runEvalSuiteWithProgress(paths, outDir, useScan, limit, tokenBudget, answerContext, perQueryOpts, nil)
+}
+
+func runEvalSuiteWithProgress(paths []string, outDir string, useScan bool, limit int, tokenBudget int, answerContext bool, perQueryOpts searchOpts, progress func(index, total int, path string)) []evalSuiteRow {
 	rows := make([]evalSuiteRow, 0, len(paths))
-	for _, path := range paths {
+	for i, path := range paths {
+		if progress != nil {
+			progress(i+1, len(paths), path)
+		}
 		fix, err := loadFixture(path)
 		if err != nil {
 			rows = append(rows, evalSuiteRow{Fixture: path, Error: err.Error()})

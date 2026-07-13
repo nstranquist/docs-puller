@@ -33,3 +33,10 @@ jobs:
         run: go vet -tags sqlite_fts5 ./...
       - name: Test (incl. eval unit tests)
         run: go test -tags sqlite_fts5 ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - name: Compile VS Code extension
+        run: npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension

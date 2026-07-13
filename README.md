@@ -6,6 +6,12 @@
 
 This is the **open-core local CLI**. The hosted Team tier (multi-tenant control plane, billing, managed corpora) is proprietary. See [OPEN-CORE.md](OPEN-CORE.md) for the commercial boundary.
 
+This repository is the canonical source for the CLI and its public Go packages.
+Downstream tools should consume the executable contract instead of copying this
+source tree. `docs-puller version --json` reports the build identity, supported
+commands, and stable capabilities for adapters such as `ndev docs`; release
+automation can fail closed with `docs-puller version --expect v0.2.0`.
+
 ## Install
 
 Requirements: Go 1.26+.
@@ -43,6 +49,7 @@ The search result should include `setup.md`.
 
 ```sh
 docs-puller pull --from urls.md --out ~/code/docs
+docs-puller pull --llms-txt https://docs.x.ai/llms.txt --replace-source --out ~/code/docs
 docs-puller pull-url https://example.com/docs/page --out ~/code/docs
 docs-puller pull --local ~/projects/my-app --name my-app --out ~/code/docs
 docs-puller pull-local-batch --source app=~/projects/my-app --source docs=~/code/docs --out ~/code/docs
@@ -55,6 +62,11 @@ docs-puller pins refresh --write --out ~/code/docs
 docs-puller search "flatlist performance" --out ~/code/docs --source react-native --version 0.79
 docs-puller search "react native debugging" --out ~/code/docs --source react-native --all-versions
 ```
+
+`--replace-source` treats the discovered URL set as authoritative. It refuses
+large deletion plans by default and also refuses filtered or capped replacement
+runs. After reviewing the discovery input, pass `--allow-large-prune` to
+explicitly acknowledge an intentional large replacement.
 
 ## Rerank And Embeddings
 
