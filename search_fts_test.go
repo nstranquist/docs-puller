@@ -763,6 +763,40 @@ func TestFTSExactTitleMatch(t *testing.T) {
 	}
 }
 
+func TestFTSSourceScopedExactTitleBeatsHighBM25(t *testing.T) {
+	tokens := filterFTSStopWords(rewriteFTSNaturalLanguageTokens(tokenizeForFTS("Blender Geometry Nodes modifier")))
+	stripped, matchedSources := stripSourceIntentTokens(tokens)
+	if !matchedSources["blender"] || strings.Join(stripped, " ") != "geometry nodes modifier" {
+		t.Fatalf("source intent normalization = %q, sources=%v", strings.Join(stripped, " "), matchedSources)
+	}
+	out := t.TempDir()
+	src := filepath.Join(out, "blender")
+	writeFTSDoc(t, src, "editors/graph_editor/fcurves/modifiers.md",
+		"# F-Curve Modifiers\n\n"+strings.Repeat("Geometry nodes modifier. ", 500))
+	writeFTSDoc(t, src, "modeling/modifiers/geometry_nodes.md",
+		"# Geometry Nodes Modifier\n\nThe modifier uses a node group.\n")
+
+	idx, _ := openFTSIndex(out)
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("Blender Geometry Nodes modifier", "blender", 2, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("got %d hits, want 2", len(hits))
+	}
+	if !strings.HasSuffix(hits[0].Path, "modeling/modifiers/geometry_nodes.md") {
+		t.Fatalf("rank 0 = %q (score %d), want exact-title geometry_nodes.md ahead of %q (score %d)",
+			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
+	}
+	if hits[0].Score <= hits[1].Score {
+		t.Fatalf("scores are not descending after exact-title lift: %d <= %d", hits[0].Score, hits[1].Score)
+	}
+}
+
 // TestFTSShortCanonicalTitleWinsOverLongVendorRedundant covers the Phase A1
 // regression: a query like "supabase edge functions" should rank the
 // canonical short-titled doc ("Edge Functions") above an off-canonical doc
@@ -1546,5 +1580,77 @@ func TestChromeSourceKeywordRegistered(t *testing.T) {
 	}
 	if inferred != "chrome" {
 		t.Errorf("inferredSource = %q, want chrome", inferred)
+	}
+}
+
+func TestBlenderSourceKeywordRegistered(t *testing.T) {
+	srcs := sourcesFromQueryTokens(tokenizeForFTS("blender geometry nodes modifier"))
+	if !srcs["blender"] {
+		t.Fatalf("blender query should source-boost blender; got %+v", srcs)
+	}
+	for name, build := range map[string]func(string, bool) (string, string){
+		"title": ftsBuildTitleQuery,
+		"path":  ftsBuildPathQuery,
+	} {
+		query, inferred := build("blender geometry nodes modifier", false)
+		if strings.Contains(query, "blender") {
+			t.Errorf("%s query = %q; blender source token should be stripped", name, query)
+		}
+		if inferred != "blender" {
+			t.Errorf("%s inferred source = %q, want blender", name, inferred)
+		}
+	}
+	if query := ftsBuildSourceScopedQuery("blender geometry nodes modifier", false, "blender"); strings.Contains(query, "blender") {
+		t.Fatalf("source-scoped body query = %q; blender intent should be enforced by the source filter", query)
+	}
+}
+
+func TestFTSSourceScopedVendorTokenDoesNotHideCanonicalPage(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "blender")
+	writeFTSDoc(t, src, "modeling/modifiers/geometry_nodes.md", "# Geometry Nodes Modifier\n\nA modifier with a node group.\n")
+	writeFTSDoc(t, src, "history.md", "# Blender History\n\nBlender added geometry nodes and many modifier improvements.\n")
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("blender geometry nodes modifier", "blender", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || !strings.HasSuffix(hits[0].Path, "geometry_nodes.md") {
+		t.Fatalf("source-scoped product query hits = %+v, want canonical Geometry Nodes page first", hits)
+	}
+	dispatched, _, mode := dispatchSearch("blender geometry nodes modifier", searchOpts{out: out, source: "blender", limit: 5}, nil)
+	if mode != "fts5" || len(dispatched) == 0 || !strings.HasSuffix(dispatched[0].Path, "geometry_nodes.md") {
+		t.Fatalf("dispatched source-scoped product query = mode %q hits %+v, want canonical Geometry Nodes page first", mode, dispatched)
+	}
+}
+
+func TestFTSBlenderAutomaticWeightsRewriteRanksParenting(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "blender")
+	writeFTSDoc(t, src, "animation/constraints/relationship/armature.md",
+		"# Armature Constraint\n\n"+strings.Repeat("Armature automatic weights. ", 30))
+	writeFTSDoc(t, src, "animation/armatures/skinning/parenting.md",
+		"# Armature Deform Parent\n\nArmature parenting with automatic weights.\n")
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("armature automatic weights", "blender", 2, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || !strings.HasSuffix(hits[0].Path, "armatures/skinning/parenting.md") {
+		t.Fatalf("automatic-weights hits = %+v, want parenting guide first", hits)
 	}
 }

@@ -254,6 +254,14 @@ func TestStrictWithoutProfile(t *testing.T) {
 	if len(hits) == 0 {
 		t.Errorf("strict+nil-profile should not filter anything when no profile: %+v", hits)
 	}
+
+	// Exercise the complete dispatch pipeline too. A typed nil *Profile
+	// stored in the runtime matcher interface must not look like an active
+	// profile and trigger the post-retrieval strict filter.
+	dispatched, _, mode := dispatchSearch("foo", searchOpts{out: out, limit: 10, strict: true}, nil)
+	if mode != "fts5" || len(dispatched) == 0 {
+		t.Errorf("strict dispatch without profile = mode %q hits %+v, want FTS hits", mode, dispatched)
+	}
 }
 
 // TestRelPathInSource covers the helper used by AnnotateProfileMembership

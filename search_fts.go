@@ -65,11 +65,12 @@ const (
 // hub pages with short titles aren't buried by BM25 length norm. Used by
 // both `search` and the helper `runTier`.
 type cand struct {
-	hit       searchHit
-	body      string
-	fromTitle bool
-	fromPath  bool
-	tieBreak  int
+	hit        searchHit
+	body       string
+	fromTitle  bool
+	fromPath   bool
+	exactTitle bool
+	tieBreak   int
 }
 
 func ftsDBPath(out string) string {
@@ -1032,7 +1033,7 @@ func (f *ftsIndex) search(query, source string, limit int, exact bool, profile *
 }
 
 func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool, profile *Profile, strict bool, includeSnippets bool) ([]searchHit, error) {
-	q := ftsBuildQuery(query, exact)
+	q := ftsBuildSourceScopedQuery(query, exact, source)
 	if q == "" {
 		return nil, nil
 	}
@@ -1115,8 +1116,15 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		return nil, err
 	}
 
-	qLower := strings.TrimSpace(strings.ToLower(query))
-	qTokens := ftsScoringTokens(query, exact)
+	scoringQuery := query
+	if !exact && source != "" {
+		tokens := filterFTSStopWords(rewriteFTSNaturalLanguageTokens(tokenizeForFTS(query)))
+		if stripped, matchedSources := stripSourceIntentTokens(tokens); matchedSources[source] && len(stripped) > 0 {
+			scoringQuery = strings.Join(stripped, " ")
+		}
+	}
+	qLower := strings.TrimSpace(strings.ToLower(scoringQuery))
+	qTokens := ftsScoringTokens(scoringQuery, exact)
 	intendedSources := sourcesFromQueryTokens(qTokens)
 
 	profileBoost, profileSubBoost := profileBoostFromEnv()
@@ -1161,9 +1169,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		// Edge Functions". Surfaced by Phase A1 regression on
 		// `supabase edge functions` slipping rank 5→6.
 		titleLower := strings.ToLower(strings.TrimSpace(c.hit.Title))
-		if titleLower != "" && titleLower == qLower {
-			c.hit.Score += searchTitleExactBoost
-		}
+		c.exactTitle = titleLower != "" && titleLower == qLower
 		titleTokenMatches := 0
 		pathTokenMatches := 0
 		basenameTokenMatches := 0
@@ -1258,6 +1264,23 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			}
 		}
 		cands = append(cands, c)
+	}
+	// Exact-title matching is a ranking invariant, not a fixed-score guess.
+	// BM25 magnitudes grow with corpus shape and can exceed any empirically
+	// tuned constant (the Blender corpus exposed raw scores above 500). Lift
+	// exact-title candidates above the strongest adjusted candidate while
+	// preserving their relative scores and the public descending-score
+	// contract.
+	maxScore := 0
+	for _, c := range cands {
+		if c.hit.Score > maxScore {
+			maxScore = c.hit.Score
+		}
+	}
+	for _, c := range cands {
+		if c.exactTitle {
+			c.hit.Score += maxScore + searchTitleExactBoost
+		}
 	}
 	// Re-sort by adjusted score so the title bonus actually moves results.
 	sort.SliceStable(cands, func(i, j int) bool {
@@ -1382,13 +1405,30 @@ func ftsBuildQuery(q string, exact bool) string {
 	return joinFTSTokens(tokens)
 }
 
+// ftsBuildSourceScopedQuery removes a vendor/source intent token from the body
+// query when an explicit source filter already enforces that intent. Keeping
+// it would require every matched page to repeat its product name; manuals such
+// as Blender commonly omit that redundant word from canonical page content.
+func ftsBuildSourceScopedQuery(q string, exact bool, source string) string {
+	if exact || source == "" {
+		return ftsBuildQuery(q, exact)
+	}
+	tokens := filterFTSStopWords(rewriteFTSNaturalLanguageTokens(tokenizeForFTS(q)))
+	stripped, matchedSources := stripSourceIntentTokens(tokens)
+	if !matchedSources[source] || len(stripped) == 0 {
+		return joinFTSTokens(tokens)
+	}
+	return joinFTSTokens(stripped)
+}
+
 // ftsBuildTitleQuery builds a `title:(...)` column-filter expression used
 // by the title-tier search pass. When the user's query contains a known
 // source-keyword token (e.g. "supabase", "azure"), we strip it from the
 // title expression — canonical short-titled docs ("Storage", "Edge
 // Functions", "Indexes") don't repeat the vendor name in their title and
-// would fail title-tier qualification otherwise. The body-tier query
-// keeps the source-keyword (drives the source-keyword score boost).
+// would fail title-tier qualification otherwise. The body-tier query keeps
+// the source keyword for global search, but drops it when an explicit matching
+// source filter already enforces vendor intent.
 //
 // Returns the title-only FTS5 expression and an inferred source name when
 // stripping was applied to a query that uniquely identifies one source.
@@ -1808,12 +1848,12 @@ func ftsIndexExists(out string) bool {
 	if _, err := os.Stat(ftsDBPath(out)); err != nil {
 		return false
 	}
-	db, err := sql.Open("sqlite", ftsDBPath(out))
+	idx, err := openFTSIndexReadOnly(out)
 	if err != nil {
 		return false
 	}
-	defer db.Close()
-	n, err := ftsdb.New(db).CountDocs(context.Background())
+	defer idx.close()
+	n, err := idx.totalDocs()
 	if err != nil {
 		return false
 	}

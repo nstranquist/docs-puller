@@ -1,0 +1,213 @@
+# Retrieval acceptance for the official Blender 5.1 Manual corpus.
+# Every query is source-scoped because Blender Workspace agents should search
+# the version-matched manual directly instead of the entire vendor corpus.
+
+query_type: library_search
+
+queries:
+  # Modeling (7)
+  - q: Geometry Nodes modifier
+    source: blender
+    expect:
+      - blender/modeling/modifiers/geometry_nodes.md
+
+  - q: Boolean modifier exact solver
+    source: blender
+    expect:
+      - blender/modeling/modifiers/generate/booleans.md
+
+  - q: Bevel modifier segments
+    source: blender
+    expect:
+      - blender/modeling/modifiers/generate/bevel.md
+
+  - q: Subdivision Surface modifier levels
+    source: blender
+    expect:
+      - blender/modeling/modifiers/generate/subdivision_surface.md
+
+  - q: UV unwrap seams
+    source: blender
+    expect:
+      - blender/modeling/meshes/uv/unwrapping/seams.md
+
+  - q: shape keys relative absolute
+    source: blender
+    expect:
+      - blender/animation/shape_keys/shape_keys_panel.md
+      - blender/animation/shape_keys/introduction.md
+
+  - q: assign vertices to vertex group
+    source: blender
+    expect:
+      - blender/modeling/meshes/properties/vertex_groups/assigning_vertex_group.md
+
+  # Scripting and command line (5)
+  - q: Python console autocomplete
+    source: blender
+    expect:
+      - blender/editors/python_console.md
+
+  - q: command line background render animation
+    source: blender
+    expect:
+      - blender/advanced/command_line/render.md
+
+  - q: Blender command line arguments
+    source: blender
+    expect:
+      - blender/advanced/command_line/arguments.md
+
+  - q: Python add-on tutorial register classes
+    source: blender
+    expect:
+      - blender/advanced/scripting/addon_tutorial.md
+
+  - q: auto run Python scripts security
+    source: blender
+    expect:
+      - blender/advanced/scripting/security.md
+
+  # Compositing (6)
+  - q: Cryptomatte Node
+    source: blender
+    expect:
+      - blender/compositing/types/mask/cryptomatte.md
+
+  - q: Glare Node fog glow
+    source: blender
+    expect:
+      - blender/compositing/types/filter/glare.md
+
+  - q: File Output Node
+    source: blender
+    expect:
+      - blender/compositing/types/output/file_output.md
+
+  - q: Render Layers Node
+    source: blender
+    expect:
+      - blender/compositing/types/input/scene/render_layers.md
+
+  - q: backdrop image compositing
+    source: blender
+    expect:
+      - blender/compositing/sidebar.md
+
+  - q: Denoise Node
+    source: blender
+    expect:
+      - blender/compositing/types/filter/denoise.md
+
+  # Animation and rigging (6)
+  - q: armature automatic weights
+    source: blender
+    expect:
+      - blender/animation/armatures/skinning/parenting.md
+
+  - q: driver scripted expression variables
+    source: blender
+    expect:
+      - blender/animation/drivers/drivers_panel.md
+      - blender/animation/drivers/introduction.md
+
+  - q: NLA tracks action strips
+    source: blender
+    expect:
+      - blender/editors/nla/tracks.md
+
+  - q: Graph Editor F-Curve modifiers noise cycles
+    source: blender
+    expect:
+      - blender/editors/graph_editor/fcurves/modifiers.md
+
+  - q: inverse kinematics bone constraint chain
+    source: blender
+    expect:
+      - blender/animation/constraints/tracking/ik_solver.md
+      - blender/animation/armatures/posing/bone_constraints/inverse_kinematics/introduction.md
+
+  - q: shape key animation workflow
+    source: blender
+    expect:
+      - blender/animation/shape_keys/workflow.md
+
+  # Simulations and physics (6)
+  - q: rigid body world cache
+    source: blender
+    expect:
+      - blender/physics/rigid_body/world.md
+
+  - q: fluid simulation cache bake
+    source: blender
+    expect:
+      - blender/physics/fluid/type/domain/cache.md
+
+  - q: cloth collision self collision settings
+    source: blender
+    expect:
+      - blender/physics/cloth/settings/collisions.md
+
+  - q: dynamic paint canvas surface type
+    source: blender
+    expect:
+      - blender/physics/dynamic_paint/canvas.md
+
+  - q: wind force field physics
+    source: blender
+    expect:
+      - blender/physics/forces/force_fields/types/wind.md
+
+  - q: soft body cache bake
+    source: blender
+    expect:
+      - blender/physics/soft_body/settings/cache.md
+
+  # Rendering and color management (4)
+  - q: Cycles GPU rendering devices
+    source: blender
+    expect:
+      - blender/render/cycles/gpu_rendering.md
+
+  - q: AgX view transform
+    source: blender
+    expect:
+      - blender/render/color_management/color_spaces.md
+      - blender/render/color_management/displays_views.md
+
+  - q: Eevee ray tracing screen trace
+    source: blender
+    expect:
+      - blender/render/eevee/render_settings/raytracing.md
+
+  - q: render animation output format
+    source: blender
+    expect:
+      - blender/render/output/animation.md
+      - blender/render/output/properties/format.md
+
+  # Import and export (5)
+  - q: glTF export animations
+    source: blender
+    expect:
+      - blender/addons/import_export/scene_gltf2.md
+
+  - q: FBX export axis scale
+    source: blender
+    expect:
+      - blender/addons/import_export/scene_fbx.md
+
+  - q: USD export materials animation
+    source: blender
+    expect:
+      - blender/files/import_export/usd.md
+
+  - q: OBJ import export axis
+    source: blender
+    expect:
+      - blender/files/import_export/obj.md
+
+  - q: SVG grease pencil export
+    source: blender
+    expect:
+      - blender/files/import_export/grease_pencil_svg.md

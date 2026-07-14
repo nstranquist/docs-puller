@@ -108,12 +108,11 @@ const (
 	searchSnippetMax = 3
 	searchSnippetLen = 160
 	searchTitleBoost = 5
-	// searchTitleExactBoost: applied when the query equals the title
-	// verbatim. Calibrated to overpower body-tier BM25 advantages from
-	// off-canonical docs that happen to mention every query token in
-	// their (long) title. +100 guarantees the canonical doc wins
-	// decisively when an exact title match exists. Empirically tuned
-	// against the "row level security" case where ClickHouse's
+	// searchTitleExactBoost: the minimum margin applied after lifting an
+	// exact-title match above the strongest adjusted candidate. Computing the
+	// lift from the candidate set makes exact-title precedence independent of
+	// corpus-specific BM25 magnitude; this constant controls only the margin.
+	// Originally calibrated against the "row level security" case where ClickHouse's
 	// "Does ClickHouse support row-level and column-level security?"
 	// outranked Supabase's canonical "Row Level Security" doc when
 	// title-tier search lifted both into the candidate pool.
@@ -300,7 +299,8 @@ var sourceKeywordPairs = map[string][]string{
 	"react":                        {"reactjs"}, // bare "react" too generic — matches react-native, expo, supabase react guides
 	"bun":                          {"bun"},
 	"playwright":                   {"playwright"},
-	"chrome":                       {"chrome"}, // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
+	"chrome":                       {"chrome"},  // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
+	"blender":                      {"blender"}, // official manual pages usually omit the product name; treat it as source intent so product-qualified queries still rank canonical short titles
 }
 
 // sourceKeywordPhrases captures multi-token source names whose individual
@@ -437,6 +437,7 @@ type naturalLanguageCanonicalQuery struct {
 }
 
 var naturalLanguageCanonicalQueries = []naturalLanguageCanonicalQuery{
+	{all: []string{"armature", "automatic", "weights"}, rewrite: []string{"blender", "armature", "parenting", "automatic", "weights"}},
 	{all: []string{"supabase", "row", "level", "security"}, rewrite: []string{"supabase", "row", "level", "security"}},
 	{all: []string{"supabase", "storage", "file"}, oneOf: []string{"upload", "uploads"}, rewrite: []string{"supabase", "storage", "standard", "uploads"}},
 	{all: []string{"supabase", "function", "row", "changes"}, rewrite: []string{"supabase", "database", "webhooks"}},
@@ -688,6 +689,14 @@ func runDispatchSearch(req dispatchSearchRequest) dispatchSearchResult {
 		latestOnly = o.versionPolicy.latestOnly
 		version = o.versionPolicy.version
 	}
+	// Converting a typed nil *Profile directly to the ProfileMatcher interface
+	// produces a non-nil interface. Strict post-processing would then believe
+	// a profile was active and filter every hit, contradicting the documented
+	// "--strict has no effect" fallback. Normalize the interface explicitly.
+	var runtimeProfile searchruntime.ProfileMatcher
+	if o.profile != nil {
+		runtimeProfile = o.profile
+	}
 	pipeline := searchruntime.RunPipeline(searchruntime.Pipeline[*ftsIndex]{
 		PreRetrieval: searchruntime.PreRetrievalOptions{
 			UserLimit:              o.limit,
@@ -717,7 +726,10 @@ func runDispatchSearch(req dispatchSearchRequest) dispatchSearchResult {
 				return opts.cachedFTSTotalDocs
 			},
 			OpenLocal: func(opts searchOpts) (*ftsIndex, bool) {
-				return searchruntime.NewLocalIndexOpener(opts.out, ftsIndexExists, openFTSIndex)()
+				// Search is read-only. Opening the normal read/write handle here can
+				// contend with a concurrent pull/reindex during schema and journal
+				// setup, causing an avoidable silent fallback to filesystem scan.
+				return searchruntime.NewLocalIndexOpener(opts.out, ftsIndexExists, openFTSIndexReadOnly)()
 			},
 			QueryText:  query,
 			IndexQuery: searchFTSWithVersionPolicy,
@@ -744,7 +756,7 @@ func runDispatchSearch(req dispatchSearchRequest) dispatchSearchResult {
 					ProfileStrict:   o.strict,
 					UserLimit:       postRetrievalUserLimit(query, pre, o),
 				},
-				Profile: o.profile,
+				Profile: runtimeProfile,
 				ApplyVersionPolicy: func(hits []searchHit) []searchHit {
 					return applySearchVersionPolicy(query, hits, o)
 				},
