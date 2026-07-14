@@ -6,6 +6,14 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.3.1 — 2026-07-14
+
+### Fixed
+
+- Upgraded the nship launch contract to schema v2 with explicit managed
+  runtime policy for the public install and credential-free read policy for
+  release and distribution verification.
+
 ## v0.3.0 — 2026-07-14
 
 ### Added
