@@ -20,14 +20,16 @@ import (
 
 // Local + GitHub-repo ingestion modes.
 //
-// Both flow through walkAndIngest: walk a source dir for .md/.mdx/.mdoc, copy each
-// file to ~/code/docs/<source>/<rel-with-md-ext>/, and emit a manifest entry
+// All modes flow through the same ingestion path: walk a source directory for
+// .md/.mdx/.mdoc/.rst, normalize each file to Markdown under
+// ~/code/docs/<source>/<rel-with-md-ext>/, and emit a manifest entry
 // with a stable origin URL (github blob URL or file:// path).
 //
 // `--github-repo` clones into ~/code/docs/.cache/<source>-src/ (sparse when a
 // --subdir is given, full shallow otherwise) and refreshes via `git pull`. A
 // repo can be re-pulled idempotently — the cache is updated in place.
 //
+// `--git-repo` provides the same cache + refresh behavior for non-GitHub hosts.
 // `--local` skips the clone and walks a user-provided directory directly.
 
 // localFileSizeLimit is the upper bound for individual files to ingest. Docs
@@ -58,10 +60,11 @@ var githubRepoRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?/[
 
 type localPullOpts struct {
 	pullOpts
-	name     string   // override for the source dir name under <out>
-	subdir   string   // walk only this subpath
-	ref      string   // git ref (only meaningful for --github-repo)
-	excludes []string // glob patterns matched against rel path; repeatable
+	name       string   // override for the source dir name under <out>
+	subdir     string   // walk only this subpath
+	ref        string   // git ref (only meaningful for repository modes)
+	originBase string   // optional canonical published URL prefix
+	excludes   []string // glob patterns matched against rel path; repeatable
 }
 
 type localBatchSource struct {
@@ -194,6 +197,9 @@ func cmdPullLocal(localPath string, lo localPullOpts, cmdArgs []string) {
 	}
 
 	urlFor := func(rel string) string {
+		if lo.originBase != "" {
+			return canonicalLocalOriginURL(lo.originBase, rel)
+		}
 		full := filepath.Join(walkRoot, rel)
 		return "file://" + full
 	}
@@ -298,6 +304,9 @@ func cmdPullGithubRepo(spec string, lo localPullOpts, cmdArgs []string) {
 	// be more stable but breaks when the upstream branch moves.
 	urlBase := fmt.Sprintf("https://github.com/%s/%s/blob/%s", owner, repo, resolvedRef)
 	urlFor := func(rel string) string {
+		if lo.originBase != "" {
+			return canonicalLocalOriginURL(lo.originBase, rel)
+		}
 		// Path components on disk are filepath-separated; URLs need forward slashes.
 		relURL := filepath.ToSlash(rel)
 		if lo.subdir != "" {
@@ -306,6 +315,181 @@ func cmdPullGithubRepo(spec string, lo localPullOpts, cmdArgs []string) {
 		return urlBase + "/" + relURL
 	}
 	ingest(walkRoot, source, lo.pullOpts, urlFor, "github-repo", cmdArgs, lo.excludes)
+}
+
+func cmdPullGitRepo(repoURL string, lo localPullOpts, cmdArgs []string) {
+	if strings.TrimSpace(repoURL) == "" || strings.HasPrefix(repoURL, "-") {
+		die(fmt.Errorf("--git-repo: invalid repository URL %q", repoURL))
+	}
+
+	source := lo.name
+	if source == "" {
+		source = gitRepoSourceName(repoURL)
+	}
+	source = sanitizeSourceName(source)
+
+	cacheDir := filepath.Join(lo.sourceCache, source+"-src")
+	resolvedRef, err := ensureGitCheckout(repoURL, lo.ref, lo.subdir, cacheDir)
+	if err != nil {
+		die(err)
+	}
+
+	walkRoot := cacheDir
+	if lo.subdir != "" {
+		walkRoot = filepath.Join(cacheDir, lo.subdir)
+		if _, err := os.Stat(walkRoot); err != nil {
+			die(fmt.Errorf("--subdir %s not found in repo: %w", lo.subdir, err))
+		}
+	}
+
+	urlFor := func(rel string) string {
+		if lo.originBase != "" {
+			return canonicalLocalOriginURL(lo.originBase, rel)
+		}
+		return genericGitFileURL(repoURL, resolvedRef, lo.subdir, rel)
+	}
+	ingest(walkRoot, source, lo.pullOpts, urlFor, "git-repo", cmdArgs, lo.excludes)
+}
+
+func gitRepoSourceName(repoURL string) string {
+	trimmed := strings.TrimSuffix(strings.TrimRight(strings.TrimSpace(repoURL), "/"), ".git")
+	if i := strings.LastIndexAny(trimmed, "/:"); i >= 0 {
+		trimmed = trimmed[i+1:]
+	}
+	return trimmed
+}
+
+func canonicalLocalOriginURL(base, rel string) string {
+	rel = filepath.ToSlash(rel)
+	if strings.EqualFold(filepath.Ext(rel), ".rst") {
+		rel = rel[:len(rel)-len(filepath.Ext(rel))] + ".html"
+	}
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(rel, "/")
+}
+
+func genericGitFileURL(repoURL, ref, subdir, rel string) string {
+	base := strings.TrimSuffix(strings.TrimRight(repoURL, "/"), ".git")
+	path := filepath.ToSlash(filepath.Join(subdir, rel))
+	if strings.Contains(base, "projects.blender.org/") {
+		return base + "/src/branch/" + ref + "/" + path
+	}
+	return base + "#" + ref + ":" + path
+}
+
+func ensureGitCheckout(repoURL, userRef, subdir, cacheDir string) (string, error) {
+	if err := validateGitSubdir(subdir); err != nil {
+		return "", err
+	}
+	_, statErr := os.Stat(cacheDir)
+	if statErr == nil {
+		origin, err := gitOutput(cacheDir, "remote", "get-url", "origin")
+		if err != nil {
+			return "", fmt.Errorf("git remote: %w", err)
+		}
+		if strings.TrimSpace(origin) != strings.TrimSpace(repoURL) {
+			return "", fmt.Errorf("git cache %s belongs to %s, not %s", cacheDir, origin, repoURL)
+		}
+		ref := userRef
+		if ref == "" {
+			ref, _ = gitOutput(cacheDir, "rev-parse", "--abbrev-ref", "HEAD")
+			if ref == "" || ref == "HEAD" {
+				return "", fmt.Errorf("git cache %s is detached; pass --ref explicitly", cacheDir)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "→ refreshing %s @ %s\n", repoURL, ref)
+		if err := runGit(cacheDir, "fetch", "--depth=1", "origin", ref); err != nil {
+			return "", fmt.Errorf("git fetch: %w", err)
+		}
+		if err := runGit(cacheDir, "checkout", "-B", ref, "FETCH_HEAD"); err != nil {
+			return "", fmt.Errorf("git checkout: %w", err)
+		}
+		if err := reconcileSparseCheckout(cacheDir, subdir); err != nil {
+			return "", err
+		}
+		return ref, nil
+	}
+	if !os.IsNotExist(statErr) {
+		return "", fmt.Errorf("inspect git cache %s: %w", cacheDir, statErr)
+	}
+	if err := os.MkdirAll(filepath.Dir(cacheDir), 0o755); err != nil {
+		return "", err
+	}
+
+	args := []string{"clone", "--depth=1"}
+	if userRef != "" {
+		args = append(args, "--branch", userRef)
+	}
+	if subdir != "" {
+		args = append(args, "--filter=blob:none", "--sparse")
+	}
+	args = append(args, repoURL, cacheDir)
+	fmt.Fprintf(os.Stderr, "→ cloning %s into %s\n", repoURL, cacheDir)
+	if err := runGit("", args...); err != nil {
+		_ = os.RemoveAll(cacheDir)
+		return "", fmt.Errorf("git clone: %w", err)
+	}
+	if err := reconcileSparseCheckout(cacheDir, subdir); err != nil {
+		return "", err
+	}
+	ref := userRef
+	if ref == "" {
+		ref, _ = gitOutput(cacheDir, "rev-parse", "--abbrev-ref", "HEAD")
+	}
+	if ref == "" || ref == "HEAD" {
+		return "", fmt.Errorf("cannot determine checked-out branch for %s; pass --ref", repoURL)
+	}
+	return ref, nil
+}
+
+func validateGitSubdir(subdir string) error {
+	if subdir == "" {
+		return nil
+	}
+	clean := filepath.Clean(filepath.FromSlash(subdir))
+	if filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("--subdir must be a relative path within the repository, got %q", subdir)
+	}
+	return nil
+}
+
+// reconcileSparseCheckout makes the cache layout match the current request,
+// not whichever --subdir happened to create it. This matters for long-lived
+// caches: changing the subtree or clearing --subdir must make the newly
+// requested files visible before ingestion walks the checkout.
+func reconcileSparseCheckout(cacheDir, subdir string) error {
+	if subdir != "" {
+		if err := runGit(cacheDir, "sparse-checkout", "set", filepath.ToSlash(filepath.Clean(filepath.FromSlash(subdir)))); err != nil {
+			return fmt.Errorf("git sparse-checkout: %w", err)
+		}
+		return nil
+	}
+	enabled, err := gitOutput(cacheDir, "config", "--bool", "core.sparseCheckout")
+	if err != nil || enabled != "true" {
+		return nil
+	}
+	if err := runGit(cacheDir, "sparse-checkout", "disable"); err != nil {
+		return fmt.Errorf("disable git sparse-checkout: %w", err)
+	}
+	return nil
+}
+
+func runGit(dir string, args ...string) error {
+	var c *exec.Cmd
+	if dir == "" {
+		c = exec.Command("git", args...)
+	} else {
+		c = exec.Command("git", append([]string{"-C", dir}, args...)...)
+	}
+	c.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	c.Stdout, c.Stderr = os.Stderr, os.Stderr
+	return c.Run()
+}
+
+func gitOutput(dir string, args ...string) (string, error) {
+	c := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	c.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	out, err := c.Output()
+	return strings.TrimSpace(string(out)), err
 }
 
 // ensureGithubCheckout creates or refreshes a sparse checkout under cacheDir.
@@ -318,6 +502,9 @@ func cmdPullGithubRepo(spec string, lo localPullOpts, cmdArgs []string) {
 //
 // Returns the resolved ref name (used by callers to build stable origin URLs).
 func ensureGithubCheckout(owner, repo, userRef, subdir, cacheDir string) (string, error) {
+	if err := validateGitSubdir(subdir); err != nil {
+		return "", err
+	}
 	httpsURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
 	sshURL := fmt.Sprintf("git@github.com:%s/%s.git", owner, repo)
 
@@ -345,6 +532,9 @@ func ensureGithubCheckout(owner, repo, userRef, subdir, cacheDir string) (string
 		c.Stdout, c.Stderr = os.Stderr, os.Stderr
 		if err := c.Run(); err != nil {
 			return "", fmt.Errorf("git checkout: %w", err)
+		}
+		if err := reconcileSparseCheckout(cacheDir, subdir); err != nil {
+			return "", err
 		}
 		return ref, nil
 	}
@@ -405,12 +595,8 @@ func ensureGithubCheckout(owner, repo, userRef, subdir, cacheDir string) (string
 		return "", fmt.Errorf("git clone: tried HTTPS and SSH for %s/%s: %w", owner, repo, lastErr)
 	}
 
-	if subdir != "" {
-		c := exec.Command("git", "-C", cacheDir, "sparse-checkout", "set", subdir)
-		c.Stdout, c.Stderr = os.Stderr, os.Stderr
-		if err := c.Run(); err != nil {
-			return "", fmt.Errorf("git sparse-checkout: %w", err)
-		}
+	if err := reconcileSparseCheckout(cacheDir, subdir); err != nil {
+		return "", err
 	}
 	return resolvedRef, nil
 }
@@ -440,7 +626,8 @@ func discoverDefaultBranch(httpsURL, sshURL string) string {
 	return ""
 }
 
-// ingest walks walkRoot for .md/.mdx/.mdoc files, writes them to <out>/<source>/,
+// ingest walks walkRoot for Markdown-family and reStructuredText files, writes
+// normalized Markdown to <out>/<source>/,
 // builds manifest entries, regenerates _INDEX.md, and rebuilds the FTS5
 // index. Mirrors the post-processing pipeline of run() so search picks up
 // the new docs without a separate command.
@@ -461,8 +648,14 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 	// multiple --local/--github-repo pulls in parallel, we wait our turn
 	// rather than racing on the FTS5 index.
 	if err := withWriteLock(o.out, func() error {
-		if err := writeManifests(o.out, results, false, nil); err != nil {
+		var prunedPaths []string
+		if err := writeManifestsWithPolicy(o.out, results, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
 			return err
+		}
+		if len(prunedPaths) > 0 {
+			if err := deletePrunedDocPaths(o.out, prunedPaths); err != nil {
+				return err
+			}
 		}
 		if len(preExistingSources) == 0 {
 			if err := regenerateIndexFromMemory(o.out, localIndexMemoryDocs(docs)); err != nil {
@@ -479,6 +672,7 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 				changedPaths = append(changedPaths, doc.result.Path)
 			}
 		}
+		changedPaths = append(changedPaths, prunedPaths...)
 		if idx, err := openFTSIndex(o.out); err == nil {
 			coversCorpus := len(preExistingSources) == 0
 			if rerr := idx.updateFTSFromMemory(o.out, changedPaths, localFTSMemoryDocs(docs, coversCorpus), coversCorpus); rerr != nil {
@@ -493,8 +687,9 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 			Mode:       mode,
 			Args:       cmdArgs,
 			Sources:    []string{source},
-			URLs:       stats.walked,
-			Pulled:     stats.copied,
+			URLs:       stats.copied,
+			Pulled:     stats.written,
+			Unchanged:  stats.unchanged,
 			Skipped:    stats.skipped,
 		}
 		if err := appendIngestLog(o.out, entry); err != nil {
@@ -506,11 +701,11 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 	}
 
 	if stats.excluded > 0 {
-		fmt.Printf("ingested %d docs into %s/ (%d walked, %d skipped, %d excluded, mode=%s)\n",
-			stats.copied, source, stats.walked, stats.skipped, stats.excluded, mode)
+		fmt.Printf("ingested %d docs into %s/ (%d written, %d unchanged, %d files walked, %d skipped, %d excluded, mode=%s)\n",
+			stats.copied, source, stats.written, stats.unchanged, stats.walked, stats.skipped, stats.excluded, mode)
 	} else {
-		fmt.Printf("ingested %d docs into %s/ (%d walked, %d skipped, mode=%s)\n",
-			stats.copied, source, stats.walked, stats.skipped, mode)
+		fmt.Printf("ingested %d docs into %s/ (%d written, %d unchanged, %d files walked, %d skipped, mode=%s)\n",
+			stats.copied, source, stats.written, stats.unchanged, stats.walked, stats.skipped, mode)
 	}
 }
 
@@ -588,6 +783,9 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 			stats.skipped++
 			return nil
 		}
+		if strings.EqualFold(filepath.Ext(rel), ".rst") {
+			data = rstToMarkdown(data)
+		}
 		sum := sha256.Sum256(data)
 		sha := hex.EncodeToString(sum[:])
 		url := urlFor(rel)
@@ -634,20 +832,20 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 }
 
 func isMarkdownDocName(name string) bool {
+	name = strings.ToLower(name)
 	return strings.HasSuffix(name, ".md") ||
 		strings.HasSuffix(name, ".mdx") ||
-		strings.HasSuffix(name, ".mdoc")
+		strings.HasSuffix(name, ".mdoc") ||
+		strings.HasSuffix(name, ".rst")
 }
 
 func markdownOutputRel(rel string) string {
-	switch {
-	case strings.HasSuffix(rel, ".mdx"):
-		return strings.TrimSuffix(rel, ".mdx") + ".md"
-	case strings.HasSuffix(rel, ".mdoc"):
-		return strings.TrimSuffix(rel, ".mdoc") + ".md"
-	default:
-		return rel
+	ext := strings.ToLower(filepath.Ext(rel))
+	switch ext {
+	case ".mdx", ".mdoc", ".rst":
+		return rel[:len(rel)-len(ext)] + ".md"
 	}
+	return rel
 }
 
 func readManifestEntriesNoMigrate(srcDir string) map[string]result {

@@ -12,7 +12,7 @@ import (
 )
 
 // Per-operation ingest log at <out>/_INGEST_LOG.jsonl. Append-only; each line
-// records one `pull` / `pull-url` / `--local` / `--github-repo` invocation
+// records one `pull` / `pull-url` / `--local` / repository invocation
 // with timestamps, the original CLI args, the sources touched, and rollup
 // counts.
 //
@@ -26,7 +26,7 @@ type logEntry struct {
 	StartedAt  string   `json:"started_at"`
 	FinishedAt string   `json:"finished_at"`
 	ElapsedMs  int64    `json:"elapsed_ms"`
-	Mode       string   `json:"mode"` // sitemap | llms-txt | gatsby-pagedata | from-file | pull-url | local | github-repo
+	Mode       string   `json:"mode"` // sitemap | llms-txt | gatsby-pagedata | from-file | pull-url | local | github-repo | git-repo
 	Args       []string `json:"args,omitempty"`
 	Sources    []string `json:"sources,omitempty"`
 	URLs       int      `json:"urls"`

@@ -54,6 +54,7 @@ docs-puller pull-url https://example.com/docs/page --out ~/code/docs
 docs-puller pull --local ~/projects/my-app --name my-app --out ~/code/docs
 docs-puller pull-local-batch --source app=~/projects/my-app --source docs=~/code/docs --out ~/code/docs
 docs-puller pull --github-repo owner/repo --name repo-docs --out ~/code/docs
+docs-puller pull --git-repo https://projects.example.com/team/manual.git --ref release-1.0 --subdir manual --name product --origin-base https://docs.example.com/latest --out ~/code/docs
 docs-puller reindex --out ~/code/docs
 docs-puller status --out ~/code/docs --check
 docs-puller status --out ~/code/docs --check --check-embeddings
@@ -67,6 +68,13 @@ docs-puller search "react native debugging" --out ~/code/docs --source react-nat
 large deletion plans by default and also refuses filtered or capped replacement
 runs. After reviewing the discovery input, pass `--allow-large-prune` to
 explicitly acknowledge an intentional large replacement.
+
+Local, GitHub, and generic Git ingestion accept `.md`, `.mdx`, `.mdoc`, and
+`.rst`. reStructuredText is normalized into agent-readable Markdown while
+preserving retrieval-relevant headings, Sphinx roles, links, figures,
+admonitions, and code blocks. Generic Git checkouts are shallow, refreshable,
+and cached under `<out>/.cache/<source>-src`; use `--origin-base` when the
+published documentation URL differs from the source repository URL.
 
 ## Rerank And Embeddings
 

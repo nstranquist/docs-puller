@@ -26,6 +26,15 @@ func TestCurrentVersionInfoPublishesStableContract(t *testing.T) {
 	}
 }
 
+func TestCurrentVersionInfoPublishesRepositoryAndRSTCapabilities(t *testing.T) {
+	info := currentVersionInfo()
+	for _, capability := range []string{"pull.git-repo", "pull.rst"} {
+		if !slices.Contains(info.Capabilities, capability) {
+			t.Errorf("capabilities missing %q: %v", capability, info.Capabilities)
+		}
+	}
+}
+
 func TestCheckExpectedVersion(t *testing.T) {
 	if err := checkExpectedVersion("v0.2.0", "v0.2.0"); err != nil {
 		t.Fatalf("matching version rejected: %v", err)

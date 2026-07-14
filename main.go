@@ -170,6 +170,8 @@ Usage:
   docs-puller pull-local-batch --source NAME=PATH [--source NAME=PATH ...]
                                              [--out DIR] [--json]
   docs-puller pull --github-repo <o/r>       [--ref REF] [--name NAME] [--subdir SUBDIR]
+  docs-puller pull --git-repo <url>           [--ref REF] [--name NAME] [--subdir SUBDIR]
+                                             [--origin-base URL]
   docs-puller pull-url <url>                 [common-flags]
   docs-puller pull-article <url>             [--name SLUG] [common-flags]
   docs-puller crawl-refs                     [--cases-root DIR] [--source NAME] [--out DIR]
@@ -240,7 +242,9 @@ Embedding rerank without --rerank-llm regresses Hit@1; not recommended.
 
 Resolution: source repo → YAML spec → github raw README → HTTP + html-to-markdown.
 --local / --github-repo skip HTTP entirely and walk an in-tree dir or a sparse
-GitHub clone for .md/.mdx; useful for private monorepo docs.
+GitHub clone for Markdown-family and reStructuredText docs. --git-repo adds
+generic Git hosts (for example projects.blender.org); --origin-base maps local
+source paths back to their canonical published documentation URLs.
 
 HTTP fetches retry on 5xx/429 (3 attempts, 500ms exponential backoff, honors
 Retry-After). Pages with <200 bytes of converted content emit a low-content
@@ -298,16 +302,18 @@ func cmdPull(args []string) {
 	doccURL := fs.String("docc", "", "DocC archive root URL — BFS-walk an Apple-style JSON-driven doc archive (developer.apple.com / Swift package docs)")
 	filter := fs.String("filter", "", "with --sitemap/--llms-txt/--gatsby-pagedata/--from/--docc: keep only URLs starting with this prefix")
 	maxN := fs.Int("max", 0, "with --sitemap/--llms-txt/--gatsby-pagedata/--from/--docc: cap the URL count (0 = no cap)")
-	local := fs.String("local", "", "ingest .md/.mdx from a local directory")
-	githubRepo := fs.String("github-repo", "", "ingest .md/.mdx from a GitHub repo (owner/repo)")
-	name := fs.String("name", "", "with --local/--github-repo/--docc: override source dir name")
-	subdir := fs.String("subdir", "", "with --local/--github-repo: walk only this subpath")
-	ref := fs.String("ref", "", "with --github-repo: git ref/branch (default: main)")
+	local := fs.String("local", "", "ingest .md/.mdx/.mdoc/.rst from a local directory")
+	githubRepo := fs.String("github-repo", "", "ingest docs from a GitHub repo (owner/repo)")
+	gitRepo := fs.String("git-repo", "", "ingest docs from a generic Git repository URL")
+	name := fs.String("name", "", "with --local/--github-repo/--git-repo/--docc: override source dir name")
+	subdir := fs.String("subdir", "", "with --local/--github-repo/--git-repo: walk only this subpath")
+	ref := fs.String("ref", "", "with --github-repo/--git-repo: git ref/branch (default: upstream HEAD)")
+	originBase := fs.String("origin-base", "", "with --local/--github-repo/--git-repo: canonical published URL prefix for ingested paths")
 	followSeeAlso := fs.Bool("follow-see-also", false, "with --docc: include See Also identifiers in BFS frontier (default: render-only)")
 	followRel := fs.Bool("follow-relationships", false, "with --docc: include Relationships identifiers in BFS frontier (default: render-only)")
 	allowLargePrune := fs.Bool("allow-large-prune", false, "with --replace-source: allow a guarded large source deletion after reviewing discovery input")
 	var excludes stringSliceFlag
-	fs.Var(&excludes, "exclude", "with --local/--github-repo: skip paths matching glob (repeatable; e.g. 'internal-notes/**', 'attachments/**', '*.tmp.md')")
+	fs.Var(&excludes, "exclude", "with --local/--github-repo/--git-repo: skip paths matching glob (repeatable; e.g. 'internal-notes/**', 'attachments/**', '*.tmp.md')")
 	bindOpts(fs, &o)
 	fs.Parse(args)
 	o.allowLargePrune = *allowLargePrune
@@ -316,14 +322,14 @@ func cmdPull(args []string) {
 	}
 
 	modes := 0
-	for _, s := range []string{*from, *sitemap, *llmsTxt, *gatsbyPageData, *doccURL, *local, *githubRepo} {
+	for _, s := range []string{*from, *sitemap, *llmsTxt, *gatsbyPageData, *doccURL, *local, *githubRepo, *gitRepo} {
 		if s != "" {
 			modes++
 		}
 	}
 	if modes != 1 {
 		fmt.Fprintln(os.Stderr,
-			"pull: pass exactly one of --from <file>, --sitemap <url>, --llms-txt <url>, --gatsby-pagedata <url>, --docc <url>, --local <path>, or --github-repo <owner/repo>")
+			"pull: pass exactly one of --from <file>, --sitemap <url>, --llms-txt <url>, --gatsby-pagedata <url>, --docc <url>, --local <path>, --github-repo <owner/repo>, or --git-repo <url>")
 		os.Exit(2)
 	}
 
@@ -332,18 +338,21 @@ func cmdPull(args []string) {
 		return
 	}
 
-	if *local != "" || *githubRepo != "" {
+	if *local != "" || *githubRepo != "" || *gitRepo != "" {
 		lo := localPullOpts{
-			pullOpts: o,
-			name:     *name,
-			subdir:   *subdir,
-			ref:      *ref,
-			excludes: excludes,
+			pullOpts:   o,
+			name:       *name,
+			subdir:     *subdir,
+			ref:        *ref,
+			originBase: *originBase,
+			excludes:   excludes,
 		}
 		if *local != "" {
 			cmdPullLocal(*local, lo, os.Args[1:])
-		} else {
+		} else if *githubRepo != "" {
 			cmdPullGithubRepo(*githubRepo, lo, os.Args[1:])
+		} else {
+			cmdPullGitRepo(*gitRepo, lo, os.Args[1:])
 		}
 		return
 	}
@@ -1220,6 +1229,11 @@ func writeManifestsWithPolicy(outRoot string, results []result, replaceSource, a
 				return fmt.Errorf("scan %s for unmanifested docs: %w", source, err)
 			}
 			removed = appendUniqueStrings(removed, unmanifested...)
+			// Replacement is keyed by canonical URL, while artifacts are deleted
+			// by path. A canonical-URL migration can therefore retire an old URL
+			// and add its replacement at the exact same path. Never schedule a
+			// path that the final manifest still references for deletion.
+			removed = unreferencedManifestPaths(removed, plan.value)
 			existingCount := max(len(m.Entries), len(existingDocs))
 			if err := validateSourceReplacement(source, existingCount, len(removed), allowLargePrune); err != nil {
 				return err
@@ -1292,13 +1306,65 @@ func replaceManifestForSource(m *manifest, fresh []result) []string {
 }
 
 func deletePrunedDocPaths(outRoot string, relPaths []string) error {
+	rootAbs, err := filepath.Abs(outRoot)
+	if err != nil {
+		return fmt.Errorf("resolve output root: %w", err)
+	}
+	root, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return fmt.Errorf("resolve output root symlinks: %w", err)
+	}
+	paths := make([]string, 0, len(relPaths))
 	for _, rel := range relPaths {
-		path := filepath.Join(outRoot, rel)
+		clean := filepath.Clean(filepath.FromSlash(rel))
+		if rel == "" || filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("refusing to delete unsafe pruned path %q", rel)
+		}
+		path := filepath.Join(root, clean)
+		within, err := filepath.Rel(root, path)
+		if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("refusing to delete pruned path outside output root %q", rel)
+		}
+		if _, err := os.Lstat(path); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("inspect pruned path %q: %w", rel, err)
+		}
+		resolvedParent, err := filepath.EvalSymlinks(filepath.Dir(path))
+		if err != nil {
+			return fmt.Errorf("resolve pruned path parent %q: %w", rel, err)
+		}
+		within, err = filepath.Rel(root, resolvedParent)
+		if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("refusing to delete pruned path through a symlink outside output root %q", rel)
+		}
+		paths = append(paths, path)
+	}
+	// Validate the complete plan before deleting the first file so one unsafe
+	// candidate cannot leave a partially applied replacement behind.
+	for _, path := range paths {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
 	return nil
+}
+
+func unreferencedManifestPaths(candidates []string, m manifest) []string {
+	referenced := make(map[string]bool, len(m.Entries))
+	for _, r := range m.Entries {
+		if r.Path != "" {
+			referenced[filepath.Clean(filepath.FromSlash(r.Path))] = true
+		}
+	}
+	filtered := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate == "" || referenced[filepath.Clean(filepath.FromSlash(candidate))] {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	return filtered
 }
 
 // findUnmanifestedDocPaths closes a replace-source hygiene gap: files left by

@@ -2,10 +2,80 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestEnsureGitCheckoutReconcilesSparseSubdir(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	repo := filepath.Join(t.TempDir(), "origin")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)
+		}
+	}
+	run(repo, "init", "-b", "main")
+	run(repo, "config", "user.email", "docs-puller@example.invalid")
+	run(repo, "config", "user.name", "docs-puller test")
+	for rel, body := range map[string]string{"manual/a.rst": "A\n=\n", "docs/b.rst": "B\n=\n"} {
+		path := filepath.Join(repo, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run(repo, "add", ".")
+	run(repo, "commit", "-m", "fixture")
+
+	cache := filepath.Join(t.TempDir(), "cache")
+	if _, err := ensureGitCheckout(repo, "main", "manual", cache); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "manual", "a.rst")); err != nil {
+		t.Fatalf("manual subtree missing after initial sparse checkout: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "docs", "b.rst")); !os.IsNotExist(err) {
+		t.Fatalf("unrequested docs subtree unexpectedly present: %v", err)
+	}
+
+	if _, err := ensureGitCheckout(repo, "main", "docs", cache); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "docs", "b.rst")); err != nil {
+		t.Fatalf("changed sparse subtree missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "manual", "a.rst")); !os.IsNotExist(err) {
+		t.Fatalf("old sparse subtree unexpectedly present: %v", err)
+	}
+
+	if _, err := ensureGitCheckout(repo, "main", "", cache); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"manual/a.rst", "docs/b.rst"} {
+		if _, err := os.Stat(filepath.Join(cache, rel)); err != nil {
+			t.Fatalf("full checkout missing %s after clearing subdir: %v", rel, err)
+		}
+	}
+}
+
+func TestValidateGitSubdirRejectsTraversal(t *testing.T) {
+	for _, subdir := range []string{"../manual", "/manual", "."} {
+		if err := validateGitSubdir(subdir); err == nil {
+			t.Errorf("validateGitSubdir(%q) unexpectedly succeeded", subdir)
+		}
+	}
+}
 
 func TestSanitizeSourceName(t *testing.T) {
 	cases := map[string]string{
@@ -55,7 +125,7 @@ func TestGithubRepoRegex(t *testing.T) {
 }
 
 // TestIngestLocalEndToEnd exercises the full local-ingest pipeline: walk a
-// fake source tree, copy .md/.mdx/.mdoc, write manifest, regenerate _INDEX.md, and
+// fake source tree, normalize .md/.mdx/.mdoc/.rst, write manifest, regenerate _INDEX.md, and
 // confirm skipDirs are respected.
 func TestIngestLocalEndToEnd(t *testing.T) {
 	src := t.TempDir()
@@ -66,6 +136,7 @@ func TestIngestLocalEndToEnd(t *testing.T) {
 		"docs/getting-started.md":     "# Getting Started\n\nhello",
 		"docs/advanced/perf.mdx":      "# Perf\n\nfast",
 		"docs/advanced/markdoc.mdoc":  "# Markdoc\n\nworks",
+		"docs/advanced/sphinx.rst":    "Sphinx Page\n===========\n\nworks",
 		"docs/notes.txt":              "ignore me",         // not markdown-family
 		"node_modules/junk/README.md": "should be skipped", // skipDir
 		".git/config":                 "should be skipped", // skipDir
@@ -87,12 +158,13 @@ func TestIngestLocalEndToEnd(t *testing.T) {
 	}
 	cmdPullLocal(src, lo, nil)
 
-	// Four markdown-family files should have been ingested. .mdx/.mdoc become .md.
+	// Five documentation files should have been ingested. .mdx/.mdoc/.rst become .md.
 	wantPaths := []string{
 		"README.md",
 		"docs/getting-started.md",
 		"docs/advanced/perf.md",
 		"docs/advanced/markdoc.md",
+		"docs/advanced/sphinx.md",
 	}
 	for _, want := range wantPaths {
 		if _, err := os.Stat(filepath.Join(out, "test-source", want)); err != nil {
@@ -113,13 +185,13 @@ func TestIngestLocalEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Manifest should have 4 entries with file:// URLs.
+	// Manifest should have 5 entries with file:// URLs.
 	mani, err := loadOrMigrateManifest(filepath.Join(out, "test-source"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(mani.Entries) != 4 {
-		t.Fatalf("manifest: got %d entries, want 4 (entries=%+v)", len(mani.Entries), mani.Entries)
+	if len(mani.Entries) != 5 {
+		t.Fatalf("manifest: got %d entries, want 5 (entries=%+v)", len(mani.Entries), mani.Entries)
 	}
 	for _, e := range mani.Entries {
 		if !strings.HasPrefix(e.URL, "file://") {
@@ -140,6 +212,45 @@ func TestIngestLocalEndToEnd(t *testing.T) {
 	}
 	if !strings.Contains(string(top), "[test-source]") {
 		t.Errorf("top _INDEX.md missing test-source: %s", top)
+	}
+}
+
+func TestIngestLocalReplaceSourcePrunesRemovedDocs(t *testing.T) {
+	src := t.TempDir()
+	out := t.TempDir()
+	keep := filepath.Join(src, "keep.rst")
+	remove := filepath.Join(src, "remove.rst")
+	if err := os.WriteFile(keep, []byte("Keep\n====\n\ncurrent"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(remove, []byte("Remove\n======\n\nstale phrase"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	base := pullOpts{out: out, sourceCache: filepath.Join(out, ".cache")}
+	cmdPullLocal(src, localPullOpts{pullOpts: base, name: "rst-source"}, nil)
+	if err := os.Remove(remove); err != nil {
+		t.Fatal(err)
+	}
+	base.replaceSource = true
+	cmdPullLocal(src, localPullOpts{pullOpts: base, name: "rst-source"}, nil)
+
+	if _, err := os.Stat(filepath.Join(out, "rst-source", "remove.md")); !os.IsNotExist(err) {
+		t.Fatalf("removed RST output still exists: %v", err)
+	}
+	manifest, err := loadOrMigrateManifest(filepath.Join(out, "rst-source"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Entries) != 1 {
+		t.Fatalf("manifest entries = %d, want 1", len(manifest.Entries))
+	}
+	entries, err := readIngestLog(out, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].URLs != 1 || entries[0].Pulled != 0 || entries[0].Unchanged != 1 {
+		t.Fatalf("replacement ingest telemetry = %+v, want one unchanged document", entries)
 	}
 }
 

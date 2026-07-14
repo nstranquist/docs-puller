@@ -466,6 +466,91 @@ func TestReplaceManifestForSourcePreservesLastKnownGoodForSkippedURLs(t *testing
 	}
 }
 
+func TestWriteManifestsCanonicalURLMigrationKeepsSharedPath(t *testing.T) {
+	out := t.TempDir()
+	sourceDir := filepath.Join(out, "s")
+	path := filepath.Join(sourceDir, "guide.md")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# refreshed document\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prior := newManifest()
+	prior.Entries["https://example.com/latest/guide.html"] = result{
+		URL: "https://example.com/latest/guide.html", Source: "s", Path: "s/guide.md", FetchedAt: "2026-06-01",
+	}
+	if err := writeManifestAtomic(sourceDir, prior); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh := []result{{
+		URL: "https://example.com/5.1/guide.html", Source: "s", Path: "s/guide.md", FetchedAt: "2026-07-13",
+	}}
+	var pruned []string
+	if err := writeManifestsWithPolicy(out, fresh, true, false, &pruned); err != nil {
+		t.Fatal(err)
+	}
+	if len(pruned) != 0 {
+		t.Fatalf("canonical URL migration scheduled live path for deletion: %v", pruned)
+	}
+	if err := deletePrunedDocPaths(out, pruned); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("shared refreshed path was deleted: %v", err)
+	}
+	got, err := loadOrMigrateManifest(sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Entries) != 1 || got.Entries[fresh[0].URL].Path != "s/guide.md" {
+		t.Fatalf("manifest did not complete canonical URL migration: %+v", got.Entries)
+	}
+}
+
+func TestDeletePrunedDocPathsRejectsTraversal(t *testing.T) {
+	out := t.TempDir()
+	safe := filepath.Join(out, "safe.md")
+	if err := os.WriteFile(safe, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(out), "outside.md")
+	if err := os.WriteFile(outside, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(outside) })
+
+	if err := deletePrunedDocPaths(out, []string{"safe.md", "../outside.md"}); err == nil {
+		t.Fatal("expected traversal path to be rejected")
+	}
+	if _, err := os.Stat(safe); err != nil {
+		t.Fatalf("delete plan was partially applied before validation completed: %v", err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("unsafe delete escaped output root: %v", err)
+	}
+}
+
+func TestDeletePrunedDocPathsRejectsSymlinkParentEscape(t *testing.T) {
+	out := t.TempDir()
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "victim.md")
+	if err := os.WriteFile(victim, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(out, "escape")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if err := deletePrunedDocPaths(out, []string{"escape/victim.md"}); err == nil {
+		t.Fatal("expected symlink-parent escape to be rejected")
+	}
+	if _, err := os.Stat(victim); err != nil {
+		t.Fatalf("prune followed a symlink outside the output root: %v", err)
+	}
+}
+
 func TestFindUnmanifestedDocPaths(t *testing.T) {
 	out := t.TempDir()
 	sourceDir := filepath.Join(out, "s")
