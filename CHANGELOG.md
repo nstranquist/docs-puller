@@ -6,7 +6,54 @@ must name both the old and new behavior.
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- `pull --git-repo URL` mirrors documentation from generic Git hosts with the
+  same shallow-cache refresh behavior as GitHub ingestion. `--origin-base`
+  maps mirrored source paths back to canonical published documentation URLs.
+- Local and repository ingestion now accepts reStructuredText (`.rst`) and
+  normalizes headings, Sphinx roles, links, figures, admonitions, and code
+  blocks into agent-readable Markdown without a Python/docutils dependency.
+- Added a source-scoped Blender Manual retrieval fixture. On the complete
+  2,222-page Blender 5.1 corpus, FTS5 scores Hit@1/3/5 100%, MRR 1.000, and
+  p50 10 ms across 39 modeling, scripting, compositing, animation, simulation,
+  rendering, and import/export workflow queries (up from the initial nine-query
+  acceptance set).
+
+### Fixed
+
+- `--replace-source` is now honored by local and repository ingestion, so a
+  refreshed source prunes removed documents with the existing large-prune
+  safety guard instead of leaving stale files searchable.
+- Local and repository ingest logs now report document URLs, written outputs,
+  and byte-identical unchanged outputs separately instead of labeling every
+  walked document as freshly pulled.
+- Replacement pruning now validates URL-derived paths, refuses traversal and
+  symlink-parent escapes, and reconciles sparse Git checkouts when `--subdir`
+  changes or is removed.
+- RST normalization now consumes common directive options instead of leaking
+  `:option:` metadata into generated Markdown.
+- Strict profile search accepts typed nil profiles safely, exact title matches
+  remain ranking invariants, and Blender source queries receive a
+  source-appropriate term rewrite instead of generic documentation noise.
+- Normal FTS5 search and readiness checks use read-only SQLite connections, so
+  concurrent searches no longer contend with an authoritative pull for a
+  write lock.
+
+### Verification
+
+- `go test -tags sqlite_fts5 ./...`
+- `go test -race -tags sqlite_fts5 ./...`
+- `go vet -tags sqlite_fts5 ./...`
+- `go build -tags sqlite_fts5 ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck@latest -tags sqlite_fts5 ./...`
+- `gitleaks detect --source . --no-git --redact --exit-code 1`
+- `npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension`
+- `docs-puller eval --fixture eval/blender.yaml --check-fixture`
+- `docs-puller eval --fixture eval/blender.yaml --profile blender-workspace --strict --record-run`
+- Reproducible 24-query sample replay: Hit@1 95.8%, Hit@5 100%, MRR 0.979.
+- Live authoritative pull from `projects.blender.org/blender/blender-manual.git`
+  at `blender-v5.1-release`: 2,222 pages ingested and FTS5 corpus status green.
 
 ## v0.2.3 — 2026-07-13
 
