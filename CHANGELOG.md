@@ -16,7 +16,7 @@ must name both the old and new behavior.
   blocks into agent-readable Markdown without a Python/docutils dependency.
 - Added a source-scoped Blender Manual retrieval fixture. On the complete
   2,222-page Blender 5.1 corpus, FTS5 scores Hit@1/3/5 100%, MRR 1.000, and
-  p50 10 ms across 39 modeling, scripting, compositing, animation, simulation,
+  p50 10 ms across 40 modeling, scripting, compositing, animation, simulation,
   rendering, and import/export workflow queries (up from the initial nine-query
   acceptance set).
 

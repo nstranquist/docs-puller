@@ -105,6 +105,11 @@ queries:
     expect:
       - blender/animation/armatures/skinning/parenting.md
 
+  - q: How do I parent an armature with automatic weights in Blender?
+    source: blender
+    expect:
+      - blender/animation/armatures/skinning/parenting.md
+
   - q: driver scripted expression variables
     source: blender
     expect:
