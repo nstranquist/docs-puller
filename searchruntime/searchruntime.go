@@ -2274,6 +2274,8 @@ type SearchTelemetryInput struct {
 	Timestamp    time.Time
 	Query        string
 	Intent       string
+	Client       string
+	RunContext   string
 	SourceFilter string
 	Mode         string
 	Scanned      int
@@ -2290,6 +2292,9 @@ type SearchTelemetryEntry struct {
 	Timestamp       string `json:"timestamp"`
 	Query           string `json:"query"`
 	Intent          string `json:"intent,omitempty"`
+	Client          string `json:"client,omitempty"`
+	RunContext      string `json:"run_context,omitempty"`
+	TrafficClass    string `json:"traffic_class,omitempty"`
 	SourceFilter    string `json:"source_filter,omitempty"`
 	Profile         string `json:"profile,omitempty"`
 	Mode            string `json:"mode"`
@@ -2309,10 +2314,11 @@ type SearchTelemetryEntry struct {
 // SearchTelemetryFixtureInput contains query-log entries plus caller-owned
 // fixture filters. File I/O and YAML encoding remain owned by the caller.
 type SearchTelemetryFixtureInput struct {
-	Entries []SearchTelemetryEntry
-	Intent  string
-	Since   time.Time
-	Exclude map[string]bool
+	Entries      []SearchTelemetryEntry
+	Intent       string
+	TrafficClass string
+	Since        time.Time
+	Exclude      map[string]bool
 }
 
 // SearchTelemetryFixtureQuery is the runtime-neutral candidate shape produced
@@ -2332,6 +2338,46 @@ func ShouldLogSearchQuery(flagLogQuery bool, envValue string) bool {
 		return false
 	default:
 		return flagLogQuery
+	}
+}
+
+// SearchTelemetryTrafficClass keeps adoption claims honest by separating
+// operator/agent searches from automated eval, test, and benchmark traffic.
+// Legacy or unrecognized contexts remain unknown rather than being counted as
+// real dogfood.
+func SearchTelemetryTrafficClass(runContext string) string {
+	switch strings.ToLower(strings.TrimSpace(runContext)) {
+	case "operator", "interactive", "agent", "mcp", "production", "dogfood":
+		return "real"
+	case "eval", "test", "benchmark", "batch", "ci", "fixture", "synthetic":
+		return "synthetic"
+	default:
+		return "unknown"
+	}
+}
+
+// SearchTelemetryEntryTrafficClass returns a trustworthy class for one stored
+// telemetry entry. Only the three persisted classes are accepted; malformed or
+// future values are reconciled from run_context and otherwise remain unknown.
+func SearchTelemetryEntryTrafficClass(entry SearchTelemetryEntry) string {
+	switch class := strings.ToLower(strings.TrimSpace(entry.TrafficClass)); class {
+	case "real", "synthetic", "unknown":
+		return class
+	default:
+		return SearchTelemetryTrafficClass(entry.RunContext)
+	}
+}
+
+// ParseSearchTelemetryTrafficClassFilter validates the fixture-export filter
+// before it is used. Returning a normalized value keeps the core matching
+// behavior deterministic for callers other than the CLI.
+func ParseSearchTelemetryTrafficClassFilter(value string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case "real", "synthetic", "unknown", "all":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("telemetry fixture: --traffic-class must be real, synthetic, unknown, or all (got %q)", value)
 	}
 }
 
@@ -2358,13 +2404,16 @@ const searchTelemetryUsage = `docs-puller telemetry — inspect search query log
 
 Usage:
   docs-puller telemetry log                 [--out DIR] [--limit N] [--json]
+  docs-puller telemetry summary             [--out DIR] [--limit N] [--json]
   docs-puller telemetry fixture --out-file PATH
                                              [--out DIR] [--limit N] [--intent LABEL] [--since RFC3339]
+                                             [--traffic-class real|synthetic|unknown|all]
                                              [--exclude-fixture PATH[,PATH...]]
 
 Search telemetry is ON by default since 2026-05-04 (needed to grow the
 production-telemetry fixture). Disable per-call with ` + "`--log-query=false`" + `
-or globally with ` + "`DOCS_PULLER_QUERY_LOG=0`" + `.
+or globally with ` + "`DOCS_PULLER_QUERY_LOG=0`" + `. Integrations should set
+client and run-context provenance; fixture export defaults to real traffic.
 `
 
 // SearchTelemetryUsage returns the stable help text for `docs-puller
@@ -4550,6 +4599,9 @@ func NewSearchTelemetryEntry(input SearchTelemetryInput) SearchTelemetryEntry {
 		Timestamp:    input.Timestamp.UTC().Format(time.RFC3339),
 		Query:        input.Query,
 		Intent:       input.Intent,
+		Client:       strings.TrimSpace(input.Client),
+		RunContext:   strings.ToLower(strings.TrimSpace(input.RunContext)),
+		TrafficClass: SearchTelemetryTrafficClass(input.RunContext),
 		SourceFilter: input.SourceFilter,
 		Profile:      input.Output.ProfileName,
 		Version:      metadata.Version,
@@ -4574,6 +4626,7 @@ func NewSearchTelemetryEntry(input SearchTelemetryInput) SearchTelemetryEntry {
 // candidates. The caller owns query-log storage, exclude-fixture loading, final
 // sorting, and YAML encoding.
 func SearchTelemetryFixtureQueries(input SearchTelemetryFixtureInput) []SearchTelemetryFixtureQuery {
+	trafficClass := strings.ToLower(strings.TrimSpace(input.TrafficClass))
 	seen := map[string]bool{}
 	var queries []SearchTelemetryFixtureQuery
 	for _, entry := range input.Entries {
@@ -4582,6 +4635,11 @@ func SearchTelemetryFixtureQueries(input SearchTelemetryFixtureInput) []SearchTe
 		}
 		if input.Intent != "" && entry.Intent != input.Intent {
 			continue
+		}
+		if trafficClass != "" && trafficClass != "all" {
+			if SearchTelemetryEntryTrafficClass(entry) != trafficClass {
+				continue
+			}
 		}
 		if !input.Since.IsZero() {
 			ts, err := time.Parse(time.RFC3339, entry.Timestamp)

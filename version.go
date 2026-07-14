@@ -105,6 +105,7 @@ func currentVersionInfo() versionInfo {
 	}
 	capabilities := []string{
 		"contract.version-json.v1",
+		"embed.stale-prune.v1",
 		"pull.docc",
 		"pull.from",
 		"pull.gatsby-pagedata",
@@ -117,7 +118,9 @@ func currentVersionInfo() versionInfo {
 		"pull.sitemap",
 		"search.fts5",
 		"search.fts5.self-heal.v1",
+		"search.hybrid-source-scope.v1",
 		"serve.http.v1",
+		"telemetry.provenance.v1",
 	}
 	sort.Strings(commands)
 	sort.Strings(capabilities)

@@ -10,7 +10,21 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.3.1`.
+automation can fail closed with `docs-puller version --expect v0.4.0`.
+
+## Hosted Team Design Partner
+
+The local CLI stays free and local-first. I am recruiting one founding design
+partner for the proprietary hosted Team service: a 30-day, single-tenant pilot
+for an engineering team that wants private docs and repositories continuously
+synchronized and searchable by people and coding agents.
+
+The pilot is **$1,500 fixed**, has no automatic renewal, and includes a measured
+retrieval baseline plus a full corpus export at exit. The provisional post-pilot
+price is $199/month for up to 10 users; it will be validated with the first
+partner before becoming a public plan. Read the complete scope and exclusions in
+[DESIGN_PARTNERS.md](DESIGN_PARTNERS.md), then use the
+[design-partner intake issue](https://github.com/nstranquist/docs-puller/issues/new?template=design-partner.yml).
 
 ## Install
 
@@ -89,25 +103,42 @@ docs-puller embed --out ~/code/docs --migrate-legacy
 docs-puller search "how do I count tokens with Anthropic" --out ~/code/docs --rerank-llm --rerank-hybrid --rerank-k 10
 ```
 
-The embedding batcher retries per-input token cap failures and recursively splits batches when the provider rejects total batch tokens.
+The embedding batcher retries per-input token cap failures and recursively
+splits batches when the provider rejects total batch tokens. A successful
+whole-document run also removes vectors for deleted or renamed documents before
+rewriting the flat sidecar. Source-scoped hybrid search filters the flat and
+SQLite vector paths before top-K selection, preserving the source isolation of
+the BM25 query.
 
 ## Telemetry To Fixture
 
-Query logging is opt-in:
+Query logging is on by default for normal `search` calls and can be disabled
+per call with `--log-query=false` or globally with
+`DOCS_PULLER_QUERY_LOG=0`. Integrations should identify themselves:
 
 ```sh
-docs-puller search "deploy Azure Functions from the CLI" --out ~/code/docs --log-query --intent support
-DOCS_PULLER_QUERY_LOG=1 docs-puller search "react native list performance" --out ~/code/docs
+docs-puller search "deploy Azure Functions from the CLI" --out ~/code/docs \
+  --intent support --client terminal --run-context operator
+DOCS_PULLER_QUERY_CLIENT=my-agent DOCS_PULLER_RUN_CONTEXT=agent \
+  docs-puller search "react native list performance" --out ~/code/docs
 ```
+
+Contexts `operator`, `agent`, `mcp`, and `production` count as real dogfood;
+`eval`, `test`, `benchmark`, and `batch` are synthetic; older or unlabeled
+rows stay `unknown`.
 
 Curate observed queries into a candidate fixture:
 
 ```sh
 docs-puller telemetry log --limit 20
+docs-puller telemetry summary --json
 docs-puller telemetry fixture --intent support --out-file eval/support-candidates.yaml
 ```
 
-Telemetry-derived fixtures use the observed top hit as `expect` and include a note to verify before promotion.
+Telemetry-derived fixtures use the observed top hit as `expect` and include a
+note to verify before promotion. Fixture export defaults to real traffic so
+repeated eval queries cannot silently become production fixtures; pass
+`--traffic-class all` only for an explicit legacy audit.
 
 ## Versioned Pins
 
@@ -203,7 +234,8 @@ See `config.example.yaml` for the schema (`cwd_profiles`, `pin_scan_roots`,
 - Isolated corpus: pass `--out <dir>` on pull, reindex, status, search, eval, and pins commands
 - Index: `<out>/.cache/search.db`
 - Embeddings: `<out>/.cache/embeddings.db` plus optional flat vector sidecars
-- Query log: opt-in, controlled by `--log-query` or `DOCS_PULLER_QUERY_LOG=1`
+- Query log: on by default at `<out>/.cache/query-log.jsonl`; disable per call
+  with `--log-query=false` or globally with `DOCS_PULLER_QUERY_LOG=0`
 - Ranking-hygiene policy: `DOCS_PULLER_HYGIENE_POLICY=/path/to/policy.json` appends your own downranked path patterns (same JSON shape as `internal/sourcehygiene/policy.json`) to the built-in set — useful for keeping generated notes or scratch exports out of results
 - Legacy shared-state paths: set `DOCS_PULLER_LEGACY_NDEV_PATHS=1` only when intentionally sharing corpus state with a private wrapper install (operator builds only)
 

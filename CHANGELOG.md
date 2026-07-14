@@ -6,6 +6,37 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.4.0 — 2026-07-14
+
+### Added
+
+- Search telemetry now records caller and run-context provenance, classifies
+  real versus synthetic traffic, reports a class-aware summary, and defaults
+  fixture export to real dogfood queries.
+- Added a public hosted Team design-partner offer and structured GitHub intake
+  form while keeping the proprietary service outside the OSS repository.
+
+### Fixed
+
+- Source-scoped hybrid reranking now filters both SQLite and flat-sidecar
+  embedding candidates before top-k selection.
+- Embedding refreshes prune deleted or renamed whole-document vectors for the
+  selected source and model, then rebuild the model-wide flat sidecar.
+- Telemetry fixture filters reject invalid traffic classes, while summaries
+  reconcile malformed legacy classes instead of dropping their counts.
+
+### Verification
+
+- `go build -tags sqlite_fts5 ./...`
+- `go vet -tags sqlite_fts5 ./...`
+- `go test -tags sqlite_fts5 ./...`
+- `go test -race -tags sqlite_fts5 -count=1 ./...`
+- `go run honnef.co/go/tools/cmd/staticcheck@latest -tags sqlite_fts5 ./...`
+- `gitleaks detect --source . --no-git --redact --exit-code 1`
+- `npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension`
+- Six-fixture local eval sweep, including Blender Hit@1/5 100% and MRR 1.000.
+- Frozen 24-query public sample replay: Hit@1 95.8%, Hit@5 100%, MRR 0.979.
+
 ## v0.3.1 — 2026-07-14
 
 ### Fixed

@@ -1707,6 +1707,8 @@ func TestNewSearchTelemetryEntry(t *testing.T) {
 		Timestamp:    ts,
 		Query:        "react hooks",
 		Intent:       "support",
+		Client:       "ndev-ask",
+		RunContext:   "agent",
 		SourceFilter: "react",
 		Mode:         "fts5",
 		Scanned:      42,
@@ -1728,6 +1730,9 @@ func TestNewSearchTelemetryEntry(t *testing.T) {
 	})
 	if got.Timestamp != "2026-05-05T22:15:00Z" || got.Query != "react hooks" || got.Intent != "support" {
 		t.Fatalf("identity metadata = %+v", got)
+	}
+	if got.Client != "ndev-ask" || got.RunContext != "agent" || got.TrafficClass != "real" {
+		t.Fatalf("provenance metadata = %+v", got)
 	}
 	if got.SourceFilter != "react" || got.Profile != "nicos" || got.Version != "18" || got.PinContext != "workspace" {
 		t.Fatalf("output metadata = %+v", got)
@@ -1760,6 +1765,46 @@ func TestShouldLogSearchQuery(t *testing.T) {
 	}
 }
 
+func TestSearchTelemetryTrafficClass(t *testing.T) {
+	for _, context := range []string{"operator", "agent", "mcp", "production"} {
+		if got := SearchTelemetryTrafficClass(context); got != "real" {
+			t.Fatalf("SearchTelemetryTrafficClass(%q) = %q, want real", context, got)
+		}
+	}
+	for _, context := range []string{"eval", "test", "benchmark", "batch", "ci"} {
+		if got := SearchTelemetryTrafficClass(context); got != "synthetic" {
+			t.Fatalf("SearchTelemetryTrafficClass(%q) = %q, want synthetic", context, got)
+		}
+	}
+	if got := SearchTelemetryTrafficClass(""); got != "unknown" {
+		t.Fatalf("SearchTelemetryTrafficClass(empty) = %q, want unknown", got)
+	}
+}
+
+func TestSearchTelemetryEntryTrafficClassReconcilesMalformedStoredClass(t *testing.T) {
+	for _, tc := range []struct {
+		entry SearchTelemetryEntry
+		want  string
+	}{
+		{entry: SearchTelemetryEntry{TrafficClass: " REAL ", RunContext: "eval"}, want: "real"},
+		{entry: SearchTelemetryEntry{TrafficClass: "future", RunContext: "agent"}, want: "real"},
+		{entry: SearchTelemetryEntry{TrafficClass: "future", RunContext: "future"}, want: "unknown"},
+	} {
+		if got := SearchTelemetryEntryTrafficClass(tc.entry); got != tc.want {
+			t.Fatalf("SearchTelemetryEntryTrafficClass(%+v) = %q, want %q", tc.entry, got, tc.want)
+		}
+	}
+}
+
+func TestParseSearchTelemetryTrafficClassFilter(t *testing.T) {
+	if got, err := ParseSearchTelemetryTrafficClassFilter(" REAL "); err != nil || got != "real" {
+		t.Fatalf("ParseSearchTelemetryTrafficClassFilter(real) = %q, %v", got, err)
+	}
+	if _, err := ParseSearchTelemetryTrafficClassFilter("future"); err == nil {
+		t.Fatal("ParseSearchTelemetryTrafficClassFilter(future) error = nil, want validation error")
+	}
+}
+
 func TestSearchTelemetryQueryKey(t *testing.T) {
 	if got, want := SearchTelemetryQueryKey("  Row Level Security  "), "row level security"; got != want {
 		t.Fatalf("SearchTelemetryQueryKey = %q, want %q", got, want)
@@ -1788,13 +1833,16 @@ func TestSearchTelemetryUsage(t *testing.T) {
 
 Usage:
   docs-puller telemetry log                 [--out DIR] [--limit N] [--json]
+  docs-puller telemetry summary             [--out DIR] [--limit N] [--json]
   docs-puller telemetry fixture --out-file PATH
                                              [--out DIR] [--limit N] [--intent LABEL] [--since RFC3339]
+                                             [--traffic-class real|synthetic|unknown|all]
                                              [--exclude-fixture PATH[,PATH...]]
 
 Search telemetry is ON by default since 2026-05-04 (needed to grow the
 production-telemetry fixture). Disable per-call with ` + "`--log-query=false`" + `
-or globally with ` + "`DOCS_PULLER_QUERY_LOG=0`" + `.
+or globally with ` + "`DOCS_PULLER_QUERY_LOG=0`" + `. Integrations should set
+client and run-context provenance; fixture export defaults to real traffic.
 `
 	if got != want {
 		t.Fatalf("SearchTelemetryUsage = %q, want %q", got, want)
@@ -3616,9 +3664,10 @@ func TestSearchTelemetryFixtureQueries(t *testing.T) {
 		},
 	}
 	got := SearchTelemetryFixtureQueries(SearchTelemetryFixtureInput{
-		Entries: entries,
-		Intent:  "support",
-		Since:   time.Date(2026, 5, 4, 0, 0, 30, 0, time.UTC),
+		Entries:      entries,
+		Intent:       "support",
+		TrafficClass: "all",
+		Since:        time.Date(2026, 5, 4, 0, 0, 30, 0, time.UTC),
 		Exclude: map[string]bool{
 			"row level security": true,
 		},
@@ -3637,6 +3686,18 @@ func TestSearchTelemetryFixtureQueries(t *testing.T) {
 	}
 	if got[0].Note != "telemetry-candidate; verify expect before promoting; intent=support; mode=hybrid" {
 		t.Fatalf("note = %q", got[0].Note)
+	}
+}
+
+func TestSearchTelemetryFixtureQueriesFiltersSyntheticTraffic(t *testing.T) {
+	entries := []SearchTelemetryEntry{
+		{Timestamp: "2026-05-04T00:00:00Z", Query: "operator query", RunContext: "operator", TopPath: "real.md"},
+		{Timestamp: "2026-05-04T00:01:00Z", Query: "eval query", RunContext: "eval", TopPath: "synthetic.md"},
+		{Timestamp: "2026-05-04T00:02:00Z", Query: "legacy query", TopPath: "unknown.md"},
+	}
+	got := SearchTelemetryFixtureQueries(SearchTelemetryFixtureInput{Entries: entries, TrafficClass: "real"})
+	if len(got) != 1 || got[0].Query != "operator query" {
+		t.Fatalf("real fixture candidates = %+v", got)
 	}
 }
 

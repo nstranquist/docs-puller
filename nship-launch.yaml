@@ -11,13 +11,13 @@ runtime_contracts:
         passthrough_env: [HOME, GOPATH, GOBIN, GOMODCACHE, GOPROXY, GOSUMDB, GONOSUMDB, GOPRIVATE]
 deploy:
   name: install-public-release
-  argv: [go, install, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.3.1]
+  argv: [go, install, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.4.0]
   timeout_seconds: 900
   runtime: {contract: docs-puller-public-install, environment: production, operation: mutating}
 verify:
   - name: version-contract
     category: runtime
-    argv: [go, run, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.3.1, version, --expect, v0.3.1, --json]
+    argv: [go, run, -tags, sqlite_fts5, github.com/nstranquist/docs-puller@v0.4.0, version, --expect, v0.4.0, --json]
     timeout_seconds: 900
     runtime: {contract: none, environment: production, operation: read}
   - name: public-repository

@@ -18,21 +18,23 @@ import (
 // for agent consumption: <2KB of output for ~10 results across 6000+ docs.
 
 type searchOpts struct {
-	out         string
-	source      string
-	version     string
-	limit       int
-	json        bool
-	useScan     bool
-	exact       bool // treat the whole query as one adjacent phrase (FTS5: "w1 w2 w3"; scan: substring match on full input). Disables synonym expansion.
-	allVersions bool // return versioned mirrors separately instead of collapsing equivalent paths
-	explain     bool // include debug metadata in compact JSON output
-	compact     bool // shorter output, drops URL + extra snippets
-	noSnippets  bool // skip snippet extraction entirely (title + URL only)
-	snippetLen  int  // override truncation length (default searchSnippetLen)
-	maxSnippets int  // override max snippets per hit (default searchSnippetMax)
-	logQuery    bool // opt-in telemetry: append this search to query-log.jsonl
-	queryIntent string
+	out             string
+	source          string
+	version         string
+	limit           int
+	json            bool
+	useScan         bool
+	exact           bool // treat the whole query as one adjacent phrase (FTS5: "w1 w2 w3"; scan: substring match on full input). Disables synonym expansion.
+	allVersions     bool // return versioned mirrors separately instead of collapsing equivalent paths
+	explain         bool // include debug metadata in compact JSON output
+	compact         bool // shorter output, drops URL + extra snippets
+	noSnippets      bool // skip snippet extraction entirely (title + URL only)
+	snippetLen      int  // override truncation length (default searchSnippetLen)
+	maxSnippets     int  // override max snippets per hit (default searchSnippetMax)
+	logQuery        bool // opt-in telemetry: append this search to query-log.jsonl
+	queryIntent     string
+	queryClient     string
+	queryRunContext string
 	// ftsOnly means "if FTS5 is unavailable, return empty + mode='' instead
 	// of silently degrading to scan". Eval sets this so a parallel rebuild
 	// never silently pollutes its numbers — see the WAL + busy_timeout fix
@@ -542,6 +544,8 @@ func cmdSearch(args []string) {
 	fs.IntVar(&o.maxSnippets, "snippets", 0, "override max snippets per result (default 3)")
 	fs.BoolVar(&o.logQuery, "log-query", true, "append this search to <out>/.cache/query-log.jsonl for fixture curation. Default ON since 2026-05-04 — needed to grow the production-telemetry fixture. Disable per-call with --log-query=false; disable globally with DOCS_PULLER_QUERY_LOG=0.")
 	fs.StringVar(&o.queryIntent, "intent", "", "with --log-query: short intent label for later fixture curation")
+	fs.StringVar(&o.queryClient, "client", strings.TrimSpace(os.Getenv("DOCS_PULLER_QUERY_CLIENT")), "with --log-query: caller id (or DOCS_PULLER_QUERY_CLIENT)")
+	fs.StringVar(&o.queryRunContext, "run-context", strings.TrimSpace(os.Getenv("DOCS_PULLER_RUN_CONTEXT")), "with --log-query: operator|agent|mcp|production|eval|test|benchmark|batch (or DOCS_PULLER_RUN_CONTEXT)")
 	fs.StringVar(&o.flagProfile, "profile", "", "active profile name (overrides env / cwd auto-detect; see `docs-puller profile list`)")
 	fs.BoolVar(&o.noProfile, "no-profile", false, "ignore the active profile entirely (rank globally)")
 	fs.BoolVar(&o.strict, "strict", false, "with active profile: hard-filter to profile-matched docs only")
@@ -851,6 +855,8 @@ func splitSearchArgs(args []string) (flags, query []string) {
 		"--snippet-len": true, "--snippets": true,
 		"-snippet-len": true, "-snippets": true,
 		"--intent": true, "-intent": true,
+		"--client": true, "-client": true,
+		"--run-context": true, "-run-context": true,
 		"--rerank-k": true, "--rerank-gate": true, "--rerank-model": true,
 		"--rerank-chunk-size": true, "--rerank-llm-model": true, "--rerank-llm-provider": true,
 		"-rerank-k": true, "-rerank-gate": true, "-rerank-model": true,

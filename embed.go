@@ -453,6 +453,10 @@ func writeFlatEmbeddingIndex(db *sql.DB, out, model string) error {
 }
 
 func topFlatEmbeddingPaths(out, model string, queryVec []float32, k int, depthPenalty float32) ([]embeddingScoredPath, bool, error) {
+	return topFlatEmbeddingPathsForSource(out, model, queryVec, k, depthPenalty, "")
+}
+
+func topFlatEmbeddingPathsForSource(out, model string, queryVec []float32, k int, depthPenalty float32, source string) ([]embeddingScoredPath, bool, error) {
 	metaPath, vecPath := flatEmbeddingPaths(out, model)
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
@@ -484,6 +488,9 @@ func topFlatEmbeddingPaths(out, model string, queryVec []float32, k int, depthPe
 	qNorm := vectorNorm(queryVec)
 	scored := make([]embeddingScoredPath, 0, meta.Count)
 	for i, entry := range meta.Entries {
+		if !embeddingPathMatchesSource(entry.Path, source) {
+			continue
+		}
 		start := i * stride
 		c := cosineSimilarityBlob(queryVec, qNorm, vecBytes[start:start+stride])
 		if depthPenalty != 0 {
@@ -496,6 +503,28 @@ func topFlatEmbeddingPaths(out, model string, queryVec []float32, k int, depthPe
 		scored = scored[:k]
 	}
 	return scored, true, nil
+}
+
+func embeddingPathMatchesSource(path, source string) bool {
+	normalize := func(value string) string {
+		value = strings.ReplaceAll(filepath.ToSlash(strings.TrimSpace(value)), "\\", "/")
+		return strings.Trim(value, "/")
+	}
+	normalizedSource := normalize(source)
+	return normalizedSource == "" || strings.HasPrefix(normalize(path), normalizedSource+"/")
+}
+
+func filterEmbeddingVectorsBySource(vecs map[string][]float32, source string) map[string][]float32 {
+	if source == "" {
+		return vecs
+	}
+	filtered := make(map[string][]float32)
+	for path, vec := range vecs {
+		if embeddingPathMatchesSource(path, source) {
+			filtered[path] = vec
+		}
+	}
+	return filtered
 }
 
 func mmapReadOnly(path string) ([]byte, func(), error) {
@@ -669,8 +698,17 @@ func runEmbed(o embedOpts) error {
 		pending = append(pending, d)
 	}
 	if len(pending) == 0 {
-		if err := writeFlatEmbeddingIndex(db, o.out, o.model); err != nil {
-			fmt.Fprint(os.Stderr, searchruntime.EmbeddingFlatIndexWriteWarning(err))
+		if !o.dryRun {
+			pruned, err := pruneStaleEmbeddings(db, o.model, o.source, docs)
+			if err != nil {
+				return searchruntime.EmbeddingStoreBatchError(err)
+			}
+			if pruned > 0 {
+				fmt.Fprintf(os.Stderr, "embeddings: pruned %d stale path(s) for model=%s\n", pruned, o.model)
+			}
+			if err := writeFlatEmbeddingIndex(db, o.out, o.model); err != nil {
+				fmt.Fprint(os.Stderr, searchruntime.EmbeddingFlatIndexWriteWarning(err))
+			}
 		}
 		fmt.Print(searchruntime.EmbeddingUpToDateMessage(skipped, o.model))
 		return nil
@@ -707,6 +745,13 @@ func runEmbed(o embedOpts) error {
 	}
 	if msg := searchruntime.EmbeddingOversizeDocsWarning(skippedOversize); msg != "" {
 		fmt.Fprint(os.Stderr, msg)
+	}
+	pruned, err := pruneStaleEmbeddings(db, o.model, o.source, docs)
+	if err != nil {
+		return searchruntime.EmbeddingStoreBatchError(err)
+	}
+	if pruned > 0 {
+		fmt.Fprintf(os.Stderr, "embeddings: pruned %d stale path(s) for model=%s\n", pruned, o.model)
 	}
 	if err := writeFlatEmbeddingIndex(db, o.out, o.model); err != nil {
 		fmt.Fprint(os.Stderr, searchruntime.EmbeddingFlatIndexWriteWarning(err))
@@ -795,6 +840,66 @@ func collectDocsForEmbedding(out, source string) ([]docToEmbed, error) {
 	}
 	sort.Slice(docs, func(i, j int) bool { return docs[i].path < docs[j].path })
 	return docs, nil
+}
+
+// pruneStaleEmbeddings removes whole-document vectors whose paths no longer
+// exist in the live corpus. A source-scoped embed only prunes that exact source;
+// an all-source embed reconciles the complete selected model. Other models are
+// never touched. This keeps the model-wide flat sidecar from carrying deleted
+// or renamed documents indefinitely.
+func pruneStaleEmbeddings(db *sql.DB, model, source string, docs []docToEmbed) (int, error) {
+	live := make(map[string]struct{}, len(docs))
+	for _, doc := range docs {
+		live[doc.path] = struct{}{}
+	}
+
+	rows, err := db.Query(`SELECT path FROM embeddings WHERE model = ?`, model)
+	if err != nil {
+		return 0, fmt.Errorf("list cached embeddings for stale-path pruning: %w", err)
+	}
+	var stale []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan cached embedding path: %w", err)
+		}
+		if !embeddingPathMatchesSource(path, source) {
+			continue
+		}
+		if _, ok := live[path]; !ok {
+			stale = append(stale, path)
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close cached embedding path rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate cached embedding paths: %w", err)
+	}
+	if len(stale) == 0 {
+		return 0, nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin stale embedding prune: %w", err)
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`DELETE FROM embeddings WHERE path = ? AND model = ?`)
+	if err != nil {
+		return 0, fmt.Errorf("prepare stale embedding prune: %w", err)
+	}
+	defer stmt.Close()
+	for _, path := range stale {
+		if _, err := stmt.Exec(path, model); err != nil {
+			return 0, fmt.Errorf("prune stale embedding %q: %w", path, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit stale embedding prune: %w", err)
+	}
+	return len(stale), nil
 }
 
 func loadEmbedCache(db *sql.DB, model string) (map[string]int64, error) {
@@ -1239,12 +1344,20 @@ func applyHybridRetrieval(query string, bm25Hits []searchHit, o searchOpts) ([]s
 			CallSite:  searchruntime.DefaultHybridRetrievalCallSite,
 			Record:    recordAIUsage,
 		}),
-		FlatTopK:         searchruntime.NewHybridFlatTopKCall(topFlatEmbeddingPaths),
+		FlatTopK: searchruntime.NewHybridFlatTopKCall(func(outDir, model string, queryVec []float32, k int, depthPenalty float32) ([]embeddingScoredPath, bool, error) {
+			return topFlatEmbeddingPathsForSource(outDir, model, queryVec, k, depthPenalty, o.source)
+		}),
 		WarnFlatFallback: searchruntime.NewHybridFlatFallbackWarningCall(os.Stderr),
 		OpenIndex:        searchruntime.NewReadOnlyEmbeddingIndexOpenCall(openEmbeddingsDB),
-		LoadVectors:      searchruntime.NewHybridVectorLoadCall(loadHybridCache),
-		ScoreVector:      searchruntime.CosineSimilarity,
-		Title:            searchruntime.NewHybridTitleLoader(o.out, extractTitle),
+		LoadVectors: searchruntime.NewHybridVectorLoadCall(func(db *sql.DB, model string) (map[string][]float32, error) {
+			vecs, err := loadHybridCache(db, model)
+			if err != nil {
+				return nil, err
+			}
+			return filterEmbeddingVectorsBySource(vecs, o.source), nil
+		}),
+		ScoreVector: searchruntime.CosineSimilarity,
+		Title:       searchruntime.NewHybridTitleLoader(o.out, extractTitle),
 	})
 }
 

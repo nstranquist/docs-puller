@@ -193,6 +193,7 @@ Usage:
                                              [--version latest|TAG]
                                              [--limit N] [--json] [--scan] [--compact] [--exact]
                                              [--log-query] [--intent LABEL]
+                                             [--client ID] [--run-context CONTEXT]
                                              [--rerank] [--rerank-gate N] [--rerank-chunk-size N]
                                              [--rerank-llm] [--rerank-llm-model NAME] [--rerank-k N]
                                              [--rerank-hybrid]
@@ -214,7 +215,7 @@ Usage:
                                              [--token-budget N] [--answer-context] -- <command...>
   docs-puller eval-diagnose                  --baseline PATH --current PATH [--source NAME]
                                              [--min-delta N] [--json] [--max-items N]
-  docs-puller telemetry {log,fixture}        [--out DIR]
+  docs-puller telemetry {log,summary,fixture} [--out DIR]
   docs-puller extract sql-schema --local <path> --name SOURCE
                                              [--subdir migrations] [--exclude PAT]
   docs-puller embed                          [--source NAME] [--model MODEL] [--chunk-size N]

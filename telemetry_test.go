@@ -13,6 +13,9 @@ func TestSearchQueryLogRoundtripAndFixtureExport(t *testing.T) {
 		Timestamp:    "2026-05-03T00:00:00Z",
 		Query:        "how do I enable row level security",
 		Intent:       "support",
+		Client:       "ndev-docs",
+		RunContext:   "agent",
+		TrafficClass: "real",
 		SourceFilter: "supabase",
 		Mode:         "fts5",
 		Limit:        10,
@@ -30,7 +33,7 @@ func TestSearchQueryLogRoundtripAndFixtureExport(t *testing.T) {
 	if len(got) != 1 || got[0].Query != entry.Query {
 		t.Fatalf("query log = %+v, want one entry", got)
 	}
-	fixture := fixtureFromTelemetry(got, "support", time.Time{}, nil)
+	fixture := fixtureFromTelemetry(got, "support", "real", time.Time{}, nil)
 	if len(fixture.Queries) != 1 {
 		t.Fatalf("fixture queries = %d, want 1", len(fixture.Queries))
 	}
@@ -48,6 +51,8 @@ func TestNewSearchQueryLogEntryUsesRuntimeOutputMetadata(t *testing.T) {
 	}}, "fts5", searchOpts{
 		source:          "react",
 		queryIntent:     "support",
+		queryClient:     "ndev-docs",
+		queryRunContext: "agent",
 		limit:           5,
 		resolvedProfile: "acme",
 		versionPolicy: &versionSearchPolicy{
@@ -58,6 +63,9 @@ func TestNewSearchQueryLogEntryUsesRuntimeOutputMetadata(t *testing.T) {
 	})
 	if got.Query != "react hooks" || got.Intent != "support" || got.SourceFilter != "react" {
 		t.Fatalf("query metadata = %+v", got)
+	}
+	if got.Client != "ndev-docs" || got.RunContext != "agent" || got.TrafficClass != "real" {
+		t.Fatalf("provenance metadata = %+v", got)
 	}
 	if got.Profile != "acme" || got.Version != "18" || got.PinContext != "workspace" {
 		t.Fatalf("output metadata = %+v, want profile/version/pin context", got)
@@ -124,7 +132,11 @@ func TestFixtureFromTelemetryRespectsExclude(t *testing.T) {
 	exclude := map[string]bool{
 		"row level security": true,
 	}
-	fixture := fixtureFromTelemetry(entries, "", time.Time{}, exclude)
+	for i := range entries {
+		entries[i].RunContext = "agent"
+		entries[i].TrafficClass = "real"
+	}
+	fixture := fixtureFromTelemetry(entries, "", "real", time.Time{}, exclude)
 	if len(fixture.Queries) != 1 {
 		t.Fatalf("fixture queries = %d, want 1 (the excluded one must be dropped)", len(fixture.Queries))
 	}
@@ -140,9 +152,25 @@ func TestFixtureFromTelemetryRespectsExclude(t *testing.T) {
 	// confirm the exclude map's keys must come pre-normalized. We DON'T
 	// re-normalize inside fixtureFromTelemetry — the caller (cmdTelemetryFixture)
 	// owns normalization. So this should NOT exclude.
-	fixture2 := fixtureFromTelemetry(entries, "", time.Time{}, exclude2)
+	fixture2 := fixtureFromTelemetry(entries, "", "real", time.Time{}, exclude2)
 	if len(fixture2.Queries) != 2 {
 		t.Errorf("fixture queries = %d, want 2 (exclude with un-normalized key must miss)", len(fixture2.Queries))
+	}
+}
+
+func TestSummarizeQueryTelemetryReconcilesTrafficClasses(t *testing.T) {
+	entries := []queryLogEntry{
+		{Query: "real query", RunContext: "agent", ResultCount: 1},
+		{Query: "real query", RunContext: "operator", ResultCount: 0},
+		{Query: "eval query", RunContext: "eval", ResultCount: 0},
+		{Query: "legacy query", TrafficClass: "malformed", ResultCount: 0},
+	}
+	summary := summarizeQueryTelemetry(entries)
+	if summary.TotalEntries != 4 || summary.UniqueQueries != 3 {
+		t.Fatalf("summary = %+v", summary)
+	}
+	if len(summary.ByClass) != 3 || summary.ByClass[0].Entries != 2 || summary.ByClass[1].Entries != 1 || summary.ByClass[2].Entries != 1 {
+		t.Fatalf("traffic buckets = %+v", summary.ByClass)
 	}
 }
 
