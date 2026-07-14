@@ -10,7 +10,7 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.2.3`.
+automation can fail closed with `docs-puller version --expect v0.3.0`.
 
 ## Install
 

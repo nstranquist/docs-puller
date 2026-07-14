@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.3.0 — 2026-07-14
+
 ### Added
 
 - `pull --git-repo URL` mirrors documentation from generic Git hosts with the
@@ -22,6 +24,9 @@ must name both the old and new behavior.
 
 ### Fixed
 
+- Reference-repository crawling now excludes known scaffold and stub narrative
+  from searchable output, and final source replacement uses source-scoped FTS5
+  paths instead of a full-corpus manifest scan.
 - `--replace-source` is now honored by local and repository ingestion, so a
   refreshed source prunes removed documents with the existing large-prune
   safety guard instead of leaving stale files searchable.
