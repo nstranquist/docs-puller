@@ -28,7 +28,6 @@ func replaceCrawlSource(out, source, mode string, docs []crawlDoc, cmdArgs []str
 	now := start.UTC().Format(time.RFC3339)
 	srcDir := filepath.Join(out, source)
 
-	oldPaths := sourceMarkdownPaths(srcDir, source)
 	sort.Slice(docs, func(i, j int) bool { return docs[i].Rel < docs[j].Rel })
 
 	var copied int
@@ -44,7 +43,6 @@ func replaceCrawlSource(out, source, mode string, docs []crawlDoc, cmdArgs []str
 		}
 
 		results := make([]result, 0, len(docs))
-		changedPaths := append([]string{}, oldPaths...)
 		for _, d := range docs {
 			rel, err := cleanCrawlRel(d.Rel)
 			if err != nil {
@@ -77,7 +75,6 @@ func replaceCrawlSource(out, source, mode string, docs []crawlDoc, cmdArgs []str
 				SHA256:    hex.EncodeToString(sum[:]),
 				FetchedAt: now,
 			})
-			changedPaths = append(changedPaths, path)
 			copied++
 		}
 		if err := writeManifests(out, results, false, nil); err != nil {
@@ -87,7 +84,11 @@ func replaceCrawlSource(out, source, mode string, docs []crawlDoc, cmdArgs []str
 			return err
 		}
 		if idx, err := openFTSIndex(out); err == nil {
-			if rerr := idx.updateFTS(out, uniqueStrings(changedPaths)); rerr != nil {
+			// A crawl source is replaced as a complete unit. Use the source-scoped
+			// delete+reinsert transaction instead of issuing one FTS delete per old
+			// and new path; the latter becomes minutes of work on a large shared
+			// docs index and makes refs finalization needlessly expensive.
+			if rerr := idx.replaceSources(out, []string{source}); rerr != nil {
 				fmt.Fprintf(os.Stderr, "fts5: update failed: %v\n", rerr)
 			}
 			idx.close()

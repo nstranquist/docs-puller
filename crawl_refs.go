@@ -130,6 +130,10 @@ func collectRefsDissectionDocs(casesRoot, generatedAt string) ([]crawlDoc, []ref
 			if err != nil || fi.Size() == 0 || fi.Size() > localFileSizeLimit {
 				return nil
 			}
+			stub, err := isRefsNarrativeStub(path)
+			if err != nil || stub {
+				return nil
+			}
 			rel, err := filepath.Rel(slugDir, path)
 			if err != nil {
 				return nil
@@ -165,6 +169,19 @@ func collectRefsDissectionDocs(casesRoot, generatedAt string) ([]crawlDoc, []ref
 		Content: []byte(overview),
 	}}, docs...)
 	return docs, cases, nil
+}
+
+// isRefsNarrativeStub rejects generated scaffold prose before it can become
+// retrieval evidence. Keep this marker-based and conservative: the objective
+// lifecycle gate owns evidence completeness; docs-puller only guarantees that
+// known placeholders never enter the searchable corpus.
+func isRefsNarrativeStub(path string) (bool, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	text := strings.ToLower(strings.TrimSpace(string(body)))
+	return text == "" || strings.Contains(text, "⚠ stub") || strings.Contains(text, "the agent should fill this in"), nil
 }
 
 // readRefsCaseManifest reads <slugDir>/00-manifest.json best-effort.

@@ -15,6 +15,7 @@ func seedRefsCases(t *testing.T) string {
 	writeTestFile(t, root, "warp/00-manifest.json", `{"source":{"slug":"warp","repo_url":"git@github.com:warpdotdev/warp.git","primary_language":"rust","latest_commit_subject":"Keep maximized state"}}`)
 	writeTestFile(t, root, "warp/01-repo-structure.md", "# Warp repo structure\nAmbient agents live here.\n")
 	writeTestFile(t, root, "warp/03-code-patterns.md", "# Warp code patterns\nevent-sourced resume pattern.\n")
+	writeTestFile(t, root, "warp/08-adoption-assessment.md", "# Adoption\n\n> ⚠ STUB. The agent should fill this in.\n")
 	writeTestFile(t, root, "archon/01-repo-structure.md", "# Archon\nDAG workflow engine.\n")
 	// must be ignored: underscore-prefixed control dir + a non-md file
 	writeTestFile(t, root, "_archive/old/01-repo-structure.md", "# archived\n")
@@ -47,6 +48,9 @@ func TestCollectRefsDissectionDocs(t *testing.T) {
 	if _, ok := body["warp/00-manifest.json"]; ok {
 		t.Fatal("00-manifest.json must not be ingested as a doc")
 	}
+	if _, ok := body["warp/08-adoption-assessment.md"]; ok {
+		t.Fatal("stub narrative must not be ingested as retrieval evidence")
+	}
 	// underscore-prefixed slug dir ignored.
 	for rel := range body {
 		if strings.HasPrefix(rel, "_archive/") {
@@ -73,6 +77,11 @@ func TestCollectRefsDissectionDocsFailClosed(t *testing.T) {
 	writeTestFile(t, empty, "slug/readme.txt", "no md here\n")
 	if _, _, err := collectRefsDissectionDocs(empty, "x"); err == nil {
 		t.Fatal("zero-markdown tree must fail closed (would otherwise wipe a good source)")
+	}
+	stubOnly := t.TempDir()
+	writeTestFile(t, stubOnly, "slug/03-code-patterns.md", "# Patterns\n\n> ⚠ STUB. The agent should fill this in.\n")
+	if _, _, err := collectRefsDissectionDocs(stubOnly, "x"); err == nil {
+		t.Fatal("stub-only tree must fail closed and preserve the last good source")
 	}
 }
 
@@ -104,6 +113,39 @@ func TestCrawlRefsReplaceSource(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "refs-dissections", "manifest.json")); err != nil {
 		t.Fatalf("expected per-source manifest: %v", err)
+	}
+}
+
+func TestReplaceCrawlSourceRefreshesFTSAsCompleteSource(t *testing.T) {
+	out := t.TempDir()
+	first := []crawlDoc{
+		{Rel: "one.md", URL: "refs-crawl://one", Content: []byte("first adoption pattern")},
+		{Rel: "two.md", URL: "refs-crawl://two", Content: []byte("obsolete adoption pattern")},
+	}
+	if _, err := replaceCrawlSource(out, "refs-dissections", "refs-crawl", first, []string{"crawl-refs"}); err != nil {
+		t.Fatal(err)
+	}
+	second := []crawlDoc{
+		{Rel: "one.md", URL: "refs-crawl://one", Content: []byte("updated adoption pattern")},
+	}
+	if _, err := replaceCrawlSource(out, "refs-dissections", "refs-crawl", second, []string{"crawl-refs"}); err != nil {
+		t.Fatal(err)
+	}
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	got, err := idx.totalDocs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 1 {
+		t.Fatalf("indexed docs = %d, want 1 after complete-source replacement", got)
+	}
+	if _, err := os.Stat(filepath.Join(out, "refs-dissections", "two.md")); !os.IsNotExist(err) {
+		t.Fatalf("removed crawl doc still exists: %v", err)
 	}
 }
 
