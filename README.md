@@ -4,6 +4,15 @@
 
 `docs-puller` mirrors vendor, reference, and local project docs into Markdown, builds a local SQLite FTS5 index, and gives agents a fast private search surface with reproducible retrieval evals.
 
+## Showcase
+
+<img src="assets/brand/docs-puller.svg" width="96" height="96" alt="docs-puller application icon">
+
+![docs-puller web search showing ranked SQLite documentation results](portfolio/assets/search-results.png)
+
+The screenshot is a real local FTS5 search across 19,159 ingested documents and
+is the same reviewed evidence declared in `portfolio/manifest.yaml`.
+
 This is the **open-core local CLI**. The hosted Team tier (multi-tenant control plane, billing, managed corpora) is proprietary. See [OPEN-CORE.md](OPEN-CORE.md) for the commercial boundary.
 
 This repository is the canonical source for the CLI and its public Go packages.

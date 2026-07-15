@@ -1,0 +1,20 @@
+schema_version: 1
+product_id: product.docs-puller
+visibility: public
+reviewed: true
+assets:
+    - path: portfolio/assets/search-results.png
+      kind: screenshot
+      alt: docs-puller web search showing ranked SQLite documentation results
+      caption: A real local FTS5 search across 19,159 ingested documents.
+    - path: assets/brand/docs-puller.svg
+      kind: logo
+      alt: docs-puller application icon
+      provenance: authored-svg
+      copyright_owner: Nico Stranquist
+      generator: catalog-brand-svg/v2
+      concept: docs-retrieval
+      score: 100
+case_study:
+    enabled: false
+    evidence: []
