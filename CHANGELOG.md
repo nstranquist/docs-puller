@@ -6,6 +6,24 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.5.0 — 2026-07-22
+
+### Added
+
+- Added compact human and JSON help projections so agents can discover the
+  public verb surface without loading the full command reference.
+- Batch search now preserves per-query intent, caller, run-context, source,
+  and retrieval-mode telemetry using the same bounded local log as individual
+  searches.
+- Added repeatable local `make publish-ready`, verification, help-size, and
+  isolated smoke gates for contributors and release preparation.
+
+### Verification
+
+- `make publish-ready`
+- `make help-sizes`
+- `make smoke`
+
 ## v0.4.0 — 2026-07-14
 
 ### Added
