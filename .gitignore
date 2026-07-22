@@ -1,5 +1,6 @@
 # Compiled CLI binary (built locally; not committed)
 /docs-puller
+/bin/
 *.test
 *.exe
 coverage.out
