@@ -145,13 +145,77 @@ func main() {
 	case "version":
 		cmdVersion(os.Args[2:])
 	case "-h", "--help", "help":
-		usage()
+		cmdHelp(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", os.Args[1])
 		usage()
 		os.Exit(2)
 	}
 }
+
+// helpText returns full human usage or a token-efficient compact verb map.
+// Agents should prefer --compact (or --json --compact) in context windows.
+func helpText(compact bool) string {
+	if compact {
+		return topLevelUsageCompact
+	}
+	return topLevelUsage
+}
+
+func cmdHelp(args []string) {
+	compact, asJSON := false, false
+	for _, a := range args {
+		switch a {
+		case "--compact":
+			compact = true
+		case "--json":
+			asJSON = true
+		case "-h", "--help":
+			// ignore nested help
+		default:
+			// unknown flags do not fail help — keep agent-friendly
+		}
+	}
+	text := helpText(compact)
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(map[string]any{
+			"compact": compact,
+			"help":    text,
+			"bytes":   len(text),
+		})
+		return
+	}
+	// Compact help is agent-oriented; write to stdout so it pipes cleanly.
+	out := os.Stderr
+	if compact {
+		out = os.Stdout
+	}
+	fmt.Fprint(out, text)
+}
+
+// topLevelUsageCompact is intentionally short for agent context budgets.
+const topLevelUsageCompact = `docs-puller — local-first docs mirror + FTS5 search (open-core)
+
+USAGE
+  docs-puller <cmd> [args] [--json] [--compact]
+
+CORE
+  version [--json] [--expect V]
+  init | config init|path | pull … | pull-url | pull-article | pull-local-batch
+  reindex | status [--check] | list | show | search <q> [--json] [--compact]
+  eval | eval-suite | eval-leaderboard | emit-llmstxt | embed | serve
+  pins … | crawl-refs | telemetry … | help [--compact] [--json]
+
+GLOBAL
+  --out DIR  --source-cache DIR  --concurrency N
+  DOCS_PULLER_OUT overrides default corpus root (~/code/docs)
+
+Hosted Team tier is proprietary. Boundary: OPEN-CORE.md
+Agents: prefer docs-puller help --compact (or --json --compact).
+Full verb reference: docs-puller help
+`
 
 const topLevelUsage = `docs-puller — pull vendor docs into ~/code/docs/<source>/
 
@@ -253,7 +317,7 @@ warning (likely client-rendered). Run 'init' once before the first pull.
 `
 
 func usage() {
-	fmt.Fprint(os.Stderr, topLevelUsage)
+	fmt.Fprint(os.Stderr, helpText(false))
 }
 
 type pullOpts struct {

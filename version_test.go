@@ -53,3 +53,21 @@ func TestTopLevelUsageAdvertisesVersionExpectationGate(t *testing.T) {
 		t.Fatalf("top-level usage does not advertise the exact-version gate:\n%s", topLevelUsage)
 	}
 }
+
+func TestHelpCompactIsTokenEfficient(t *testing.T) {
+	full := helpText(false)
+	compact := helpText(true)
+	if !strings.Contains(compact, "--compact") {
+		t.Fatalf("compact help should mention --compact:\n%s", compact)
+	}
+	if !strings.Contains(compact, "search <q>") {
+		t.Fatalf("compact help should list core verbs:\n%s", compact)
+	}
+	// Must be substantially smaller than full help for agent context budgets.
+	if len(compact) >= len(full)/3 {
+		t.Fatalf("compact help too large: compact=%d full=%d (want < 1/3)", len(compact), len(full))
+	}
+	if !strings.Contains(full, "docs-puller version [--json] [--expect VERSION]") {
+		t.Fatalf("full help must keep version gate advertisement")
+	}
+}
