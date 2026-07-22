@@ -779,6 +779,58 @@ func TestRunSearchBatchUsesSharedFTSIndex(t *testing.T) {
 	}
 }
 
+func TestRunSearchBatchPreservesPerQueryTelemetry(t *testing.T) {
+	t.Setenv("DOCS_PULLER_QUERY_LOG", "")
+	out := t.TempDir()
+	src := filepath.Join(out, "demo")
+	writeFTSDoc(t, src, "alpha.md", "# Alpha\n\nshared batch phrase\n")
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	idx.close()
+
+	_, err = runSearchBatch(
+		searchOpts{
+			out:             out,
+			limit:           5,
+			noSnippets:      true,
+			noProfile:       true,
+			ftsOnly:         true,
+			logQuery:        true,
+			queryIntent:     "retrieval",
+			queryClient:     "ndev-ask",
+			queryRunContext: "agent",
+		},
+		[]searchBatchQuery{
+			{Query: "shared batch phrase", Source: "demo"},
+			{Query: "second batch phrase", Source: "demo"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := readSearchQueryLog(out, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("query log entries = %d, want 2", len(entries))
+	}
+	for _, entry := range entries {
+		if entry.Client != "ndev-ask" || entry.RunContext != "agent" || entry.Intent != "retrieval" {
+			t.Fatalf("query provenance = %+v", entry)
+		}
+		if entry.SourceFilter != "demo" || entry.Mode != "fts5" {
+			t.Fatalf("query search metadata = %+v", entry)
+		}
+	}
+}
+
 func TestRunSearchBatchRejectsEmptyQuery(t *testing.T) {
 	out := t.TempDir()
 	src := filepath.Join(out, "demo")

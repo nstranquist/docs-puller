@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/nstranquist/docs-puller/searchruntime"
@@ -52,6 +53,10 @@ func cmdSearchBatch(args []string) {
 	fs.BoolVar(&o.noProfile, "no-profile", true, "ignore active profile")
 	fs.BoolVar(&o.strict, "strict", false, "with active profile: hard-filter to profile-matched docs only")
 	fs.StringVar(&o.ftsReadMode, "read-mode", ftsReadModeReadOnly, "shared FTS read mode: ro or immutable (benchmark-only)")
+	fs.BoolVar(&o.logQuery, "log-query", true, "append each query to <out>/.cache/query-log.jsonl; disable per-call with --log-query=false or globally with DOCS_PULLER_QUERY_LOG=0")
+	fs.StringVar(&o.queryIntent, "intent", "", "with --log-query: short intent label for later fixture curation")
+	fs.StringVar(&o.queryClient, "client", strings.TrimSpace(os.Getenv("DOCS_PULLER_QUERY_CLIENT")), "with --log-query: caller id (or DOCS_PULLER_QUERY_CLIENT)")
+	fs.StringVar(&o.queryRunContext, "run-context", strings.TrimSpace(os.Getenv("DOCS_PULLER_RUN_CONTEXT")), "with --log-query: operator|agent|mcp|production|eval|test|benchmark|batch (or DOCS_PULLER_RUN_CONTEXT)")
 	fs.Parse(args)
 
 	if *queriesPath == "" {
@@ -119,6 +124,11 @@ func runSearchBatch(o searchOpts, queries []searchBatchQuery) (searchBatchRespon
 		hits, scanned, mode := dispatchSearch(query, perQueryOpts, idx)
 		if mode != "fts5" {
 			return searchBatchResponse{}, searchruntime.SearchBatchNonFTSModeError(query)
+		}
+		if shouldLogSearchQuery(perQueryOpts) {
+			if err := appendSearchQueryLog(perQueryOpts.out, newSearchQueryLogEntry(query, scanned, hits, mode, perQueryOpts)); err != nil {
+				fmt.Fprint(os.Stderr, searchruntime.QueryLogAppendFailedWarning(err))
+			}
 		}
 		results = append(results, searchBatchResult{
 			Query:   query,
