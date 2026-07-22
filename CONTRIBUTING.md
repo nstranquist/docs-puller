@@ -12,6 +12,12 @@ Go 1.26+. Plain `go build ./...` works (the pure-Go SQLite driver ships FTS5
 built in); CI passes `-tags sqlite_fts5`, so the canonical commands are:
 
 ```sh
+make verify          # fmt + vet + test + build (-tags sqlite_fts5)
+make publish-ready   # alias for local publication gate (no remote push)
+make help-sizes      # fail if help --compact is not << full help
+make smoke           # isolated pull → reindex → status → search
+# Agents: prefer `docs-puller help --compact` or `help --json --compact`
+# or explicit:
 go build -tags sqlite_fts5 ./...
 go vet  -tags sqlite_fts5 ./...
 go test -tags sqlite_fts5 ./...
@@ -20,6 +26,8 @@ go test -tags sqlite_fts5 ./...
 Quick end-to-end sanity check (no network needed):
 
 ```sh
+make smoke
+# or:
 go run -tags sqlite_fts5 . pull --local ./somedocs --name demo --out /tmp/corpus
 go run -tags sqlite_fts5 . reindex --out /tmp/corpus
 go run -tags sqlite_fts5 . search "your query" --out /tmp/corpus --json
