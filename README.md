@@ -13,6 +13,52 @@
 The screenshot is a real local FTS5 search across 19,159 ingested documents and
 is the same reviewed evidence declared in `portfolio/manifest.yaml`.
 
+## Measured Retrieval
+
+Retrieval quality is measured, checked in, and reproducible. Both numbers below
+are published with their query count, mode, and date so they can be replayed
+rather than taken on trust.
+
+| Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Reproducible by you |
+| --- | ---: | --- | ---: | ---: | ---: | --- | --- |
+| Full fixture suite | 258 | HyDE + hybrid + LLM rerank | 69.0% | 92.2% | 0.786 | 2026-06-09 | No — maintainer's private corpus mirror |
+| Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-07-03 | Yes — pinned public pages |
+
+The right-hand column is the point. The flattering number is the one you can
+check; the headline number is operator-measured on a corpus you do not have, so
+treat it as a maintainer claim until you rebuild an equivalent corpus.
+
+The sample corpus is the honest floor: 24 pinned public pages (SQLite, Go,
+PostgreSQL) that anyone can reproduce end-to-end in a few minutes with no API
+key and no account. It demonstrates the pipeline, not the ceiling.
+
+```sh
+corpus="$(mktemp -d)"
+docs-puller pull --from eval/sample-corpus/sources.md --out "$corpus"
+docs-puller reindex --out "$corpus"
+docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus" \
+  --diff eval/sample-corpus/baseline-2026-07-03.json
+```
+
+The full suite is the harder, more representative number — 258 queries across
+identifier lookups, natural-language questions, cross-source retrieval, and
+queries promoted from real production logs, including a deliberately retained
+set of known-tricky cases the pipeline currently ranks poorly.
+
+```sh
+docs-puller eval-suite --rerank-llm --json
+docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --format json
+```
+
+**What this does and does not claim.** These results say the retrieval pipeline
+is competitive with the trained-reranker baselines commonly used for this job,
+at lower cost and lower latency (p50 <1 ms on the sample corpus), on
+documentation-retrieval corpora. They are not a claim to novel retrieval
+research, and they are not a general-benchmark result — a domain corpus is not
+MTEB. Scoring discipline, including the multi-fixture rule that exists because a
+silent regression once cost 12 points of Hit@1, is documented in
+[eval/CONTRIBUTING.md](eval/CONTRIBUTING.md).
+
 This is the **open-core local CLI**. The hosted Team tier (multi-tenant control plane, billing, managed corpora) is proprietary. See [OPEN-CORE.md](OPEN-CORE.md) for the commercial boundary.
 
 This repository is the canonical source for the CLI and its public Go packages.
@@ -290,3 +336,12 @@ docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --for
 The main `eval/*.yaml` fixture numbers are measured on the maintainer's larger
 multi-vendor corpus mirror — treat those as operator-measured until you rebuild
 an equivalent corpus.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Copyright 2026 Nico Stranquist.
+
+The hosted Team tier is a separate proprietary work and is not covered by this
+license; see [OPEN-CORE.md](OPEN-CORE.md) for the commercial boundary.
