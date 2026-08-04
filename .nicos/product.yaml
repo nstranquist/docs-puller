@@ -1,0 +1,30 @@
+schema_version: 1
+id: product.docs-puller
+name: docs-puller
+surface: products
+kind: product
+status: shipped
+persona: Engineers and agent operators who need trustworthy local documentation retrieval for AI coding workflows.
+jtbd: Mirror vendor and product docs into a local corpus, index them with SQLite FTS5, search and re-rank results, and measure retrieval quality with reproducible evals.
+pricing: Free and open source under Apache-2.0 (open-core hosted Team is a separate track).
+launch: built
+license: Apache-2.0
+role: champion
+tags:
+  - go
+  - cli
+  - documentation
+  - retrieval
+  - fts5
+  - rag
+  - local-first
+  - oss
+  - ai-agents
+checks:
+  - name: test
+    command: [go, test, ./...]
+  - name: vet
+    command: [go, vet, ./...]
+  - name: build
+    command: [go, build, -o, /dev/null, .]
+description: Local-first documentation retrieval CLI — mirror docs corpora to Markdown, index with SQLite FTS5, search with optional embedding/LLM rerank, and measure quality with public evaluation suites.
