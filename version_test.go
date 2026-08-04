@@ -14,12 +14,12 @@ func TestCurrentVersionInfoPublishesStableContract(t *testing.T) {
 	if info.Name != "docs-puller" || info.Module == "" || info.Version == "" {
 		t.Fatalf("incomplete version info: %+v", info)
 	}
-	for _, command := range []string{"pull", "search", "status", "version"} {
+	for _, command := range []string{"pdf-doctor", "pull", "pull-pdf", "search", "status", "version"} {
 		if !slices.Contains(info.Commands, command) {
 			t.Errorf("commands missing %q: %v", command, info.Commands)
 		}
 	}
-	for _, capability := range []string{"contract.version-json.v1", "embed.stale-prune.v1", "pull.git-repo", "pull.llms-txt", "pull.replace-source-guard.v1", "pull.rst", "search.fts5", "search.fts5.self-heal.v1", "search.hybrid-source-scope.v1", "telemetry.provenance.v1"} {
+	for _, capability := range []string{"contract.version-json.v1", "embed.stale-prune.v1", "pull.git-repo", "pull.llms-txt", "pull.pdf-inspector.doctor.v1", "pull.pdf-inspector.v1", "pull.replace-source-guard.v1", "pull.rst", "search.fts5", "search.fts5.self-heal.v1", "search.hybrid-source-scope.v1", "telemetry.provenance.v1"} {
 		if !slices.Contains(info.Capabilities, capability) {
 			t.Errorf("capabilities missing %q: %v", capability, info.Capabilities)
 		}
@@ -51,6 +51,12 @@ func TestCheckExpectedVersion(t *testing.T) {
 func TestTopLevelUsageAdvertisesVersionExpectationGate(t *testing.T) {
 	if !strings.Contains(topLevelUsage, "docs-puller version [--json] [--expect VERSION]") {
 		t.Fatalf("top-level usage does not advertise the exact-version gate:\n%s", topLevelUsage)
+	}
+	if !strings.Contains(topLevelUsage, "docs-puller pull-pdf <path>") {
+		t.Fatalf("top-level usage does not advertise pull-pdf:\n%s", topLevelUsage)
+	}
+	if !strings.Contains(topLevelUsage, "docs-puller pdf-doctor") {
+		t.Fatalf("top-level usage does not advertise pdf-doctor:\n%s", topLevelUsage)
 	}
 }
 

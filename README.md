@@ -120,6 +120,13 @@ The search result should include `setup.md`.
 docs-puller pull --from urls.md --out ~/code/docs
 docs-puller pull --llms-txt https://docs.x.ai/llms.txt --replace-source --out ~/code/docs
 docs-puller pull-url https://example.com/docs/page --out ~/code/docs
+docs-puller pull-url https://www.firecrawl.dev/ --out ~/code/docs
+docs-puller pdf-doctor --write-pin ~/.docs-puller/pdf-inspector.json \
+  --detect-pdf /path/to/detect-pdf --pdf2md /path/to/pdf2md \
+  --source-revision REVISION --source-version VERSION --json
+docs-puller pdf-doctor --provider-pin ~/.docs-puller/pdf-inspector.json
+docs-puller pull-pdf ./manual.pdf --name manual \
+  --provider-pin ~/.docs-puller/pdf-inspector.json --out ~/code/docs
 docs-puller pull --local ~/projects/my-app --name my-app --out ~/code/docs
 docs-puller pull-local-batch --source app=~/projects/my-app --source docs=~/code/docs --out ~/code/docs
 docs-puller pull --github-repo owner/repo --name repo-docs --out ~/code/docs
@@ -132,6 +139,25 @@ docs-puller pins refresh --write --out ~/code/docs
 docs-puller search "flatlist performance" --out ~/code/docs --source react-native --version 0.79
 docs-puller search "react native debugging" --out ~/code/docs --source react-native --all-versions
 ```
+
+Create and verify a provider pin before you run `pull-pdf`. The pin records the
+pdf-inspector source repository, source revision, package version, and SHA-256
+hash for each executable. `pull-pdf` rejects a missing or changed hash before it
+reads or writes a PDF document. Set
+`DOCS_PULLER_PDF_PROVIDER_PIN` to use the same pin without repeating the flag.
+
+`pull-pdf` is an optional local sidecar path for text-based PDFs. It runs
+`detect-pdf` before `pdf2md`, then writes Markdown into `pdf-docs/` by default.
+Scanned, image-based, mixed, encrypted, oversized, and malformed PDFs fail
+closed. Use a separate approved OCR or password workflow for those inputs.
+
+The pin verifies the selected executable bytes. It does not prove a release
+signature or a reproducible build. Record the source revision and verify the
+provider build before you create a pin.
+
+Firecrawl pages use the first-class `firecrawl` source. The local
+`pdf-inspector` sidecar does not call the hosted Firecrawl API and does not
+provide OCR.
 
 `--replace-source` treats the discovered URL set as authoritative. It refuses
 large deletion plans by default and also refuses filtered or capped replacement

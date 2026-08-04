@@ -24,6 +24,7 @@
 //	docs-puller pull --local <path>               # walk a local dir for .md/.mdx
 //	docs-puller pull --github-repo <owner/repo>   # walk a GitHub repo for .md/.mdx
 //	docs-puller pull-url <url>                    # one-off
+//	docs-puller pull-pdf <path>                  # text-first local PDF sidecar
 //	docs-puller crawl-refs                        # ingest ref-dissection cases into refs-dissections
 //	docs-puller refresh                           # git pull the source cache
 //	docs-puller status                            # health summary for corpus + FTS5
@@ -92,6 +93,10 @@ func main() {
 		cmdPullURL(os.Args[2:])
 	case "pull-article":
 		cmdPullArticle(os.Args[2:])
+	case "pull-pdf":
+		cmdPullPDF(os.Args[2:])
+	case "pdf-doctor":
+		cmdPDFDoctor(os.Args[2:])
 	case "crawl-refs":
 		cmdCrawlRefs(os.Args[2:])
 	case "curation":
@@ -203,7 +208,7 @@ USAGE
 
 CORE
   version [--json] [--expect V]
-  init | config init|path | pull … | pull-url | pull-article | pull-local-batch
+  init | config init|path | pull … | pull-url | pull-article | pull-pdf | pdf-doctor | pull-local-batch
   reindex | status [--check] | list | show | search <q> [--json] [--compact]
   eval | eval-suite | eval-leaderboard | emit-llmstxt | embed | serve
   pins … | crawl-refs | telemetry … | help [--compact] [--json]
@@ -238,6 +243,13 @@ Usage:
                                              [--origin-base URL]
   docs-puller pull-url <url>                 [common-flags]
   docs-puller pull-article <url>             [--name SLUG] [common-flags]
+  docs-puller pull-pdf <path>                [--name NAME] [--source NAME]
+                                             [--detect-pdf PATH] [--pdf2md PATH]
+                                             [--provider-pin PATH] [--timeout DURATION]
+                                             [--max-input-bytes N]
+                                             [common-flags]
+  docs-puller pdf-doctor                    [--provider-pin PATH | --write-pin PATH]
+                                             [--detect-pdf PATH] [--pdf2md PATH] [--json]
   docs-puller crawl-refs                     [--cases-root DIR] [--source NAME] [--out DIR]
                                              # ingest ~/code/refs/_cases/<slug>/*.md → refs-dissections
   docs-puller curation lint                  [--json]
@@ -484,7 +496,16 @@ func cmdPullURL(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("pull-url", flag.ExitOnError)
 	bindOpts(fs, &o)
-	fs.Parse(args)
+	normalizedArgs, err := normalizeSinglePositionalArgs(args, map[string]bool{
+		"out":          true,
+		"source-cache": true,
+		"concurrency":  true,
+	}, "URL")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pull-url: %s\n", err)
+		os.Exit(2)
+	}
+	fs.Parse(normalizedArgs)
 	if fs.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "pull-url: URL required")
 		os.Exit(2)

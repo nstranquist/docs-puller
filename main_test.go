@@ -48,6 +48,20 @@ Duplicate: https://supabase.com/docs/guides/database/drizzle
 	}
 }
 
+func TestNormalizeSinglePositionalArgsAllowsURLBeforeFlags(t *testing.T) {
+	got, err := normalizeSinglePositionalArgs(
+		[]string{"https://www.firecrawl.dev/", "--out", "/tmp/docs", "--concurrency=2"},
+		map[string]bool{"out": true, "concurrency": true}, "URL",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"--out", "/tmp/docs", "--concurrency=2", "https://www.firecrawl.dev/"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("normalized args = %#v, want %#v", got, want)
+	}
+}
+
 func TestExtractURLsHTMLResolvesRelative(t *testing.T) {
 	body := []byte(`<html><body>
 <a href="/doc/effective_go">Effective Go</a>
@@ -169,6 +183,9 @@ func TestResolveTarget(t *testing.T) {
 		{"https://linear.app/developers/agents", "linear", "agents.md"},
 		{"https://linear.app/developers/sdk-errors", "linear", "sdk-errors.md"},
 		{"https://linear.app/about", "", ""},
+		{"https://www.firecrawl.dev/", "firecrawl", "index.md"},
+		{"https://www.firecrawl.dev/docs/quickstart", "firecrawl", "docs/quickstart.md"},
+		{"https://firecrawl.dev/", "firecrawl", "index.md"},
 		{"https://docs.slack.dev/quickstart.md", "slack", "quickstart.md"},
 		{"https://docs.slack.dev/reference/methods/chat.postMessage.md",
 			"slack", "reference/methods/chat.postMessage.md"},
@@ -365,6 +382,23 @@ func TestExtractMainStripsNav(t *testing.T) {
 		t.Errorf("expected main content kept, got: %s", out)
 	}
 	for _, junk := range []string{"NAV CRUFT", "SIDEBAR CRUFT", "FOOTER CRUFT", "alert(1)"} {
+		if strings.Contains(out, junk) {
+			t.Errorf("expected %q stripped, got: %s", junk, out)
+		}
+	}
+}
+
+func TestExtractMainFirecrawlSelectsMain(t *testing.T) {
+	html := []byte(`<!doctype html><html><body>
+<header>Site navigation</header>
+<main><h1>Firecrawl docs</h1><p>Search and scrape the web.</p></main>
+<footer>Footer navigation</footer>
+</body></html>`)
+	out := string(extractMain("www.firecrawl.dev", html))
+	if !strings.Contains(out, "Firecrawl docs") || !strings.Contains(out, "Search and scrape") {
+		t.Fatalf("expected Firecrawl main content, got: %s", out)
+	}
+	for _, junk := range []string{"Site navigation", "Footer navigation"} {
 		if strings.Contains(out, junk) {
 			t.Errorf("expected %q stripped, got: %s", junk, out)
 		}

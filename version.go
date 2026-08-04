@@ -99,7 +99,7 @@ func currentVersionInfo() versionInfo {
 	commands := []string{
 		"config", "crawl-refs", "curation", "embed", "emit-llmstxt", "eval",
 		"eval-diagnose", "eval-leaderboard", "eval-suite", "eval-sweep", "extract",
-		"init", "list", "log", "pins", "profile", "pull", "pull-article",
+		"init", "list", "log", "pins", "pdf-doctor", "profile", "pull", "pull-article", "pull-pdf",
 		"pull-local-batch", "pull-pins", "pull-url", "refresh", "reindex", "search",
 		"search-batch", "serve", "show", "status", "telemetry", "version",
 	}
@@ -113,6 +113,8 @@ func currentVersionInfo() versionInfo {
 		"pull.github-repo",
 		"pull.llms-txt",
 		"pull.local",
+		"pull.pdf-inspector.doctor.v1",
+		"pull.pdf-inspector.v1",
 		"pull.replace-source-guard.v1",
 		"pull.rst",
 		"pull.sitemap",
