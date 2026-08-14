@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/nstranquist/docs-puller/actions/workflows/ci.yml/badge.svg)](https://github.com/nstranquist/docs-puller/actions/workflows/ci.yml)
 
-`docs-puller` mirrors vendor, reference, and local project docs into Markdown, builds a local SQLite FTS5 index, and gives agents a fast private search surface with reproducible retrieval evals.
+`docs-puller` copies vendor, reference, and local project docs into Markdown, builds a local SQLite FTS5 index, and searches that index on your machine. Retrieval quality is measured with checked-in evaluations you can rerun.
 
 ## Showcase
 
