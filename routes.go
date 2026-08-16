@@ -84,6 +84,8 @@ var targetRoutes = []targetRoute{
 	{name: "sqlc", match: routeSQLC},
 	simpleRoute("docs.n8n.io", "n8n", relTrimmedPath),
 	{name: "linear", match: routeLinear},
+	simpleRoute("firecrawl.dev", "firecrawl", relTrimmedPath),
+	simpleRoute("www.firecrawl.dev", "firecrawl", relTrimmedPath),
 }
 
 // resolveTarget maps a URL to (sourceDir, relativePath under that source).
