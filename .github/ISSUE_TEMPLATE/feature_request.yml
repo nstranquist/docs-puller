@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a focused improvement to docs-puller.
+title: "[Feature]: "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the user problem before the implementation. Do not include private document content or credentials.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who needs this change, and what can they not do today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: State the observable result that you want.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Explain a possible command, provider, or workflow if you have one.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or smaller options.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: This request does not include credentials or private document content.
+          required: true
+        - label: I agree to follow the docs-puller Code of Conduct.
+          required: true

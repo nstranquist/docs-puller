@@ -1,0 +1,68 @@
+name: Bug report
+description: Report docs-puller behavior that looks wrong.
+title: "[Bug]: "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve docs-puller. Remove tokens, private URLs, and copyrighted document text before you submit this form.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: State what docs-puller did and which command you ran.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest safe example that shows the problem.
+      placeholder: |
+        1. Run `docs-puller ...`
+        2. Use this public or synthetic input ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State what you expected docs-puller to do.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: docs-puller version
+      description: Paste the output of `docs-puller version --json`.
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostic output
+      description: Add relevant output after you remove secrets and private document content.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed tokens, private URLs, and non-public document text.
+          required: true
+        - label: I agree to follow the docs-puller Code of Conduct.
+          required: true
