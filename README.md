@@ -309,6 +309,67 @@ beside your config file → embedded `profiles/example.yaml`.
 See `config.example.yaml` for the schema (`cwd_profiles`, `pin_scan_roots`,
 `tools_pin_scopes`, `source_keywords`).
 
+## Troubleshooting
+
+### `status` reports a missing or stale FTS5 index
+
+Verify the corpus, rebuild the index, and verify it again:
+
+```sh
+docs-puller status --out ~/code/docs
+docs-puller reindex --out ~/code/docs
+docs-puller status --out ~/code/docs --check
+```
+
+Use the same `--out` path for pull, reindex, status, search, and serve.
+
+### A pull records `low-content`
+
+Open the recorded URL and the stored Markdown file. Verify that the source
+returns the document body without client-side JavaScript.
+
+If the web page returns only an application shell, use an `llms.txt`, local,
+GitHub, or Git source. Pull the source again, then run `reindex`.
+
+### Search returns no useful result
+
+Run `status --check` first. Then repeat the search without `--source`,
+`--profile`, or `--version` filters.
+
+If the broad search works, add one filter at a time. If it fails, run
+`reindex` against the same corpus path.
+
+### `serve` refuses a non-loopback address
+
+For a non-loopback `--addr`, the server requires a bearer token.
+Create a private token file before you expose the server to a trusted network:
+
+```sh
+token_file="$HOME/.docs-puller/serve-token"
+umask 077
+openssl rand -hex 32 > "$token_file"
+docs-puller serve --addr 0.0.0.0 --out ~/code/docs \
+  --auth-token-file "$token_file"
+```
+
+If remote access is not required, keep the default `127.0.0.1` address. The
+HTTP server does not provide TLS.
+
+### Rerank reports a missing API key or embedding index
+
+Remove the rerank flags to use local BM25 search without an API key. To use
+reranking, configure the selected provider key and build the embedding index.
+
+```sh
+docs-puller embed --out ~/code/docs --model text-embedding-3-small
+docs-puller status --out ~/code/docs --check-embeddings
+```
+
+### `pull-pdf` rejects the provider pin
+
+Do not bypass a missing or changed executable hash. Verify the provider build,
+then create a new pin with `pdf-doctor` as shown in Core Commands.
+
 ## State Paths
 
 - Default corpus: `~/code/docs` (override with `DOCS_PULLER_OUT=<dir>`)
