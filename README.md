@@ -6,9 +6,9 @@
 
 ## Showcase
 
-<img src="assets/brand/docs-puller.svg" width="96" height="96" alt="docs-puller application icon">
+<img src="https://raw.githubusercontent.com/nstranquist/docs-puller/main/assets/brand/docs-puller.png" width="96" height="96" alt="docs-puller application icon">
 
-![docs-puller web search showing ranked SQLite documentation results](portfolio/assets/search-results.png)
+![docs-puller web search showing ranked SQLite documentation results](https://raw.githubusercontent.com/nstranquist/docs-puller/main/portfolio/assets/search-results.png)
 
 The screenshot is a real local FTS5 search for `sqlite` on this machine
 (47,924 documents in the index). It is the reviewed evidence declared in
