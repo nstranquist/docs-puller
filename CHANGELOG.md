@@ -6,6 +6,12 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Changed
+
+- The `docs-puller serve` search page now has a landing state with corpus
+  counts, cleaner result cards, markdown-stripped snippets, and a dark/light
+  toggle. Filesystem roots are not shown on the page.
+
 ## v0.5.0 — 2026-07-22
 
 ### Added

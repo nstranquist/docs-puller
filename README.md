@@ -10,8 +10,10 @@
 
 ![docs-puller web search showing ranked SQLite documentation results](portfolio/assets/search-results.png)
 
-The screenshot is a real local FTS5 search across 19,159 ingested documents and
-is the same reviewed evidence declared in `portfolio/manifest.yaml`.
+The screenshot is a real local FTS5 search for `sqlite` on this machine
+(47,924 documents in the index). It is the reviewed evidence declared in
+`portfolio/manifest.yaml`. A full-page capture is in
+[screenshots/](screenshots/).
 
 ## Measured Retrieval
 

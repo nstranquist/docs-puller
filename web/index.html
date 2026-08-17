@@ -1,81 +1,111 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>docs-puller search</title>
+<title>docs-puller</title>
 <style>
-  :root {
-    --bg: #0f1115;
-    --panel: #161922;
-    --panel-2: #1d2230;
-    --border: #2a3040;
-    --text: #e6e7eb;
-    --muted: #8b93a7;
-    --accent: #6ea8ff;
-    --accent-bg: #1e2c46;
-    --score: #9ed8a3;
-    --code: #f0c674;
-    --warn: #ffb86c;
+  :root, [data-theme="dark"] {
+    --bg: #0e1117;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #2a3140;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #79c0ff;
+    --accent-bg: #1f3047;
+    --score: #7ee787;
+    --mark: rgba(121, 192, 255, 0.22);
   }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #fafbfc; --panel: #ffffff; --panel-2: #f1f3f6;
-      --border: #d6dae3; --text: #1a1d24; --muted: #5b6378;
-      --accent: #1f6feb; --accent-bg: #ddebff;
-      --score: #1d7027; --code: #6f5500; --warn: #b8541a;
-    }
+  [data-theme="light"] {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #eef1f5;
+    --border: #d6dae3;
+    --text: #1a1d24;
+    --muted: #5b6378;
+    --accent: #0969da;
+    --accent-bg: #ddf4ff;
+    --score: #1a7f37;
+    --mark: rgba(9, 105, 218, 0.16);
   }
   * { box-sizing: border-box; }
+  html, body { margin: 0; }
   body {
-    margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
+    min-height: 100vh;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
     background: var(--bg); color: var(--text);
   }
   header {
     position: sticky; top: 0; z-index: 10;
-    background: var(--panel); border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
     padding: 12px 20px;
   }
-  .row { display: flex; gap: 10px; align-items: center; max-width: 1100px; margin: 0 auto; }
-  h1 { font-size: 14px; margin: 0 8px 0 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
-  input, select {
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-    padding: 8px 10px; border-radius: 6px; font: inherit;
+  .row { display: flex; gap: 10px; align-items: center; max-width: 1040px; margin: 0 auto; }
+  .brand {
+    display: flex; align-items: baseline; gap: 8px; flex: 0 0 auto;
+    text-decoration: none; color: inherit;
   }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .brand strong { font-size: 14px; letter-spacing: -0.02em; }
+  .brand span { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  input, select, button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: 8px; font: inherit;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   #q { flex: 1; min-width: 0; }
-  #stats { color: var(--muted); font-size: 12px; padding: 6px 20px; max-width: 1100px; margin: 0 auto; }
-  main { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+  .ghost { background: transparent; color: var(--muted); cursor: pointer; }
+  .ghost:hover { color: var(--text); }
+  #stats { color: var(--muted); font-size: 12px; padding: 10px 20px 0; max-width: 1040px; margin: 0 auto; }
+  main { max-width: 1040px; margin: 0 auto; padding: 12px 20px 72px; }
+  .landing {
+    padding: 56px 8px 24px;
+  }
+  .landing h2 {
+    font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.035em;
+    margin: 0 0 10px; font-weight: 650;
+  }
+  .landing p { color: var(--muted); margin: 0 0 18px; max-width: 46ch; }
+  .corpus { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+  .chip, .hint-chip {
+    font: 12px/1.2 ui-monospace, "SF Mono", Menlo, monospace;
+    border: 1px solid var(--border); background: var(--panel);
+    border-radius: 999px; padding: 6px 10px; color: var(--muted);
+  }
+  .hint-chip { cursor: pointer; color: var(--accent); background: var(--accent-bg); border-color: transparent; }
+  .hint-chip:hover { filter: brightness(1.08); }
   .hit {
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px; margin: 12px 0;
+    border-radius: 12px; padding: 16px 18px; margin: 12px 0;
   }
   .hit-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .hit-title { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; word-break: break-word; }
+  .hit-title { font-weight: 650; font-size: 16px; flex: 1; min-width: 0; letter-spacing: -0.015em; }
   .hit-source {
-    font-size: 11px; padding: 2px 7px; border-radius: 10px;
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
     background: var(--accent-bg); color: var(--accent); font-family: ui-monospace, monospace;
   }
   .hit-score { font-size: 11px; color: var(--score); font-family: ui-monospace, monospace; }
-  .hit-path { color: var(--muted); font-size: 12px; font-family: ui-monospace, "SF Mono", monospace; margin-top: 3px; word-break: break-all; }
-  .hit-url { color: var(--accent); font-size: 12px; text-decoration: none; word-break: break-all; }
+  .hit-path { color: var(--muted); font-size: 12px; font-family: ui-monospace, "SF Mono", monospace; margin-top: 4px; word-break: break-all; }
+  .hit-url { color: var(--accent); font-size: 12px; text-decoration: none; }
   .hit-url:hover { text-decoration: underline; }
-  .snippets { margin-top: 10px; padding: 8px 12px; background: var(--panel-2); border-radius: 6px; border-left: 3px solid var(--accent); }
-  .snip { font-size: 13px; padding: 2px 0; color: var(--text); word-break: break-word; }
+  .snippets { margin-top: 10px; padding: 8px 12px; background: var(--panel-2); border-radius: 8px; border-left: 3px solid var(--accent); }
+  .snip { font-size: 13px; padding: 2px 0; }
   .snip-line { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; margin-right: 6px; }
-  mark { background: rgba(110, 168, 255, 0.25); color: inherit; padding: 0 2px; border-radius: 2px; }
-  .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 2px; }
+  .actions { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
   .btn {
     background: transparent; border: 1px solid var(--border); color: var(--text);
-    padding: 4px 9px; border-radius: 5px; font-size: 12px; cursor: pointer;
+    padding: 4px 9px; border-radius: 6px; font-size: 12px; cursor: pointer;
     text-decoration: none; display: inline-block;
   }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
-  .btn.primary { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .btn.primary { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
   .empty { color: var(--muted); padding: 40px 0; text-align: center; }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: var(--accent); color: white; padding: 8px 16px; border-radius: 6px;
+    background: var(--accent); color: var(--bg); padding: 8px 16px; border-radius: 8px;
     font-size: 13px; opacity: 0; transition: opacity 0.2s;
     pointer-events: none;
   }
@@ -86,16 +116,17 @@
 <body>
 <header>
   <div class="row">
-    <h1>docs</h1>
-    <input id="q" placeholder="search local docs..." autofocus autocomplete="off" spellcheck="false">
+    <a class="brand" href="/"><strong>docs-puller</strong><span>local</span></a>
+    <input id="q" placeholder="Search local docs…" autofocus autocomplete="off" spellcheck="false">
     <select id="source" title="filter by source"><option value="">all sources</option></select>
     <select id="limit" title="result limit">
       <option>10</option><option>20</option><option>50</option>
     </select>
     <select id="mode" title="search backend">
-      <option value="">FTS5 (default)</option>
-      <option value="scan">scan (substring)</option>
+      <option value="">FTS5</option>
+      <option value="scan">scan</option>
     </select>
+    <button class="ghost" id="theme" type="button" title="Toggle theme">light</button>
   </div>
 </header>
 <div id="stats"></div>
@@ -105,8 +136,22 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const q = $("q"), srcSel = $("source"), limitSel = $("limit"), modeSel = $("mode");
-const stats = $("stats"), results = $("results"), toast = $("toast");
+const stats = $("stats"), results = $("results"), toast = $("toast"), themeBtn = $("theme");
 let currentReq = 0;
+let docsRoot = "";
+let corpus = { totalDocs: 0, sources: 0 };
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  themeBtn.textContent = theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("docs-puller-theme", theme); } catch {}
+}
+applyTheme((() => {
+  try { return localStorage.getItem("docs-puller-theme") || "dark"; } catch { return "dark"; }
+})());
+themeBtn.addEventListener("click", () => {
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+});
 
 function show(msg) {
   toast.textContent = msg;
@@ -117,26 +162,46 @@ function show(msg) {
 
 async function copy(text, label) {
   try {
-    await navigator.clipboard.writeText(text);
-    show(label + " copied");
+    await navigator.clipboard.writeText(text); show(label + " copied");
   } catch { show("copy failed (browser permission?)"); }
 }
 
-function highlight(text, tokens) {
-  if (!tokens.length) return escapeHTML(text);
-  // Build a single regex matching any token, case-insensitive, escaping regex chars.
-  const pat = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const re = new RegExp("(" + pat + ")", "gi");
-  return escapeHTML(text).replace(re, "<mark>$1</mark>");
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-function escapeHTML(s) {
-  return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function displayText(s) {
+  s = decodeEntities(s);
+  s = s.replace(/^#{1,6}\s+/, "");
+  s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");
+  s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1");
+  s = s.replace(/`([^`]+)`/g, "$1");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function highlight(text, tokens) {
+  const cleaned = displayText(text);
+  if (!tokens.length) return escapeHTML(cleaned);
+  const pat = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return escapeHTML(cleaned).replace(new RegExp("(" + pat + ")", "gi"), "<mark>$1</mark>");
 }
 
 function vscodeURL(absPath) {
-  // vscode://file/<absolute path>
   return "vscode://file" + encodeURI(absPath);
+}
+
+function fmtInt(n) {
+  return Number(n || 0).toLocaleString("en-US");
 }
 
 function renderHit(hit, root, query) {
@@ -144,47 +209,65 @@ function renderHit(hit, root, query) {
   const div = document.createElement("div");
   div.className = "hit";
   const titleHTML = highlight(hit.title || "(untitled)", tokens);
+  const url = hit.url ? `<a class="hit-url" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">${escapeHTML(hit.url.replace(/^https?:\/\//, ""))}</a>` : "";
   div.innerHTML = `
     <div class="hit-head">
       <div class="hit-title">${titleHTML}</div>
       <span class="hit-source">${escapeHTML(hit.source)}</span>
-      <span class="hit-score">score ${hit.score}</span>
+      <span class="hit-score">${fmtInt(Math.round(hit.score || 0))}</span>
     </div>
     <div class="hit-path">${escapeHTML(hit.path)}</div>
-    ${hit.url ? `<a class="hit-url" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">${escapeHTML(hit.url)}</a>` : ""}
+    ${url}
   `;
   if (hit.snippets && hit.snippets.length) {
     const sn = document.createElement("div");
     sn.className = "snippets";
-    sn.innerHTML = hit.snippets.map(s =>
+    sn.innerHTML = hit.snippets.slice(0, 3).map(s =>
       `<div class="snip"><span class="snip-line">L${s.line}</span>${highlight(s.text, tokens)}</div>`
     ).join("");
     div.appendChild(sn);
   }
   const actions = document.createElement("div");
   actions.className = "actions";
-  const absPath = root + "/" + hit.path;
+  const absPath = docsRoot + "/" + hit.path;
   actions.innerHTML = `
-    <a class="btn primary" href="${vscodeURL(absPath)}">Open in VS Code</a>
-    ${hit.url ? `<a class="btn" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">Open in browser</a>` : ""}
-    <button class="btn" data-act="copy-md">Copy markdown link</button>
-    <button class="btn" data-act="copy-url">Copy URL</button>
-    <button class="btn" data-act="copy-path">Copy path</button>
-    ${hit.snippets && hit.snippets.length ? `<button class="btn" data-act="copy-snip">Copy snippets</button>` : ""}
+    <a class="btn primary" href="${vscodeURL(absPath)}">Open</a>
+    ${hit.url ? `<a class="btn" href="${escapeHTML(hit.url)}" target="_blank" rel="noopener">Source</a>` : ""}
+    <button class="btn" data-act="copy-path" type="button">Copy path</button>
   `;
   actions.addEventListener("click", (e) => {
-    const act = e.target.dataset.act;
-    if (!act) return;
-    if (act === "copy-md") copy(`[${hit.title || hit.path}](${hit.url || ""})`, "Markdown link");
-    if (act === "copy-url") copy(hit.url || "", "URL");
-    if (act === "copy-path") copy(absPath, "Path");
-    if (act === "copy-snip") copy(hit.snippets.map(s => `L${s.line}: ${s.text}`).join("\n"), "Snippets");
+    if (e.target.dataset.act === "copy-path") copy(absPath, "Path");
   });
   div.appendChild(actions);
   root.appendChild(div);
 }
 
-let docsRoot = "";
+function renderLanding() {
+  stats.textContent = "";
+  const docs = corpus.totalDocs ? `${fmtInt(corpus.totalDocs)} pages` : "local index";
+  const srcs = corpus.sources ? `${fmtInt(corpus.sources)} sources` : "vendor docs";
+  results.innerHTML = `
+    <div class="landing">
+      <h2>Search docs on this machine.</h2>
+      <p>FTS5 over Markdown you already pulled. Nothing is sent off the computer.</p>
+      <div class="corpus">
+        <span class="chip">${docs}</span>
+        <span class="chip">${srcs}</span>
+        <span class="chip">loopback only</span>
+      </div>
+      <div class="corpus">
+        <button class="hint-chip" type="button" data-q="sqlite">sqlite</button>
+        <button class="hint-chip" type="button" data-q="postgres">postgres</button>
+        <button class="hint-chip" type="button" data-q="go modules">go modules</button>
+      </div>
+    </div>`;
+  results.querySelectorAll("[data-q]").forEach((el) => {
+    el.addEventListener("click", () => {
+      q.value = el.getAttribute("data-q");
+      runSearch();
+    });
+  });
+}
 
 async function loadSources() {
   const r = await fetch("/api/sources").then(r => r.json());
@@ -196,14 +279,29 @@ async function loadSources() {
   }
 }
 
+async function loadStatus() {
+  try {
+    const r = await fetch("/api/status").then(r => r.json());
+    corpus = { totalDocs: r.totalDocs || 0, sources: r.sources || 0 };
+  } catch {}
+}
+
 async function runSearch() {
   const query = q.value.trim();
-  if (!query) { stats.textContent = ""; results.innerHTML = ""; return; }
-  const params = new URLSearchParams({ q: query, limit: limitSel.value });
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
   if (srcSel.value) params.set("source", srcSel.value);
+  if (limitSel.value !== "10") params.set("limit", limitSel.value);
   if (modeSel.value) params.set("mode", modeSel.value);
+  const next = params.toString();
+  const url = next ? "?" + next : location.pathname;
+  history.replaceState(null, "", url);
+
+  if (!query) { renderLanding(); return; }
+  params.set("q", query);
+  params.set("limit", limitSel.value);
   const reqId = ++currentReq;
-  stats.textContent = "searching...";
+  stats.textContent = "searching…";
   let r;
   try {
     r = await fetch("/api/search?" + params).then(r => r.json());
@@ -214,9 +312,10 @@ async function runSearch() {
   }
   if (reqId !== currentReq) return;
   results.innerHTML = "";
-  stats.textContent = `${r.results.length} match${r.results.length === 1 ? "" : "es"} for "${r.query}" — ${r.scanned} docs scanned via ${r.mode} (${r.elapsed_ms}ms)`;
-  if (!r.results.length) {
-    results.innerHTML = `<div class="empty">No matches. Try different terms or <kbd>--scan</kbd> mode.</div>`;
+  const n = (r.results || []).length;
+  stats.textContent = `${fmtInt(n)} match${n === 1 ? "" : "es"} · ${fmtInt(r.scanned)} docs · ${r.mode} · ${fmtInt(r.elapsed_ms)} ms`;
+  if (!n) {
+    results.innerHTML = `<div class="empty">No matches. Try different terms or <kbd>scan</kbd> mode.</div>`;
     return;
   }
   for (const hit of r.results) renderHit(hit, results, r.query);
@@ -235,10 +334,14 @@ q.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { q.value = ""; runSearch(); }
 });
 
-loadSources().then(() => {
-  // If URL has ?q=foo, run that query
+Promise.all([loadSources(), loadStatus()]).then(() => {
   const u = new URLSearchParams(location.search);
-  if (u.get("q")) { q.value = u.get("q"); runSearch(); }
+  if (u.get("q")) q.value = u.get("q");
+  if (u.get("source")) srcSel.value = u.get("source");
+  if (u.get("limit")) limitSel.value = u.get("limit");
+  if (u.get("mode")) modeSel.value = u.get("mode");
+  if (q.value.trim()) runSearch();
+  else renderLanding();
 });
 </script>
 </body>

@@ -6,7 +6,11 @@ assets:
     - path: portfolio/assets/search-results.png
       kind: screenshot
       alt: docs-puller web search showing ranked SQLite documentation results
-      caption: A real local FTS5 search across 19,159 ingested documents.
+      caption: A real local FTS5 search for sqlite across 47,924 ingested documents.
+    - path: screenshots/landing.png
+      kind: screenshot
+      alt: docs-puller landing page with local corpus counts
+      caption: Empty-state landing. Corpus counts only; no filesystem root.
     - path: assets/brand/docs-puller.svg
       kind: logo
       alt: docs-puller application icon
