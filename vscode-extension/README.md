@@ -1,54 +1,88 @@
-# Docs Puller Search — VS Code extension
+# Docs Puller Search for VS Code
 
-Thin VS Code frontend over `docs-puller serve`. Adds two commands:
+This extension searches a local docs-puller corpus from VS Code. It uses the
+HTTP API from `docs-puller serve` and adds three commands:
 
-- **Docs Puller: Search** — opens a QuickPick that live-searches the local docs mirror as you type. Click a result to open the Markdown file in the editor and jump to the first matching line. (Bind to a key in your `keybindings.json` if you want a shortcut — left unbound to avoid conflicting with VS Code's defaults.)
-- **Docs Puller: Search in Source...** — pick a source (supabase, clickhouse, vscode, etc.) first, then search scoped to it.
+- **Docs Puller: Search** searches all sources.
+- **Docs Puller: Search in Source...** selects one source before the search.
+- **Docs Puller: Set Authentication Token...** stores or removes a server token.
 
-Each result has two side-buttons: **open origin URL in browser** and **copy markdown link** (`[Title](URL)`).
+A result can open the local Markdown file, open its public origin URL, or copy a
+Markdown link. When line data is available, the editor moves to the first
+matching snippet.
 
-Backed by `docs-puller serve` on `http://127.0.0.1:7799` by default. Configurable via `docsPuller.serverUrl` and `docsPuller.resultLimit`.
+## Install the release VSIX
 
-## Build
+The extension is distributed as an asset with a SHA-256 checksum on the
+docs-puller GitHub release. It is not published in the VS Code Marketplace.
 
-```sh
-cd vscode-extension
-npm install
-npm run compile
-```
-
-## Develop
-
-Open this folder in VS Code, press **F5**. A new "Extension Development Host" window launches with the extension loaded. Run **Docs Puller: Search** from the Command Palette.
-
-## Install permanently
+Download `docs-puller-search-0.3.0.vsix` and `vsix-checksums.txt` from the
+v0.6.0 release. Check the checksum before installation:
 
 ```sh
-npm install
-npm run compile
-# Then symlink into ~/.vscode/extensions/ (fastest):
-ln -s "$PWD" ~/.vscode/extensions/nstranquist.docs-puller-search-0.2.0
-# Or package + install:
-npx @vscode/vsce package
-code --install-extension docs-puller-search-0.2.0.vsix
+shasum -a 256 -c vsix-checksums.txt
+code --install-extension docs-puller-search-0.3.0.vsix
 ```
 
-Restart VS Code. The command appears in the palette.
+On Linux, you can use `sha256sum --check vsix-checksums.txt`.
+
+Start the local server:
+
+```sh
+docs-puller serve
+```
+
+The default endpoint is `http://127.0.0.1:7799`. If your server uses another
+address, change `docsPuller.serverUrl`.
+
+## Use an authenticated server
+
+Run **Docs Puller: Set Authentication Token...** from the Command Palette. The
+extension stores the token in VS Code SecretStorage. It does not put the token
+in settings or URLs.
+
+The client sends a bearer token to HTTPS endpoints and loopback HTTP endpoints.
+It refuses to send a token over non-loopback HTTP.
+
+## Build and test from source
+
+Node.js 22 and Go 1.26 are required.
+
+```sh
+npm ci
+npm run check
+npm test
+npm run package
+```
+
+The package command creates `docs-puller-search-0.3.0.vsix`. A Go normalizer
+removes variable ZIP metadata, verifies the package identity and file policy,
+and refuses to overwrite different output. Two builds from the same commit
+produce the same VSIX bytes.
+
+For extension development, open this directory in VS Code and press **F5**.
+This opens an Extension Development Host window.
+
+## Security boundaries
+
+- The client accepts only HTTP and HTTPS server URLs.
+- Server responses are limited to 4 MiB.
+- A returned document path must stay inside the corpus root.
+- An origin link must use HTTP or HTTPS and must not contain credentials.
+- The packaged VSIX excludes source files, dependencies, source maps, and local
+  settings.
 
 ## Architecture
 
+```text
+QuickPick
+    -> bounded HTTP request
+docs-puller serve
+    -> SQLite FTS5 search
+local docs corpus
+    -> ranked paths, origin URLs, and snippets
+QuickPick result
 ```
-QuickPick (debounced 120ms)
-    ↓ HTTP GET
-docs-puller serve  (localhost:7799)
-    ↓ FTS5 query (BM25)
-sqlite at ~/code/docs/.cache/search.db
-    ↓ ranked paths + URLs + snippets
-QuickPick items → click opens vscode.Uri.file(<path>)
-```
 
-If the server is down, the extension shows `Run \`docs-puller serve\` to start it` with a "Copy command" button.
-
-## Why a separate process
-
-Keeps the extension dependency-free (just stdlib `http`) and decouples from the docs-puller Go binary version. Update either side independently.
+The extension has no runtime package dependency. Search and indexing remain in
+the docs-puller process, so the extension stays small.

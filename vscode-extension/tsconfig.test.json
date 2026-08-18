@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "test-out",
+    "rootDir": ".",
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": ["src/client.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "out", "test-out"]
+}

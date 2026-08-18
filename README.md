@@ -273,8 +273,11 @@ bearer token is set (`--auth-token`, `--auth-token-file`, or `$DOCS_SERVE_TOKEN`
 The server picks up out-of-process `pull`/`reindex` runs automatically — no
 restart needed.
 
-`vscode-extension/` ships a VS Code client for the same endpoint ("Docs Puller:
-Search").
+`vscode-extension/` ships a VS Code client for the same endpoint. The v0.6.0
+GitHub release includes a checksummed `docs-puller-search-0.3.0.vsix`. The
+extension is not published in the VS Code Marketplace. It supports bearer
+tokens through VS Code SecretStorage and confines returned paths to the local
+corpus root. See [`vscode-extension/README.md`](vscode-extension/README.md).
 
 ## Operator config (optional)
 

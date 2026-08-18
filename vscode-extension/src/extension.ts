@@ -7,75 +7,51 @@
 // command to start it.
 
 import * as vscode from "vscode";
-import * as http from "http";
-import * as https from "https";
-import { URL } from "url";
-
-interface SearchResult {
-  path: string;
-  source: string;
-  title?: string;
-  url?: string;
-  score: number;
-  snippets?: { line: number; text: string }[];
-}
-
-interface SearchResponse {
-  query: string;
-  mode: "fts5" | "scan";
-  scanned: number;
-  elapsed_ms: number;
-  results: SearchResult[];
-}
-
-interface SourcesResponse {
-  root: string;
-  sources: { name: string; docs: number }[];
-}
+import {
+  SearchResponse,
+  SearchResult,
+  apiURL,
+  fetchJSON,
+  markdownLink,
+  normalizeResultLimit,
+  normalizeServerURL,
+  parseSearchResponse,
+  parseSourcesResponse,
+  resolveExistingDocumentPath,
+  safeOriginURL,
+  searchURL,
+} from "./client";
 
 let docsRoot = ""; // populated lazily on first command invocation
+let docsRootServerURL = "";
+let secrets: vscode.SecretStorage | undefined;
+const authTokenKey = "docsPuller.authToken";
 
 function cfg() {
   const c = vscode.workspace.getConfiguration("docsPuller");
   return {
-    serverUrl: (c.get<string>("serverUrl") ?? "http://127.0.0.1:7799").replace(/\/$/, ""),
-    limit: c.get<number>("resultLimit") ?? 20,
+    serverUrl: normalizeServerURL(
+      c.get<string>("serverUrl") ?? "http://127.0.0.1:7799",
+    ),
+    limit: normalizeResultLimit(c.get<number>("resultLimit") ?? 20),
   };
 }
 
-// fetchJSON is a tiny stdlib-only HTTP GET helper. We don't pull in node-fetch
-// to keep the extension dependency-free and the package small.
-function fetchJSON<T>(rawURL: string, timeoutMs = 5000): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const u = new URL(rawURL);
-    const lib = u.protocol === "https:" ? https : http;
-    const req = lib.get(rawURL, (res) => {
-      const chunks: Buffer[] = [];
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => {
-        if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(`HTTP ${res.statusCode}`));
-          return;
-        }
-        try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8")) as T);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    req.on("error", reject);
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error("request timeout"));
-    });
-  });
+async function authToken(): Promise<string> {
+  return (await secrets?.get(authTokenKey)) ?? "";
 }
 
-async function ensureRoot(): Promise<string> {
-  if (docsRoot) return docsRoot;
-  const { serverUrl } = cfg();
-  const r = await fetchJSON<SourcesResponse>(`${serverUrl}/api/sources`);
+async function ensureRoot(
+  serverUrl = cfg().serverUrl,
+  bearerToken?: string,
+): Promise<string> {
+  if (docsRoot && docsRootServerURL === serverUrl) return docsRoot;
+  const token = bearerToken ?? (await authToken());
+  const r = parseSourcesResponse(
+    await fetchJSON(apiURL(serverUrl, "api/sources"), 5000, undefined, token),
+  );
   docsRoot = r.root;
+  docsRootServerURL = serverUrl;
   return docsRoot;
 }
 
@@ -84,11 +60,14 @@ function showServerDown(err: unknown) {
   vscode.window
     .showErrorMessage(
       `Docs Puller: cannot reach docs-puller serve (${msg}). Run \`docs-puller serve\` to start it.`,
-      "Copy command"
+      "Copy command",
+      "Set auth token",
     )
     .then((choice) => {
       if (choice === "Copy command") {
         vscode.env.clipboard.writeText("docs-puller serve");
+      } else if (choice === "Set auth token") {
+        vscode.commands.executeCommand("docsPuller.setAuthToken");
       }
     });
 }
@@ -101,12 +80,16 @@ function buildItems(resp: SearchResponse): ResultItem[] {
   return resp.results.map((r) => ({
     label: `$(book) ${r.title || "(untitled)"}`,
     description: `[${r.source}] · score ${r.score}`,
-    detail: r.snippets && r.snippets.length
-      ? `${r.path}  —  ${r.snippets[0].text}`
-      : r.path,
+    detail:
+      r.snippets && r.snippets.length
+        ? `${r.path}  —  ${r.snippets[0].text}`
+        : r.path,
     result: r,
     buttons: [
-      { iconPath: new vscode.ThemeIcon("link-external"), tooltip: "Open origin URL in browser" },
+      {
+        iconPath: new vscode.ThemeIcon("link-external"),
+        tooltip: "Open origin URL in browser",
+      },
       { iconPath: new vscode.ThemeIcon("copy"), tooltip: "Copy markdown link" },
     ],
   }));
@@ -114,15 +97,21 @@ function buildItems(resp: SearchResponse): ResultItem[] {
 
 async function openResult(result: SearchResult) {
   try {
-    const root = await ensureRoot();
-    const fileUri = vscode.Uri.file(`${root}/${result.path}`);
+    const { serverUrl } = cfg();
+    const root = await ensureRoot(serverUrl, await authToken());
+    const fileUri = vscode.Uri.file(
+      await resolveExistingDocumentPath(root, result.path),
+    );
     const doc = await vscode.workspace.openTextDocument(fileUri);
     await vscode.window.showTextDocument(doc);
     // Best-effort: jump to first matching snippet line.
     if (result.snippets && result.snippets.length) {
       const editor = vscode.window.activeTextEditor;
       if (editor) {
-        const line = Math.max(0, result.snippets[0].line - 1);
+        const line = Math.min(
+          doc.lineCount - 1,
+          Math.max(0, result.snippets[0].line - 1),
+        );
         const range = new vscode.Range(line, 0, line, 0);
         editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
         editor.selection = new vscode.Selection(range.start, range.start);
@@ -134,11 +123,20 @@ async function openResult(result: SearchResult) {
 }
 
 async function runSearchUI(scopedSource?: string) {
-  const { serverUrl, limit } = cfg();
+  let serverUrl: string;
+  let limit: number;
+  let bearerToken: string;
+  try {
+    ({ serverUrl, limit } = cfg());
+    bearerToken = await authToken();
+  } catch (err) {
+    showServerDown(err);
+    return;
+  }
   // Probe sources up-front so we can surface a clear error before the user
   // wonders why typing returns nothing.
   try {
-    await ensureRoot();
+    await ensureRoot(serverUrl, bearerToken);
   } catch (err) {
     showServerDown(err);
     return;
@@ -162,9 +160,14 @@ async function runSearchUI(scopedSource?: string) {
     const mySeq = ++seq;
     qp.busy = true;
     try {
-      const params = new URLSearchParams({ q: value, limit: String(limit) });
-      if (scopedSource) params.set("source", scopedSource);
-      const resp = await fetchJSON<SearchResponse>(`${serverUrl}/api/search?${params.toString()}`);
+      const resp = parseSearchResponse(
+        await fetchJSON(
+          searchURL(serverUrl, value, limit, scopedSource),
+          5000,
+          undefined,
+          bearerToken,
+        ),
+      );
       if (mySeq !== seq) return; // stale response
       qp.items = buildItems(resp);
       qp.title = `${resp.results.length} results · ${resp.scanned} scanned · ${resp.elapsed_ms}ms · ${resp.mode}`;
@@ -199,27 +202,51 @@ async function runSearchUI(scopedSource?: string) {
   qp.onDidTriggerItemButton(async (e) => {
     const r = e.item.result;
     if (!r.url) {
-      vscode.window.showInformationMessage("This doc has no origin URL recorded.");
+      vscode.window.showInformationMessage(
+        "This doc has no origin URL recorded.",
+      );
+      return;
+    }
+    let originURL: URL;
+    try {
+      originURL = safeOriginURL(r.url);
+    } catch (err) {
+      vscode.window.showInformationMessage(
+        `Cannot use this origin URL: ${err}`,
+      );
       return;
     }
     const tooltip = String(e.button.tooltip ?? "");
     if (tooltip.startsWith("Copy")) {
-      await vscode.env.clipboard.writeText(`[${r.title || r.path}](${r.url})`);
+      await vscode.env.clipboard.writeText(
+        markdownLink(r.title || r.path, originURL.toString()),
+      );
       vscode.window.setStatusBarMessage("$(check) Markdown link copied", 1500);
     } else {
-      vscode.env.openExternal(vscode.Uri.parse(r.url));
+      await vscode.env.openExternal(vscode.Uri.parse(originURL.toString()));
     }
   });
 
-  qp.onDidHide(() => qp.dispose());
+  qp.onDidHide(() => {
+    clearTimeout(debounceTimer);
+    seq++;
+    qp.dispose();
+  });
   qp.show();
 }
 
 async function pickSource(): Promise<string | undefined> {
-  const { serverUrl } = cfg();
-  let resp: SourcesResponse;
+  let resp;
   try {
-    resp = await fetchJSON<SourcesResponse>(`${serverUrl}/api/sources`);
+    const { serverUrl } = cfg();
+    resp = parseSourcesResponse(
+      await fetchJSON(
+        apiURL(serverUrl, "api/sources"),
+        5000,
+        undefined,
+        await authToken(),
+      ),
+    );
   } catch (err) {
     showServerDown(err);
     return undefined;
@@ -229,18 +256,47 @@ async function pickSource(): Promise<string | undefined> {
       label: s.name,
       description: `${s.docs} docs`,
     })),
-    { placeHolder: "Pick a source to scope your search" }
+    { placeHolder: "Pick a source to scope your search" },
   );
   return picked?.label;
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  secrets = context.secrets;
   context.subscriptions.push(
     vscode.commands.registerCommand("docsPuller.search", () => runSearchUI()),
     vscode.commands.registerCommand("docsPuller.searchScoped", async () => {
       const source = await pickSource();
       if (source) await runSearchUI(source);
-    })
+    }),
+    vscode.commands.registerCommand("docsPuller.setAuthToken", async () => {
+      const value = await vscode.window.showInputBox({
+        prompt:
+          "Set the bearer token for docs-puller serve. Leave it empty to remove the saved token.",
+        password: true,
+        ignoreFocusOut: true,
+      });
+      if (value === undefined) return;
+      if (value.trim()) {
+        await context.secrets.store(authTokenKey, value.trim());
+        vscode.window.showInformationMessage(
+          "Docs Puller: authentication token saved in VS Code SecretStorage.",
+        );
+      } else {
+        await context.secrets.delete(authTokenKey);
+        vscode.window.showInformationMessage(
+          "Docs Puller: authentication token removed.",
+        );
+      }
+      docsRoot = "";
+      docsRootServerURL = "";
+    }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("docsPuller.serverUrl")) {
+        docsRoot = "";
+        docsRootServerURL = "";
+      }
+    }),
   );
 }
 

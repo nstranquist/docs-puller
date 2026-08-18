@@ -2,13 +2,30 @@
   "name": "docs-puller-search",
   "displayName": "Docs Puller Search",
   "description": "Search the local vendor docs mirror (~/code/docs/) from inside VS Code. Backed by docs-puller serve.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "nstranquist",
   "private": true,
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/nstranquist/docs-puller#readme",
+  "bugs": {
+    "url": "https://github.com/nstranquist/docs-puller/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nstranquist/docs-puller.git",
+    "directory": "vscode-extension"
+  },
+  "keywords": [
+    "documentation",
+    "local-first",
+    "search"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
@@ -21,6 +38,11 @@
       {
         "command": "docsPuller.searchScoped",
         "title": "Docs Puller: Search in Source...",
+        "category": "Docs Puller"
+      },
+      {
+        "command": "docsPuller.setAuthToken",
+        "title": "Docs Puller: Set Authentication Token...",
         "category": "Docs Puller"
       }
     ],
@@ -45,12 +67,19 @@
   },
   "scripts": {
     "compile": "tsc -p .",
+    "check": "npm run format:check && tsc -p . --noEmit",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"*.json\"",
+    "package": "go run ../cmd/release-tool vsix --root .. --json",
+    "test": "tsc -p tsconfig.test.json && node --test test-out/test/client.test.js",
     "watch": "tsc -p . --watch",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "3.9.2",
+    "prettier": "3.9.6",
     "typescript": "^5.4.0"
   }
 }

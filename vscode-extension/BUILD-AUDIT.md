@@ -66,7 +66,7 @@ Equivalent via WebFetch: each docs page ranges 50-150 KB raw HTML before renderi
 1. ~~**Search: title tie-breaker missing**~~ — **RESOLVED (same session).** Added a `+5 per query token present in title` boost on top of BM25 in `(*ftsIndex).search`. Re-sorts results so title-matching docs win equal-BM25 clusters. Demonstrated impact: "row level security" now returns `ddl-rowsecurity.md` (score 73) at #1 instead of `secure-data.md` (score 63). Test: `TestFTSTitleTieBreaker` in `search_fts_test.go`.
 2. ~~**`reindex` only updates the FTS5 DB, not per-source `_INDEX.md`**~~ — **RESOLVED (same session).** `cmdReindex` now calls `regenerateIndex(o.out)` before rebuilding FTS5. External-edit users no longer need to trigger a full pull to refresh per-source listings.
 3. **`docs-puller serve` must be running** for the extension to work. The error toast surfaces the exact command for onboarding.
-4. **No tests** in the extension yet. The `testing-extension.md` doc is the reference for adding `@vscode/test-electron` based tests in v0.2.0. Deferred — extension is ~250 LOC of straight wiring, low test ROI until the surface grows.
+4. ~~**No extension tests**~~ — **RESOLVED 2026-08-18.** The HTTP client is now separate from the VS Code UI. Node tests cover URL policy, corpus path confinement, response validation, size and timeout limits, and bearer authentication. CI type-checks, tests, audits, packages, and reproduces the normalized VSIX.
 
 ## Verification at the end
 
