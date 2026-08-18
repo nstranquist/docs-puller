@@ -65,12 +65,13 @@ const (
 // hub pages with short titles aren't buried by BM25 length norm. Used by
 // both `search` and the helper `runTier`.
 type cand struct {
-	hit        searchHit
-	body       string
-	fromTitle  bool
-	fromPath   bool
-	exactTitle bool
-	tieBreak   int
+	hit         searchHit
+	body        string
+	fromTitle   bool
+	fromPath    bool
+	fromRelaxed bool
+	exactTitle  bool
+	tieBreak    int
 }
 
 func ftsDBPath(out string) string {
@@ -1062,7 +1063,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	titleLimit := limit*2 + 5
 	if titleQ != "" {
-		if err := f.runTier(candByPath, titleSQL, titleSQLNoBody, titleQ, titleSourceFilter, titleLimit, true, false, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, titleSQL, titleSQLNoBody, titleQ, titleSourceFilter, titleLimit, true, false, false, includeSnippets); err != nil {
 			return nil, err
 		}
 	}
@@ -1098,7 +1099,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	pathLimit := limit*8 + 30
 	if pathQ != "" {
-		if err := f.runTier(candByPath, pathSQL, pathSQLNoBody, pathQ, pathSourceFilter, pathLimit, false, true, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, pathSQL, pathSQLNoBody, pathQ, pathSourceFilter, pathLimit, false, true, false, includeSnippets); err != nil {
 			return nil, err
 		}
 	}
@@ -1112,8 +1113,34 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	                 FROM docs WHERE docs MATCH ?`
 	const bodySQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 1) AS rank
 	                       FROM docs WHERE docs MATCH ?`
-	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, includeSnippets); err != nil {
+	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, includeSnippets); err != nil {
 		return nil, err
+	}
+
+	// 3. Relaxed natural-language tier. Strict implicit-AND remains the
+	// primary retrieval contract, but it is brittle when a question uses one
+	// word that the canonical page does not repeat (for example, "fit" in a
+	// question about model context windows). For queries with at least four
+	// meaningful concepts, also collect an OR-ranked candidate set. BM25 and
+	// the existing title/path reranker still decide the final order; this tier
+	// only widens recall. Explicit source filters, and unambiguous source names
+	// in the query, constrain the fallback so common prose words do not flood
+	// the candidate pool across the whole corpus.
+	if !exact {
+		relaxedQ, relaxedSource, relaxedTokens := ftsBuildRelaxedQuery(query, source)
+		if relaxedTokens >= 4 && relaxedQ != "" {
+			const relaxedSQL = `SELECT path, source, title, url, body, bm25(docs, 5, 3, 0) AS rank
+			                    FROM docs WHERE docs MATCH ?`
+			const relaxedSQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 0) AS rank
+			                          FROM docs WHERE docs MATCH ?`
+			relaxedLimit := limit*10 + 25
+			for _, sourceFilter := range ftsRelaxedSourceFilters(query, source, relaxedSource) {
+				scopedQ := ftsScopeRelaxedQuery(relaxedQ, sourceFilter)
+				if err := f.runTier(candByPath, relaxedSQL, relaxedSQLNoBody, scopedQ, sourceFilter, relaxedLimit, false, false, true, includeSnippets); err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	scoringQuery := query
@@ -1169,10 +1196,13 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		// Edge Functions". Surfaced by Phase A1 regression on
 		// `supabase edge functions` slipping rank 5→6.
 		titleLower := strings.ToLower(strings.TrimSpace(c.hit.Title))
+		normalizedTitle := normalizeFTSSurface(c.hit.Title)
 		c.exactTitle = titleLower != "" && titleLower == qLower
 		titleTokenMatches := 0
 		pathTokenMatches := 0
 		basenameTokenMatches := 0
+		surfaceConceptMatches := 0
+		relaxedBasenameConceptMatches := 0
 		for _, tok := range qTokens {
 			if !strings.Contains(titleLower, tok) {
 				continue
@@ -1207,18 +1237,31 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		}
 		basename = strings.TrimSuffix(basename, ".md")
 		basename = strings.TrimSuffix(basename, ".mdx")
+		normalizedPath := normalizeFTSSurface(pathSansSource)
+		normalizedBasename := normalizeFTSSurface(basename)
 
 		if c.hit.Source == "anthropic" && strings.HasPrefix(pathSansSource, "build-with-claude/") {
 			c.hit.Score += searchAnthropicBuildGuideBoost
 		}
 
 		for _, tok := range qTokens {
-			if _, isSource := sourceKeywords[tok]; isSource {
+			if sourceMatches, isSource := sourceKeywords[tok]; isSource && sourceMatches[c.hit.Source] {
 				continue
 			}
+			conceptMatched := ftsSurfaceMatchesRelaxedConcept(normalizedTitle, tok)
 			if strings.Contains(pathSansSource, tok) {
 				pathTokenMatches++
 				c.hit.Score += searchPathBoost
+				conceptMatched = true
+			}
+			if ftsSurfaceMatchesRelaxedConcept(normalizedPath, tok) {
+				conceptMatched = true
+			}
+			if conceptMatched {
+				surfaceConceptMatches++
+			}
+			if ftsSurfaceMatchesRelaxedConcept(normalizedBasename, tok) {
+				relaxedBasenameConceptMatches++
 			}
 			if strings.Contains(basename, tok) {
 				basenameTokenMatches++
@@ -1245,6 +1288,24 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		}
 		if titleMatchesBasename && titleTokenMatches >= 1 && basenameTokenMatches >= 1 {
 			c.tieBreak++
+		}
+		// Relaxed candidates earn a bounded floor only when at least two
+		// independent query concepts appear in their human-facing title or
+		// path. This keeps a rare one-word coincidence from receiving the same
+		// authority as a canonical page whose name explains the question.
+		if c.fromRelaxed && surfaceConceptMatches >= 2 && c.hit.Score < searchRelaxedTierBaseScore {
+			c.hit.Score = searchRelaxedTierBaseScore
+		}
+		if c.fromRelaxed {
+			c.hit.Score += surfaceConceptMatches * searchRelaxedSurfaceConceptBoost
+			if relaxedBasenameConceptMatches > 0 {
+				c.hit.Score += searchRelaxedBasenameBoost
+				c.hit.Score += (relaxedBasenameConceptMatches - 1) * searchRelaxedBasenameExtraBoost
+				basenameWords := len(strings.Fields(normalizedBasename))
+				if basenameWords > 0 {
+					c.hit.Score += searchRelaxedBasenameDensityBoost * relaxedBasenameConceptMatches / basenameWords
+				}
+			}
 		}
 		// Path-depth penalty: subtract per slash in pathSansSource so
 		// hub docs aren't crowded out by their own sub-pages on hub
@@ -1314,7 +1375,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 // expression are logged and ignored — the body tier alone still gives a
 // usable result, which is the right degradation for a Tier-1 search-quality
 // optimization (no full-search outage if SQL syntax is off).
-func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutBody, q, source string, sqlLimit int, fromTitle, fromPath bool, includeBody bool) error {
+func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutBody, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed bool, includeBody bool) error {
 	ctx := context.Background()
 	sqlBase := sqlWithBody
 	if !includeBody {
@@ -1370,10 +1431,13 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 			if fromPath {
 				existing.fromPath = true
 			}
+			if fromRelaxed {
+				existing.fromRelaxed = true
+			}
 			continue
 		}
 		h.Score = bm25Score
-		candByPath[h.Path] = &cand{hit: h, body: body, fromTitle: fromTitle, fromPath: fromPath}
+		candByPath[h.Path] = &cand{hit: h, body: body, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed}
 	}
 	return rows.Err()
 }
@@ -1419,6 +1483,129 @@ func ftsBuildSourceScopedQuery(q string, exact bool, source string) string {
 		return joinFTSTokens(tokens)
 	}
 	return joinFTSTokens(stripped)
+}
+
+// ftsBuildRelaxedQuery builds the recall tier used for longer natural-language
+// questions. Unlike ftsBuildQuery, meaningful concepts are joined with OR.
+// The caller still merges these candidates into the strict AND candidate set
+// and applies the normal deterministic reranker.
+//
+// A matching explicit source token is removed when --source already enforces
+// it. With no explicit source, one unambiguous source intent token is promoted
+// to a source filter and removed from the expression. Ambiguous source intent
+// stays in the query and does not constrain results.
+func ftsBuildRelaxedQuery(q, source string) (query, sourceFilter string, tokenCount int) {
+	tokens := filterFTSStopWords(rewriteFTSNaturalLanguageTokens(tokenizeForFTS(q)))
+	if len(tokens) == 0 {
+		return "", "", 0
+	}
+
+	stripped, matchedSources := stripSourceIntentTokens(tokens)
+	sourceFilter = source
+	if source != "" {
+		if matchedSources[source] && len(stripped) > 0 {
+			tokens = stripped
+		}
+	} else if len(matchedSources) == 1 && len(stripped) > 0 {
+		for matched := range matchedSources {
+			sourceFilter = matched
+		}
+		tokens = stripped
+	}
+
+	parts := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		parts = append(parts, expandRelaxedSynonyms(token))
+	}
+	return `{title path_tokens} : (` + strings.Join(parts, " OR ") + `)`, sourceFilter, len(tokens)
+}
+
+func ftsRelaxedSourceFilters(q, explicitSource, inferredSource string) []string {
+	if explicitSource != "" {
+		return []string{explicitSource}
+	}
+	if inferredSource != "" {
+		return []string{inferredSource}
+	}
+	_, matchedSources := stripSourceIntentTokens(filterFTSStopWords(tokenizeForFTS(q)))
+	if len(matchedSources) == 0 {
+		return []string{""}
+	}
+	filters := make([]string, 0, len(matchedSources))
+	for source := range matchedSources {
+		filters = append(filters, source)
+	}
+	sort.Strings(filters)
+	return filters
+}
+
+func ftsScopeRelaxedQuery(query, source string) string {
+	if query == "" || source == "" {
+		return query
+	}
+	sourceTokens := tokenizeForFTS(source)
+	if len(sourceTokens) == 0 {
+		return query
+	}
+	return `path_tokens:("` + strings.Join(sourceTokens, " ") + `") AND (` + query + `)`
+}
+
+func expandRelaxedSynonyms(token string) string {
+	terms := relaxedConceptTerms(token)
+	quoted := make([]string, 0, len(terms))
+	for _, term := range terms {
+		quoted = append(quoted, `"`+term+`"`)
+	}
+	if len(quoted) == 1 {
+		return quoted[0]
+	}
+	return "(" + strings.Join(quoted, " OR ") + ")"
+}
+
+func relaxedConceptTerms(token string) []string {
+	terms := []string{token}
+	terms = appendUniqueStrings(terms, synonymsByToken[token]...)
+	terms = appendUniqueStrings(terms, relaxedSynonymsByToken[token]...)
+	if phrase, ok := phraseSynonyms[token]; ok {
+		terms = appendUniqueStrings(terms, phrase)
+	}
+	terms = appendUniqueStrings(terms, relaxedPhraseSynonyms[token]...)
+	return terms
+}
+
+func normalizeFTSSurface(surface string) string {
+	normalized := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return ' '
+	}, surface)
+	return strings.Join(strings.Fields(normalized), " ")
+}
+
+func ftsSurfaceMatchesRelaxedConcept(normalizedSurface, token string) bool {
+	if normalizedSurface == "" {
+		return false
+	}
+	words := strings.Fields(normalizedSurface)
+	for _, term := range relaxedConceptTerms(token) {
+		if strings.Contains(term, " ") {
+			if strings.Contains(" "+normalizedSurface+" ", " "+term+" ") {
+				return true
+			}
+			continue
+		}
+		for _, word := range words {
+			if word == term || basenameStemMatch(word, term) {
+				return true
+			}
+			if len(word) >= 3 && len(term) >= 3 &&
+				(strings.Contains(word, term) || strings.Contains(term, word)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ftsBuildTitleQuery builds a `title:(...)` column-filter expression used

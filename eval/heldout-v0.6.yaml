@@ -1,8 +1,11 @@
-# Privacy-safe generalization holdout for the v0.6 retrieval review.
+# Privacy-safe tuning corpus for the v0.6 retrieval review.
 #
 # Query shapes come from aggregate-only local telemetry counts. Expected paths
 # come from public vendor-doc sources. No raw telemetry query text is present.
-# This fixture was frozen before its first ranked evaluation.
+# This fixture was frozen before its first ranked evaluation. That first run
+# scored 34.3% Hit@5, so the fixture was promoted to a tuning corpus. It is not
+# independent evidence for the final implementation; the separate v0.6
+# generalization fixture supplies that evidence.
 
 query_type: telemetry_shape_holdout
 
@@ -66,6 +69,8 @@ queries:
   - q: retrieve compliance activity events from the Anthropic admin API
     expect:
       - anthropic/api/compliance/activities.md
+      - anthropic/manage-claude/compliance-activity-feed.md
+      - anthropic/manage-claude/compliance-api.md
 
   - q: return a card payment to the customer
     source: stripe
@@ -75,6 +80,7 @@ queries:
   - q: why was a Stripe card payment declined
     expect:
       - stripe/declines.md
+      - stripe/declines/codes.md
 
   - q: create and manage a billing customer record
     source: stripe
@@ -154,6 +160,7 @@ queries:
     source: clickhouse
     expect:
       - clickhouse/knowledgebase/runbook-json.md
+      - clickhouse/knowledgebase/json-import.md
 
   - q: get started tracing LLM calls for AI observability
     source: posthog

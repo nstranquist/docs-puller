@@ -135,6 +135,18 @@ const (
 	// title match + source-keyword boost — title-tier inclusion alone
 	// doesn't crown a winner.
 	searchTitleTierBaseScore = 200
+	// searchRelaxedTierBaseScore is a conservative floor for natural-language
+	// fallback candidates whose title/path names at least two query concepts.
+	// It stays below the strict title/path floor so exact identifier searches
+	// retain precedence while canonical pages can beat dense body-only noise.
+	searchRelaxedTierBaseScore = 180
+	// Long-form fallback candidates get additional evidence from the words
+	// chosen for their title and URL. A matching URL basename is especially
+	// strong: documentation authors use it as the page's stable identifier.
+	searchRelaxedSurfaceConceptBoost  = 20
+	searchRelaxedBasenameBoost        = 100
+	searchRelaxedBasenameExtraBoost   = 20
+	searchRelaxedBasenameDensityBoost = 100
 	// searchPathBoost: applied per query token that appears in the path
 	// (after the source-dir prefix). Catches canonical docs whose title is
 	// too short to qualify for title-tier but whose URL clearly identifies
@@ -290,19 +302,23 @@ var sourceKeywordPairs = map[string][]string{
 	"splinter":                     {"splinter"},
 	"kb":                           {"kb"},
 	"stripe":                       {"stripe"},
+	"typescript":                   {"typescript"},
 	"tanstack":                     {"tanstack"},
 	"vercel":                       {"vercel"},
 	"ai-sdk":                       {"ai-sdk"},
-	"anthropic":                    {"anthropic"},
-	"xai":                          {"xai", "grok"},
-	"hono":                         {"hono"},
-	"drizzle":                      {"drizzle"},
-	"cloudflare":                   {"cloudflare", "wrangler"},
-	"react":                        {"reactjs"}, // bare "react" too generic — matches react-native, expo, supabase react guides
-	"bun":                          {"bun"},
-	"playwright":                   {"playwright"},
-	"chrome":                       {"chrome"},  // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
-	"blender":                      {"blender"}, // official manual pages usually omit the product name; treat it as source intent so product-qualified queries still rank canonical short titles
+	// "claude" names both the Claude API/docs and Claude Code. Register it
+	// for both sources so global searches boost both but do not incorrectly
+	// hard-constrain a relaxed query to only one product.
+	"anthropic":  {"anthropic", "claude"},
+	"xai":        {"xai", "grok"},
+	"hono":       {"hono"},
+	"drizzle":    {"drizzle"},
+	"cloudflare": {"cloudflare", "wrangler"},
+	"react":      {"reactjs"}, // bare "react" too generic — matches react-native, expo, supabase react guides
+	"bun":        {"bun"},
+	"playwright": {"playwright"},
+	"chrome":     {"chrome"},  // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
+	"blender":    {"blender"}, // official manual pages usually omit the product name; treat it as source intent so product-qualified queries still rank canonical short titles
 }
 
 // sourceKeywordPhrases captures multi-token source names whose individual
@@ -492,6 +508,28 @@ var naturalLanguageCanonicalQueries = []naturalLanguageCanonicalQuery{
 // token → alternatives to OR with the original token.
 var synonymsByToken = map[string][]string{}
 
+// relaxedSynonymClasses are broader user-language equivalents used only by
+// the natural-language title/path recall tier. Keeping them out of the strict
+// body query preserves identifier-search precision while still connecting a
+// question such as "return a payment" to a page named "Refunds".
+var relaxedSynonymClasses = [][]string{
+	{"return", "refund"},
+	{"response", "output"},
+	{"key", "secret", "credential"},
+	{"commit", "rollback", "transaction"},
+	{"roll", "rollback", "transaction"},
+	{"connect", "link"},
+	{"command", "cli"},
+	{"rebuild", "reindex"},
+	{"precomputed", "projection"},
+}
+
+var relaxedSynonymsByToken = map[string][]string{}
+
+var relaxedPhraseSynonyms = map[string][]string{
+	"bracket": {"indexed access"},
+}
+
 func init() {
 	for _, class := range synonymClasses {
 		for _, t := range class {
@@ -502,6 +540,17 @@ func init() {
 				}
 			}
 			synonymsByToken[t] = others
+		}
+	}
+	for _, class := range relaxedSynonymClasses {
+		for _, t := range class {
+			others := make([]string, 0, len(class)-1)
+			for _, o := range class {
+				if o != t {
+					others = append(others, o)
+				}
+			}
+			relaxedSynonymsByToken[t] = appendUniqueStrings(relaxedSynonymsByToken[t], others...)
 		}
 	}
 }

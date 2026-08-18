@@ -60,6 +60,85 @@ func TestFTSBuildQueryDropsNaturalLanguageStopWords(t *testing.T) {
 	}
 }
 
+func TestFTSBuildRelaxedQuery(t *testing.T) {
+	t.Run("explicit source strips matching source intent", func(t *testing.T) {
+		got, source, count := ftsBuildRelaxedQuery(
+			"how many tokens fit in the model context window", "anthropic",
+		)
+		if source != "anthropic" {
+			t.Fatalf("source = %q, want anthropic", source)
+		}
+		if count != 6 {
+			t.Fatalf("token count = %d, want 6", count)
+		}
+		for _, want := range []string{`"many"`, `"tokens"`, `"fit"`, `"model"`, `"context"`, `"window"`} {
+			if !strings.Contains(got, want) {
+				t.Errorf("relaxed query missing %q in %q", want, got)
+			}
+		}
+		if strings.Contains(got, " AND ") || !strings.Contains(got, " OR ") {
+			t.Fatalf("relaxed query = %q, want OR concepts", got)
+		}
+		if !strings.HasPrefix(got, `{title path_tokens} : (`) {
+			t.Fatalf("relaxed query = %q, want title/path column restriction", got)
+		}
+	})
+
+	t.Run("unique source intent becomes a filter", func(t *testing.T) {
+		got, source, _ := ftsBuildRelaxedQuery("PostHog AI observability demo application", "")
+		if source != "posthog" {
+			t.Fatalf("source = %q, want posthog", source)
+		}
+		if strings.Contains(got, `"posthog"`) {
+			t.Fatalf("relaxed query retained constrained source token: %q", got)
+		}
+	})
+
+	t.Run("ambiguous source intent does not constrain", func(t *testing.T) {
+		got, source, _ := ftsBuildRelaxedQuery("send a PDF to Claude and ask questions", "")
+		if source != "" {
+			t.Fatalf("source = %q, want no filter for Claude ambiguity", source)
+		}
+		if !strings.Contains(got, `"claude"`) {
+			t.Fatalf("relaxed query dropped ambiguous source token: %q", got)
+		}
+		filters := ftsRelaxedSourceFilters("send a PDF to Claude and ask questions", "", source)
+		if strings.Join(filters, ",") != "anthropic,claude-code" {
+			t.Fatalf("ambiguous source filters = %v, want anthropic and claude-code", filters)
+		}
+	})
+}
+
+func TestFTSRelaxedSemanticExpansionAndSurfaceMatching(t *testing.T) {
+	query, source, _ := ftsBuildRelaxedQuery("return a card payment to the customer", "stripe")
+	if source != "stripe" {
+		t.Fatalf("source = %q, want stripe", source)
+	}
+	for _, want := range []string{`"return"`, `"refund"`} {
+		if !strings.Contains(query, want) {
+			t.Fatalf("relaxed refund query missing %q in %q", want, query)
+		}
+	}
+	if !ftsSurfaceMatchesRelaxedConcept(normalizeFTSSurface("Refund and cancel payments"), "return") {
+		t.Fatal("return concept did not match Refund title")
+	}
+	if !ftsSurfaceMatchesRelaxedConcept(normalizeFTSSurface("Type Manipulation/Indexed Access Types.md"), "bracket") {
+		t.Fatal("bracket concept did not match indexed access path")
+	}
+	if ftsSurfaceMatchesRelaxedConcept(normalizeFTSSurface("Card brands"), "return") {
+		t.Fatal("unrelated card title matched return/refund concept")
+	}
+}
+
+func TestFTSScopeRelaxedQuery(t *testing.T) {
+	got := ftsScopeRelaxedQuery(`{title path_tokens} : ("refund" OR "payment")`, "stripe")
+	for _, want := range []string{`path_tokens:("stripe")`, `AND ({title path_tokens}`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("scoped relaxed query missing %q in %q", want, got)
+		}
+	}
+}
+
 func TestFTSBuildTitleQueryDropsStopWordsBeforeSourceStrip(t *testing.T) {
 	got, src := ftsBuildTitleQuery("how do I upload files to Supabase storage", false)
 	if src != "supabase" {
