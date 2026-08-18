@@ -1,0 +1,179 @@
+# Final independent privacy-safe generalization holdout for docs-puller v0.6.
+#
+# These public-documentation questions cover concepts and sources that are not
+# in the two v0.6 tuning corpora. No raw telemetry text is present. This file
+# was committed before its first ranked evaluation. The first run is the final
+# v0.6 generalization claim and must remain immutable evidence.
+
+query_type: privacy_safe_independent_holdout_v3
+
+queries:
+  - q: declare permissions icons and a service worker in a Chrome extension manifest
+    source: chrome
+    expect:
+      - chrome/docs/extensions/reference/manifest.md
+
+  - q: sign in to the Azure CLI noninteractively with a service principal
+    source: microsoft-learn
+    expect:
+      - microsoft-learn/cli/azure/authenticate-azure-cli-service-principal.md
+
+  - q: deploy an application package to an Azure Function App from the CLI
+    expect:
+      - microsoft-learn/cli/azure/functionapp/deployment.md
+
+  - q: create and manage an Azure resource group with command line tools
+    source: microsoft-learn
+    expect:
+      - microsoft-learn/cli/azure/group.md
+
+  - q: add an emoji reaction to a Slack message through the Web API
+    source: slack
+    expect:
+      - slack/reference/methods/reactions.add.md
+
+  - q: open and update a modal in an interactive Slack application
+    expect:
+      - slack/surfaces/modals.md
+
+  - q: receive and handle a Slack slash command request
+    source: slack
+    expect:
+      - slack/interactivity/implementing-slash-commands.md
+
+  - q: create an authentication token for calling the Sentry API
+    source: sentry
+    expect:
+      - sentry/account/auth-tokens.md.md
+
+  - q: handle Sentry API rate limit responses correctly
+    expect:
+      - sentry/api/ratelimits.md.md
+
+  - q: avoid recalculating an expensive React value on every render
+    source: react
+    expect:
+      - react/reference/react/useMemo.md
+
+  - q: retain a mutable value across React renders without triggering a render
+    source: react
+    expect:
+      - react/reference/react/useRef.md
+
+  - q: mark a React state update as a nonblocking transition
+    expect:
+      - react/reference/react/startTransition.md
+
+  - q: show fallback content while a React component is suspended
+    source: react
+    expect:
+      - react/reference/react/Suspense.md
+
+  - q: apply Tailwind styles at different responsive breakpoints
+    source: tailwindcss
+    expect:
+      - tailwindcss/responsive-design.md
+
+  - q: style hover focus active and disabled states with Tailwind
+    expect:
+      - tailwindcss/hover-focus-and-other-states.md
+
+  - q: define colors fonts and other design tokens in a Tailwind theme
+    source: tailwindcss
+    expect:
+      - tailwindcss/theme.md
+
+  - q: declare one to many relationships between Drizzle tables
+    source: drizzle
+    expect:
+      - drizzle/relations.md
+
+  - q: connect Drizzle to an existing Supabase PostgreSQL database
+    source: drizzle
+    expect:
+      - drizzle/get-started/supabase-existing.md
+
+  - q: accept WebSocket connections in a Hono application
+    source: hono
+    expect:
+      - hono/helpers/websocket.md
+
+  - q: sign and verify JSON web tokens with the Hono helper
+    source: hono
+    expect:
+      - hono/helpers/jwt.md
+
+  - q: stream a response body incrementally from a Hono route
+    source: hono
+    expect:
+      - hono/helpers/streaming.md
+
+  - q: query Linear data through its GraphQL API
+    source: linear
+    expect:
+      - linear/graphql.md
+
+  - q: receive a webhook when Linear data changes
+    source: linear
+    expect:
+      - linear/sdk-webhooks.md
+
+  - q: fetch and update issues with the Linear SDK
+    source: linear
+    expect:
+      - linear/sdk-fetching-and-modifying-data.md
+
+  - q: deploy a project from the terminal with the Vercel CLI
+    source: vercel
+    expect:
+      - vercel/cli/deploying-from-cli.md
+
+  - q: configure environment variables for a Vercel deployment
+    source: vercel
+    expect:
+      - vercel/environment-variables.md
+
+  - q: run automation before and after Claude Code tool calls
+    source: claude-code
+    expect:
+      - claude-code/hooks.md
+
+  - q: give Claude Code persistent project instructions and memory
+    source: claude-code
+    expect:
+      - claude-code/memory.md
+
+  - q: package reusable Claude Code workflows as skills
+    source: claude-code
+    expect:
+      - claude-code/skills.md
+
+  - q: improve scrolling performance for a large React Native FlatList
+    source: react-native
+    expect:
+      - react-native/docs/optimizing-flatlist-configuration.md
+
+  - q: detect when a React Native application enters the foreground or background
+    source: react-native
+    expect:
+      - react-native/docs/0.78/appstate.md
+
+  - q: add Firebase services to an Android application
+    source: firebase
+    expect:
+      - firebase/android/setup.md
+
+  - q: report Android application crashes with Firebase Crashlytics
+    source: firebase
+    expect:
+      - firebase/crashlytics/get-started.md
+
+  - q: generate TanStack Router routes from the project file tree
+    source: tanstack
+    expect:
+      - tanstack/router/latest/docs/routing/file-based-routing.md
+
+  - q: inspect the React Query cache with TanStack developer tools
+    source: tanstack
+    expect:
+      - tanstack/query/latest/docs/framework/react/devtools.md
