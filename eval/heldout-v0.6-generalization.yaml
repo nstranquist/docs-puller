@@ -1,0 +1,177 @@
+# Independent privacy-safe generalization holdout for docs-puller v0.6.
+#
+# The questions paraphrase public vendor documentation concepts and follow the
+# aggregate query shapes observed locally. They do not contain raw telemetry.
+# This file was committed before its first ranked evaluation. Do not tune the
+# v0.6 search implementation or expected answers against this fixture.
+
+query_type: privacy_safe_generalization_holdout_v2
+
+queries:
+  - q: keep an edge function alive for work that continues after the response
+    source: supabase
+    expect:
+      - supabase/guides/functions/background-tasks.md
+
+  - q: resume a large object upload after the network connection is interrupted
+    source: supabase
+    expect:
+      - supabase/guides/storage/uploads/resumable-uploads.md
+
+  - q: schedule recurring SQL jobs inside a Supabase Postgres database
+    expect:
+      - supabase/guides/cron/quickstart.md
+      - supabase/guides/database/extensions/pg_cron.md
+
+  - q: protect password signups from weak or leaked credentials
+    source: supabase
+    expect:
+      - supabase/guides/auth/password-security.md
+
+  - q: reuse a stable prompt prefix to reduce model latency and cost
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/prompt-caching.md
+
+  - q: submit many Claude requests for asynchronous offline processing
+    expect:
+      - anthropic/build-with-claude/batch-processing.md
+
+  - q: make Claude cite the source documents used in its answer
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/citations.md
+
+  - q: stream incremental response tokens while a model generates its answer
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/streaming.md
+
+  - q: verify that an incoming webhook request was signed by Stripe
+    expect:
+      - stripe/webhooks/signature.md
+
+  - q: temporarily stop collecting payment for an active subscription
+    source: stripe
+    expect:
+      - stripe/billing/subscriptions/pause-payment.md
+
+  - q: apply coupons and promotion codes to Stripe subscriptions
+    expect:
+      - stripe/billing/subscriptions/coupons.md
+
+  - q: compare flat rate per seat and usage based product pricing models
+    source: stripe
+    expect:
+      - stripe/products-prices/pricing-models.md
+
+  - q: export a PostgreSQL database into a logical backup file
+    source: postgresql
+    expect:
+      - postgresql/docs/current/backup-dump.md
+
+  - q: understand PostgreSQL database roles membership and privileges
+    expect:
+      - postgresql/docs/current/database-roles.md
+
+  - q: inspect active PostgreSQL server processes and current activity
+    source: postgresql
+    expect:
+      - postgresql/docs/current/monitoring.md
+      - postgresql/docs/current/monitoring-ps.md
+
+  - q: cancel a long running SQL operation from a Go context
+    source: go
+    expect:
+      - go/doc/database/cancel-operations.md
+
+  - q: update downgrade and remove Go module dependencies
+    expect:
+      - go/doc/modules/managing-dependencies.md
+
+  - q: synchronization rules and happens before guarantees in the Go memory model
+    source: go
+    expect:
+      - go/ref/mem.md
+
+  - q: create reusable TypeScript types with generic parameters
+    source: typescript
+    expect:
+      - "typescript/Type Manipulation/Generics.md"
+
+  - q: transform every key of an existing TypeScript type with a mapped type
+    expect:
+      - "typescript/Type Manipulation/Mapped Types.md"
+
+  - q: get the union of property names from an object type
+    source: typescript
+    expect:
+      - "typescript/Type Manipulation/Keyof Type Operator.md"
+
+  - q: construct string unions by combining TypeScript template literals
+    expect:
+      - "typescript/Type Manipulation/Template Literal Types.md"
+
+  - q: start an HTTP server with Bun serve
+    source: bun
+    expect:
+      - bun/guides/http/server.md
+
+  - q: query an embedded SQLite database from the Bun runtime
+    expect:
+      - bun/runtime/sqlite.md
+
+  - q: share dependencies across packages in a Bun workspace
+    source: bun
+    expect:
+      - bun/guides/install/workspaces.md
+
+  - q: handle an HTTP request in a Cloudflare Worker fetch handler
+    source: cloudflare
+    expect:
+      - cloudflare/workers/runtime-apis/fetch.md
+
+  - q: compare persistent storage choices available to Cloudflare Workers
+    expect:
+      - cloudflare/workers/platform/storage-options.md
+
+  - q: replay a user's browser session in PostHog
+    source: posthog
+    expect:
+      - posthog/docs/session-replay.md
+
+  - q: create an AB test and choose metrics for a PostHog experiment
+    expect:
+      - posthog/docs/experiments/creating-an-experiment.md
+      - posthog/docs/experiments/metrics.md
+
+  - q: capture application exceptions with PostHog error tracking
+    source: posthog
+    expect:
+      - posthog/docs/error-tracking.md
+
+  - q: configure push notifications for an Expo application
+    source: expo
+    expect:
+      - expo/push-notifications/push-notifications-setup.md
+
+  - q: deliver a JavaScript update over the air without a new app store build
+    source: expo
+    expect:
+      - expo/deploy/send-over-the-air-updates.md
+
+  - q: share setup and teardown between Playwright tests with fixtures
+    source: playwright
+    expect:
+      - playwright/docs/test-fixtures.md
+      - playwright/docs/next/test-fixtures.md
+
+  - q: call and validate backend HTTP APIs from Playwright tests
+    source: playwright
+    expect:
+      - playwright/docs/api-testing.md
+
+  - q: append and consume an ordered event log with Redis streams
+    source: redis
+    expect:
+      - redis/develop/data-types/streams.md
