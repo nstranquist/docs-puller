@@ -94,9 +94,10 @@ queries:
 
   - q: clickhouse materialized columns
     expect:
+      - posthog/blog/clickhouse-materialized-columns.md
       - clickhouse/best-practices/use-materialized-views.md
       - clickhouse/materialized-views.md
-    note: known-tricky — top hit is a posthog blog post
+    note: cross-source exact-answer case — the PostHog guide covers ClickHouse materialized columns; materialized-view docs remain valid related answers
 
   - q: clickhouse json type
     expect:
@@ -697,7 +698,10 @@ queries:
   - q: how do I clean up dead rows and update statistics in postgres
     expect:
       - postgresql/docs/current/sql-vacuum.md
-    note: NL paraphrase of "vacuum analyze"
+      - postgresql/docs/current/routine-vacuuming.md
+      - postgresql/docs/current/app-vacuumdb.md
+      - postgresql/docs/current/sql-analyze.md
+    note: NL paraphrase of "vacuum analyze" — command, routine-maintenance, and vacuumdb docs are all canonical answers
 
   - q: how do I store and update local state in a react function component
     expect:

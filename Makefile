@@ -3,6 +3,7 @@
 .PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
 	extension-check extension-package verify-public-sample verify-held-out \
+	verify-retrieval-regression \
 	release-check release-sync-check release-sync-write release-dist \
 	release-verify release-ready verify-clean-clone
 
@@ -17,13 +18,17 @@ PUBLIC_SAMPLE_MIN_HIT_AT_5 ?= 1.0
 PUBLIC_SAMPLE_MIN_MRR ?= 0.95
 PUBLIC_SAMPLE_MAX_P99_MS ?= 250
 HELD_OUT_CORPUS ?= $(HOME)/code/docs
+HELD_OUT_FIXTURE ?= eval/heldout-v0.6.yaml
 HELD_OUT_MIN_HIT_AT_5 ?= 0.9001
+REGRESSION_FIXTURE ?= eval/fixture.yaml
+REGRESSION_MIN_HIT_AT_5 ?= 1.0
 
 help:
 	@echo "docs-puller local targets:"
 	@echo "  make build | test | vet | fmt | verify | publish-ready"
 	@echo "  make install | smoke | demo-smoke | version | help-sizes"
-	@echo "  make verify-public-sample | verify-held-out | verify-clean-clone"
+	@echo "  make verify-public-sample | verify-retrieval-regression | verify-held-out"
+	@echo "  make verify-clean-clone"
 	@echo "  make release-check | release-dist | release-verify | release-ready"
 	@echo "  make release-sync-check NDEV_ROOT=/path/to/nicos-tools"
 
@@ -123,9 +128,15 @@ verify-public-sample: build
 
 # Private/local held-out gate. The fixture is public; the corpus can be private.
 verify-held-out: build
-	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --check
-	./bin/docs-puller eval --fixture eval/fixture.yaml --out "$(HELD_OUT_CORPUS)" --json \
+	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --stale-days 0 --check
+	./bin/docs-puller eval --fixture "$(HELD_OUT_FIXTURE)" --out "$(HELD_OUT_CORPUS)" --json \
 		--min-hit-at-5 $(HELD_OUT_MIN_HIT_AT_5)
+
+# Tuned regression corpus. Keep this distinct from the frozen generalization holdout.
+verify-retrieval-regression: build
+	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --stale-days 0 --check
+	./bin/docs-puller eval --fixture "$(REGRESSION_FIXTURE)" --out "$(HELD_OUT_CORPUS)" --json \
+		--min-hit-at-5 $(REGRESSION_MIN_HIT_AT_5)
 
 release-check:
 	go run ./cmd/release-tool check $(RELEASE_VERSION_ARG) --json
@@ -144,7 +155,7 @@ release-dist:
 release-verify: release-dist
 	go run ./cmd/release-tool verify $(RELEASE_VERSION_ARG) --json
 
-release-ready: publish-ready release-check verify-public-sample release-verify verify-clean-clone
+release-ready: publish-ready release-check verify-public-sample verify-retrieval-regression verify-held-out release-verify verify-clean-clone
 
 # Proves committed source from a fresh clone, excluding local generated state.
 verify-clean-clone:

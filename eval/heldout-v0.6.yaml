@@ -1,0 +1,170 @@
+# Privacy-safe generalization holdout for the v0.6 retrieval review.
+#
+# Query shapes come from aggregate-only local telemetry counts. Expected paths
+# come from public vendor-doc sources. No raw telemetry query text is present.
+# This fixture was frozen before its first ranked evaluation.
+
+query_type: telemetry_shape_holdout
+
+queries:
+  - q: connect a local project to a hosted project from the command line
+    source: supabase
+    expect:
+      - supabase/reference/cli/supabase-link.md
+
+  - q: set the allowed callback and redirect destinations for user sign in
+    source: supabase
+    expect:
+      - supabase/guides/auth/redirect-urls.md
+
+  - q: store an API key for an edge function without checking it into source
+    source: supabase
+    expect:
+      - supabase/guides/functions/secrets.md
+
+  - q: subscribe to postgres table changes with supabase realtime
+    expect:
+      - supabase/guides/realtime/subscribing-to-database-changes.md
+
+  - q: requirements for running a HIPAA compliant supabase project
+    expect:
+      - supabase/guides/platform/hipaa-projects.md
+
+  - q: connect an AI assistant to EAS using the model context protocol
+    source: expo
+    expect:
+      - expo/eas/ai/mcp.md
+
+  - q: rebuild an index that has become invalid
+    source: postgresql
+    expect:
+      - postgresql/docs/current/sql-reindex.md
+
+  - q: postgres functions for reading and constructing json values
+    expect:
+      - postgresql/docs/current/functions-json.md
+
+  - q: grant table privileges to a database role
+    source: postgresql
+    expect:
+      - postgresql/docs/current/ddl-priv.md
+
+  - q: how many tokens fit in the model context window
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/context-windows.md
+
+  - q: send a PDF to Claude and ask questions about the document
+    expect:
+      - anthropic/build-with-claude/pdf-support.md
+
+  - q: force a model response to match a JSON schema
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/structured-outputs.md
+
+  - q: retrieve compliance activity events from the Anthropic admin API
+    expect:
+      - anthropic/api/compliance/activities.md
+
+  - q: return a card payment to the customer
+    source: stripe
+    expect:
+      - stripe/refunds.md
+
+  - q: why was a Stripe card payment declined
+    expect:
+      - stripe/declines.md
+
+  - q: create and manage a billing customer record
+    source: stripe
+    expect:
+      - stripe/billing/customer.md
+
+  - q: commit and roll back several SQL statements as one unit
+    source: go
+    expect:
+      - go/doc/database/execute-transactions.md
+
+  - q: check and return errors in a Go tutorial
+    expect:
+      - go/doc/tutorial/handle-errors.md
+
+  - q: security practices for Go programs that accept untrusted input
+    source: go
+    expect:
+      - go/doc/security/best-practices.md
+
+  - q: format package and symbol documentation comments in Go
+    expect:
+      - go/doc/comment.md
+
+  - q: define a class with fields methods and constructors
+    source: typescript
+    expect:
+      - "typescript/handbook-v2/Classes.md"
+
+  - q: choose one TypeScript type or another with a conditional type
+    expect:
+      - "typescript/Type Manipulation/Conditional Types.md"
+
+  - q: look up a property type with bracket syntax
+    source: typescript
+    expect:
+      - "typescript/Type Manipulation/Indexed Access Types.md"
+
+  - q: remove whitespace and shorten names in a production bundle
+    source: bun
+    expect:
+      - bun/bundler/minifier.md
+
+  - q: start a child process and wait for it with Bun
+    expect:
+      - bun/guides/process/spawn.md
+
+  - q: read environment variables at runtime
+    source: bun
+    expect:
+      - bun/guides/runtime/read-env.md
+
+  - q: accept an x402 payment before returning protected HTTP content
+    source: cloudflare
+    expect:
+      - cloudflare/agents/tools/payments/x402/charge-for-http-content.md
+
+  - q: pay an x402 endpoint from the Cloudflare agents SDK
+    expect:
+      - cloudflare/agents/tools/payments/x402/pay-from-agents-sdk.md
+
+  - q: overview of x402 payments for agents
+    source: cloudflare
+    expect:
+      - cloudflare/agents/tools/payments/x402.md
+
+  - q: use string keys in a ClickHouse dictionary
+    source: clickhouse
+    expect:
+      - clickhouse/knowledgebase/dictionary_using_strings.md
+
+  - q: when does ClickHouse remove rows after a TTL expires
+    expect:
+      - clickhouse/knowledgebase/when_is_ttl_applied.md
+
+  - q: troubleshoot malformed JSON imports
+    source: clickhouse
+    expect:
+      - clickhouse/knowledgebase/runbook-json.md
+
+  - q: get started tracing LLM calls for AI observability
+    source: posthog
+    expect:
+      - posthog/docs/ai-observability/start-here.md
+
+  - q: run a PostHog AI observability demo application
+    expect:
+      - posthog/docs/ai-observability/demos.md
+
+  - q: instrument xAI requests for LLM observability
+    source: posthog
+    expect:
+      - posthog/docs/ai-observability/installation/xai.md
