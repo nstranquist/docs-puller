@@ -68,8 +68,9 @@ type localPullOpts struct {
 }
 
 type localBatchSource struct {
-	name     string
-	walkRoot string
+	name       string
+	walkRoot   string
+	originBase string
 }
 
 type localIngestStats struct {
@@ -922,6 +923,9 @@ func collectLocalBatchSources(sources []localBatchSource, outRoot, now string, e
 				src := sources[i]
 				walkRoot := src.walkRoot
 				urlFor := func(rel string) string {
+					if src.originBase != "" {
+						return canonicalLocalOriginURL(src.originBase, rel)
+					}
 					full := filepath.Join(walkRoot, rel)
 					return "file://" + full
 				}

@@ -17,6 +17,7 @@
 // Subcommands:
 //
 //	docs-puller init                              # sparse-clone supabase upstream cache
+//	docs-puller demo                              # isolated built-in first-run proof
 //	docs-puller pull --from <file-or-url>         # extract URLs from text file (or fetch URL first)
 //	docs-puller pull --sitemap <url>              # pull every URL in a sitemap.xml
 //	docs-puller pull --llms-txt <url>             # pull every document named by llms.txt
@@ -105,6 +106,8 @@ func main() {
 		cmdRefresh(os.Args[2:])
 	case "init":
 		cmdInit(os.Args[2:])
+	case "demo":
+		cmdDemo(os.Args[2:])
 	case "config":
 		cmdConfig(os.Args[2:])
 	case "search":
@@ -208,7 +211,7 @@ USAGE
 
 CORE
   version [--json] [--expect V]
-  init | config init|path | pull … | pull-url | pull-article | pull-pdf | pdf-doctor | pull-local-batch
+  demo | init | config init|path | pull … | pull-url | pull-article | pull-pdf | pdf-doctor | pull-local-batch
   reindex | status [--check] | list | show | search <q> [--json] [--compact]
   eval | eval-suite | eval-leaderboard | emit-llmstxt | embed | serve
   pins … | crawl-refs | telemetry … | help [--compact] [--json]
@@ -226,6 +229,7 @@ const topLevelUsage = `docs-puller — pull vendor docs into ~/code/docs/<source
 
 Usage:
   docs-puller version [--json] [--expect VERSION] # build identity + CLI contract
+  docs-puller demo [--query TEXT] [--out DIR] [--keep] [--json]
   docs-puller init [--source-cache DIR]
   docs-puller config init [--profile NAME] [--force]
   docs-puller config path [--json]

@@ -97,7 +97,7 @@ func currentVersionInfo() versionInfo {
 	}
 
 	commands := []string{
-		"config", "crawl-refs", "curation", "embed", "emit-llmstxt", "eval",
+		"config", "crawl-refs", "curation", "demo", "embed", "emit-llmstxt", "eval",
 		"eval-diagnose", "eval-leaderboard", "eval-suite", "eval-sweep", "extract",
 		"init", "list", "log", "pins", "pdf-doctor", "profile", "pull", "pull-article", "pull-pdf",
 		"pull-local-batch", "pull-pins", "pull-url", "refresh", "reindex", "search",
