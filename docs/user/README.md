@@ -5,6 +5,7 @@ Use these guides for the local, open-source CLI.
 - [Install and upgrade](install.md)
 - [Your first hour](first-hour.md)
 - [Search](search.md)
+- [Architecture and data flow](architecture.md)
 - [Troubleshoot](troubleshooting.md)
 - [Security and privacy](security.md)
 - [Uninstall](uninstall.md)
