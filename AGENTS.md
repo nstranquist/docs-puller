@@ -45,3 +45,9 @@ lives at `<out>/.cache/search.db`. Optional operator config: `docs-puller config
 - Eval/ranking changes must cite the measured metric delta (Hit@1 / Hit@5 / MRR) — discipline in `eval/CONTRIBUTING.md`.
 - This repository is the **open-core local CLI**. The hosted / multi-tenant tiers are
   proprietary and are not part of this surface — see `OPEN-CORE.md`.
+
+## Friction logging
+
+Log papercuts and friction (tooling, docs, APIs, tests, conventions) as you hit
+them with `pnpx frog log`. Run `pnpx frog list` first to see what is already
+known. Requires Node ≥ 22. Do not log secrets into entry context.
