@@ -67,14 +67,26 @@ func extractBearer(header string) string {
 }
 
 // loopbackOnly reports whether addr binds only the loopback interface.
+//
+// Fails closed: anything this function cannot positively prove is loopback is
+// reported as non-loopback, because the sole caller uses it to decide whether
+// serving without a token is safe.
+//
+// An empty host is specifically NOT loopback. `serve` composes its listen
+// address as "<addr>:<port>", so an empty addr yields ":8080", which binds
+// every interface — the exact case the token guard exists to prevent. Treating
+// it as loopback would serve the whole corpus unauthenticated over LAN/tailnet.
 func loopbackOnly(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr
 	}
 	host = strings.Trim(host, "[]")
+	if host == "" {
+		return false
+	}
 	switch strings.ToLower(host) {
-	case "", "127.0.0.1", "localhost", "::1":
+	case "127.0.0.1", "localhost", "::1":
 		return true
 	}
 	ip := net.ParseIP(host)

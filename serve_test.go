@@ -99,8 +99,19 @@ func TestWithCORSPreflight(t *testing.T) {
 
 func TestLoopbackOnly(t *testing.T) {
 	cases := map[string]bool{
-		"127.0.0.1": true, "localhost": true, "::1": true, "": true,
+		"127.0.0.1": true, "127.0.0.2": true, "localhost": true, "LOCALHOST": true,
+		"::1": true, "[::1]": true,
+		"127.0.0.1:7799": true, "localhost:7799": true, "[::1]:7799": true,
 		"0.0.0.0": false, "192.168.1.5": false, "10.0.0.2": false,
+		// An empty addr composes to ":<port>", which binds every interface.
+		// It must never be treated as loopback or `serve` would run anonymous
+		// while reachable from the LAN/tailnet.
+		"": false, ":7799": false,
+		// Unspecified/any-interface forms must also fail closed.
+		"::": false, "[::]": false, "[::]:7799": false,
+		"0.0.0.0:7799": false, "192.168.1.5:7799": false,
+		// Ambiguous, malformed, and non-IP names fail closed.
+		"localhost.localdomain": false, "127.1": false, "[::1%lo0]": false,
 	}
 	for addr, want := range cases {
 		if got := loopbackOnly(addr); got != want {
