@@ -273,6 +273,36 @@ queries:
     expect:
       - posthog/docs/data/cohorts.md
 
+  - q: posthog javascript web sdk
+    expect:
+      - posthog/docs/libraries/js.md
+    note: integration baseline for the browser SDK and project-token setup
+
+  - q: posthog capture API events
+    expect:
+      - posthog/docs/api/capture.md
+    note: integration baseline for the HTTP capture path used by first-party clients
+
+  - q: posthog Cloudflare reverse proxy
+    expect:
+      - posthog/docs/advanced/proxy/cloudflare.md
+    note: integration baseline for same-origin proxying on the selected edge platform
+
+  - q: posthog privacy opt out
+    expect:
+      - posthog/docs/product-analytics/privacy.md
+    note: privacy gate for any future production instrumentation
+
+  - q: posthog Node SDK
+    expect:
+      - posthog/docs/libraries/node.md
+    note: server-side integration baseline; do not infer adoption from this fixture alone
+
+  - q: posthog Cloudflare Workers
+    expect:
+      - posthog/docs/libraries/cloudflare-workers.md
+    note: runtime-specific integration baseline for our Worker surfaces
+
   # ────────────── Claude Code ──────────────
   - q: claude code hooks
     expect:
