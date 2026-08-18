@@ -1,0 +1,168 @@
+# Retrieval acceptance for the official Unity Manual + package/CLI corpus.
+# Every query is source-scoped. Paths are relative to ~/code/docs and must
+# exist after a unity pull (verified via --check-fixture).
+
+query_type: library_search
+
+queries:
+  # Unity CLI (native Markdown mirrors on docs.unity.com)
+  - q: Unity CLI standalone command line tool manage Editors modules
+    source: unity
+    expect:
+      - unity/en-us/unity-cli/unity-cli.md
+
+  - q: install Unity CLI with Homebrew or winget
+    source: unity
+    expect:
+      - unity/en-us/unity-cli/use-unity-cli.md
+
+  - q: Unity CLI command options output formats and exit codes
+    source: unity
+    expect:
+      - unity/en-us/unity-cli/unity-cli-reference.md
+
+  - q: Unity CLI release notes improvements fixes
+    source: unity
+    expect:
+      - unity/en-us/unity-cli/release-notes.md
+
+  # Fundamentals
+  - q: GameObject introduction components
+    source: unity
+    expect:
+      - unity/Manual/GameObjects.md
+
+  - q: The GameObject class
+    source: unity
+    expect:
+      - unity/Manual/class-GameObject.md
+
+  - q: Creating and Using Scripts MonoBehaviour
+    source: unity
+    expect:
+      - unity/Manual/CreatingAndUsingScripts.md
+
+  - q: Event Functions Update FixedUpdate
+    source: unity
+    expect:
+      - unity/Manual/EventFunctions.md
+
+  - q: Prefabs instantiate
+    source: unity
+    expect:
+      - unity/Manual/Prefabs.md
+      - unity/Manual/InstantiatingPrefabs.md
+
+  - q: Execution Order of event functions
+    source: unity
+    expect:
+      - unity/Manual/ExecutionOrder.md
+
+  # Physics
+  - q: Rigidbody component reference
+    source: unity
+    expect:
+      - unity/Manual/class-Rigidbody.md
+
+  - q: Introduction to rigid body physics
+    source: unity
+    expect:
+      - unity/Manual/RigidbodiesOverview.md
+
+  - q: Box Collider 2D
+    source: unity
+    expect:
+      - unity/Manual/class-BoxCollider2D.md
+
+  - q: Rigidbody 2D introduction
+    source: unity
+    expect:
+      - unity/Manual/class-Rigidbody2D.md
+
+  - q: Box collider component reference
+    source: unity
+    expect:
+      - unity/Manual/class-BoxCollider.md
+
+  # Input / UI
+  - q: Input Manager legacy input
+    source: unity
+    expect:
+      - unity/Manual/Input.md
+
+  - q: UI Toolkit introduction
+    source: unity
+    expect:
+      - unity/Manual/UIElements.md
+
+  - q: Get started with runtime UI
+    source: unity
+    expect:
+      - unity/Manual/UIE-get-started-with-runtime-ui.md
+
+  - q: Support for runtime UI Toolkit
+    source: unity
+    expect:
+      - unity/Manual/UIE-support-for-runtime-ui.md
+
+  - q: 2D game development
+    source: unity
+    expect:
+      - unity/Manual/Unity2D.md
+
+  # Build / CLI / testing
+  - q: Unity Editor command line arguments batchmode
+    source: unity
+    expect:
+      - unity/Manual/EditorCommandLineArguments.md
+
+  - q: Command-line arguments interface
+    source: unity
+    expect:
+      - unity/Manual/CommandLineArguments.md
+
+  - q: WebGL building Web Build folder
+    source: unity
+    expect:
+      - unity/Manual/webgl-building.md
+
+  - q: Web development publishing process
+    source: unity
+    expect:
+      - unity/Manual/webgl-gettingstarted.md
+
+  - q: class PlayerSettings
+    source: unity
+    expect:
+      - unity/Manual/class-PlayerSettings.md
+
+  - q: com.unity.test-framework package manual
+    source: unity
+    expect:
+      - unity/Packages/com.unity.test-framework@1.4/manual/index.md
+
+  # 2D / audio / time / scripts
+  - q: Sprites 2D
+    source: unity
+    expect:
+      - unity/Manual/Sprites.md
+
+  - q: Creating scenes
+    source: unity
+    expect:
+      - unity/Manual/CreatingScenes.md
+
+  - q: Audio Source component
+    source: unity
+    expect:
+      - unity/Manual/class-AudioSource.md
+
+  - q: class ParticleSystem
+    source: unity
+    expect:
+      - unity/Manual/class-ParticleSystem.md
+
+  - q: Time and frame management
+    source: unity
+    expect:
+      - unity/Manual/TimeFrameManagement.md

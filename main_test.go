@@ -149,6 +149,30 @@ func TestIsNativeMarkdownURL(t *testing.T) {
 	}
 }
 
+func TestNativeMarkdownMirrorURL(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+		ok   bool
+	}{
+		{"https://docs.slack.dev/quickstart.md", "https://docs.slack.dev/quickstart.md", true},
+		{"https://docs.unity.com/en-us/unity-cli/use-unity-cli", "https://docs.unity.com/en-us/unity-cli/use-unity-cli.md", true},
+		{"https://docs.unity.com/en-us/unity-cli/reference?version=latest", "https://docs.unity.com/en-us/unity-cli/reference.md?version=latest", true},
+		{"https://docs.unity.com/en-us/unity-cli/reference.md", "https://docs.unity.com/en-us/unity-cli/reference.md", true},
+		{"https://example.com/docs/page", "", false},
+	}
+	for _, tc := range cases {
+		u, err := url.Parse(tc.raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, ok := nativeMarkdownMirrorURL(u)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("nativeMarkdownMirrorURL(%q) = (%q, %v), want (%q, %v)", tc.raw, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
 func TestResolveTarget(t *testing.T) {
 	cases := []struct {
 		raw, source, rel string
@@ -186,6 +210,10 @@ func TestResolveTarget(t *testing.T) {
 		{"https://www.firecrawl.dev/", "firecrawl", "index.md"},
 		{"https://www.firecrawl.dev/docs/quickstart", "firecrawl", "docs/quickstart.md"},
 		{"https://firecrawl.dev/", "firecrawl", "index.md"},
+		{"https://docs.unity3d.com/Manual/GameObjects.html", "unity", "Manual/GameObjects.md"},
+		{"https://docs.unity3d.com/Packages/com.unity.test-framework@1.4/manual/index.html", "unity", "Packages/com.unity.test-framework@1.4/manual/index.md"},
+		{"https://docs.unity.com/en-us/unity-cli/use-unity-cli", "unity", "en-us/unity-cli/use-unity-cli.md"},
+		{"https://docs.unity.com/en-us/unity-cli/use-unity-cli.md", "unity", "en-us/unity-cli/use-unity-cli.md"},
 		{"https://docs.slack.dev/quickstart.md", "slack", "quickstart.md"},
 		{"https://docs.slack.dev/reference/methods/chat.postMessage.md",
 			"slack", "reference/methods/chat.postMessage.md"},
@@ -401,6 +429,32 @@ func TestExtractMainFirecrawlSelectsMain(t *testing.T) {
 	for _, junk := range []string{"Site navigation", "Footer navigation"} {
 		if strings.Contains(out, junk) {
 			t.Errorf("expected %q stripped, got: %s", junk, out)
+		}
+	}
+}
+
+func TestExtractMainUnityKeepsArticleAndStripsChrome(t *testing.T) {
+	html := []byte(`<!doctype html><html><body>
+<div id="sidebar">Manual navigation</div>
+<div id="content-wrap"><div class="content-block"><div class="content"><div class="section">
+  <div class="breadcrumbs">Create with Unity / GameObjects</div>
+  <h1>Introduction to GameObjects</h1>
+  <p>A <strong>GameObject</strong><span class="tooltiptext">duplicated glossary definition</span> contains components.</p>
+  <span class="page-edit">Page amended</span>
+  <div id="_content">feedback placeholder</div>
+  <div class="nextprev">Previous and next page</div>
+  <div class="footer-wrapper">Copyright and footer links</div>
+</div></div></div></div>
+</body></html>`)
+	out := string(extractMain("docs.unity3d.com", html))
+	for _, want := range []string{"Introduction to GameObjects", "GameObject", "contains components"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in Unity content, got: %s", want, out)
+		}
+	}
+	for _, junk := range []string{"Manual navigation", "Create with Unity", "duplicated glossary", "Page amended", "feedback placeholder", "Previous and next", "Copyright"} {
+		if strings.Contains(out, junk) {
+			t.Errorf("expected %q stripped from Unity content, got: %s", junk, out)
 		}
 	}
 }

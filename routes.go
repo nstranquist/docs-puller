@@ -86,6 +86,10 @@ var targetRoutes = []targetRoute{
 	{name: "linear", match: routeLinear},
 	simpleRoute("firecrawl.dev", "firecrawl", relTrimmedPath),
 	simpleRoute("www.firecrawl.dev", "firecrawl", relTrimmedPath),
+	// Unity Manual + package docs (docs.unity3d.com) and Unity CLI docs
+	// (docs.unity.com, which advertises native `<page>.md` mirrors).
+	simpleRoute("docs.unity3d.com", "unity", relHTMLPath),
+	simpleRoute("docs.unity.com", "unity", relMarkdownMirror),
 }
 
 // resolveTarget maps a URL to (sourceDir, relativePath under that source).

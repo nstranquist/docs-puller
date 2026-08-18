@@ -1000,15 +1000,17 @@ func processURL(raw string, o pullOpts, now string) result {
 		data []byte
 		mode string
 	)
+	nativeURL, hasNativeMirror := nativeMarkdownMirrorURL(u)
 	switch {
 	case u.Host == "github.com" && isGithubRepoRoot(u.Path):
 		data, err = fetchGithubReadme(u)
 		mode = "github-readme"
-	case isNativeMarkdownURL(u):
+	case hasNativeMirror:
 		// Vendor-published .md mirror (e.g. docs.slack.dev's `<page>.md` per
-		// llms.txt convention). Fetch raw — html-to-markdown on plain
-		// markdown mangles fenced blocks and link syntax.
-		data, err = httpGet(u.String())
+		// llms.txt convention, or docs.unity.com's advertised alternate).
+		// Fetch raw — html-to-markdown on plain markdown mangles fenced blocks
+		// and link syntax.
+		data, err = httpGet(nativeURL)
 		mode = "http-md"
 	default:
 		data, err = fetchAndConvert(u.String())
@@ -1646,6 +1648,24 @@ func isNativeMarkdownURL(u *url.URL) bool {
 	return strings.HasSuffix(p, ".md") ||
 		strings.HasSuffix(p, ".markdown") ||
 		strings.HasSuffix(p, ".md.txt")
+}
+
+// nativeMarkdownMirrorURL returns the URL that should be fetched as native
+// Markdown. Most vendors expose Markdown by suffix. docs.unity.com instead
+// advertises `<page>.md` from the HTML page's alternate link while rendering
+// the article body inside a client-side Next.js payload. Fetching the
+// advertised mirror avoids indexing only the page title.
+func nativeMarkdownMirrorURL(u *url.URL) (string, bool) {
+	if isNativeMarkdownURL(u) {
+		return u.String(), true
+	}
+	if strings.EqualFold(u.Hostname(), "docs.unity.com") {
+		mirror := *u
+		mirror.Path = strings.TrimSuffix(mirror.Path, "/") + ".md"
+		mirror.RawPath = ""
+		return mirror.String(), true
+	}
+	return "", false
 }
 
 func die(err error) {

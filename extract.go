@@ -9,6 +9,8 @@ import (
 
 // hostSelectors lists per-host content selectors, tried in order.
 var hostSelectors = map[string][]string{
+	"firecrawl.dev":      {"main", "article"},
+	"www.firecrawl.dev":  {"main", "article"},
 	"supabase.github.io": {"article.md-content__inner", ".md-content"},
 	"www.postgresql.org": {"#docContent", "#pgContentWrap", "div.SECT1"},
 	"postgresql.org":     {"#docContent", "#pgContentWrap", "div.SECT1"},
@@ -78,6 +80,11 @@ var hostSelectors = map[string][]string{
 	// sqlc docs — Sphinx + RTD theme. Content lives inside
 	// <div role="main" class="document">; the bodywrapper holds the article.
 	"docs.sqlc.dev": {"div[role='main']", ".document", ".body", "main"},
+	// Unity Manual / Scripting / Package docs — the section holds the article
+	// body. The broader content-wrap also contains page chrome and a footer.
+	"docs.unity3d.com": {"div#content-wrap div.section", "div#content-wrap", "div.content", "div#content", "div.next-content", "main", "article"},
+	// Unity Hub / CLI docs (docs.unity.com) — modern docs shell.
+	"docs.unity.com": {"main", "article", "div#content", "div.content"},
 }
 
 // genericSelectors are the fallback content containers.
@@ -121,6 +128,16 @@ var stripWithin = strings.Join([]string{
 	// converter emits as empty `[]()` links.
 	".navheader", ".navfooter", "a.indexterm",
 }, ", ")
+
+// hostStripWithin removes vendor-specific chrome that sits inside an otherwise
+// correct content container. Keep these rules scoped to avoid deleting a
+// similarly named content element on another documentation site.
+var hostStripWithin = map[string]string{
+	"docs.unity3d.com": strings.Join([]string{
+		".breadcrumbs", ".nextprev", ".footer-wrapper", ".page-edit",
+		"#_content", "#_leavefeedback", ".tooltiptext",
+	}, ", "),
+}
 
 // extractHTMLTitle returns the trimmed <title> element text with site/section
 // prefixes/suffixes removed. Handles three common SEO conventions:
@@ -183,6 +200,9 @@ func extractMain(host string, html []byte) []byte {
 			continue
 		}
 		s.Find(stripWithin).Remove()
+		if hostStrip := hostStripWithin[host]; hostStrip != "" {
+			s.Find(hostStrip).Remove()
+		}
 		out, err := goquery.OuterHtml(s)
 		if err == nil && len(out) > 0 {
 			return []byte(out)
