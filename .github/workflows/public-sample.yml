@@ -1,0 +1,57 @@
+name: public sample replay
+
+on:
+  schedule:
+    - cron: '43 8 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-sample-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Build
+        run: go build -tags sqlite_fts5 -o bin/docs-puller .
+      - name: Pull public sample
+        run: bin/docs-puller pull --from eval/sample-corpus/sources.md --out "${RUNNER_TEMP}/public-sample"
+      - name: Reindex and verify corpus
+        run: |
+          bin/docs-puller reindex --out "${RUNNER_TEMP}/public-sample"
+          bin/docs-puller status --out "${RUNNER_TEMP}/public-sample" --check
+      - name: Enforce published retrieval floor
+        run: |
+          set -o pipefail
+          bin/docs-puller eval \
+            --fixture eval/sample-corpus/fixture.yaml \
+            --out "${RUNNER_TEMP}/public-sample" \
+            --json \
+            --min-hit-at-1 0.90 \
+            --min-hit-at-5 1.0 \
+            --min-mrr 0.95 \
+            --max-p99-ms 250 | tee public-sample-result.json
+      - name: Summarize metrics
+        if: always()
+        run: test ! -f public-sample-result.json || jq '.summary' public-sample-result.json
+      - name: Upload replay evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-sample-${{ github.run_id }}
+          path: public-sample-result.json
+          if-no-files-found: ignore
+          archive: false
+

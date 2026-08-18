@@ -1,0 +1,150 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Verify tag and source contract
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse HEAD)"
+          test "$(jq -r '.tag' release/manifest.json)" = "$RELEASE_TAG"
+          test -f "release/notes-${RELEASE_TAG}.md"
+          go run ./cmd/release-tool check --version "$RELEASE_TAG" --json
+      - name: Test release source
+        run: |
+          go mod verify
+          go vet -tags sqlite_fts5 ./...
+          go test -tags sqlite_fts5 ./...
+      - name: Build deterministic distribution twice
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          go run ./cmd/release-tool dist --version "$RELEASE_TAG" --json
+          go run ./cmd/release-tool dist --version "$RELEASE_TAG" --json
+          go run ./cmd/release-tool verify --version "$RELEASE_TAG" --json
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - name: Package VS Code extension
+        run: |
+          npm ci --prefix vscode-extension
+          npm run check --prefix vscode-extension
+          npm test --prefix vscode-extension
+          npm audit --prefix vscode-extension --audit-level=high
+          npm run package --prefix vscode-extension
+          npm run package --prefix vscode-extension
+          cd vscode-extension
+          sha256sum ./*.vsix > vsix-checksums.txt
+          sha256sum --check vsix-checksums.txt
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload verified release inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-input-${{ github.ref_name }}
+          path: |
+            dist/${{ github.ref_name }}/*
+            vscode-extension/*.vsix
+            vscode-extension/vsix-checksums.txt
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Download verified release inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-input-${{ github.ref_name }}
+          path: .
+      - name: Verify downloaded checksums
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd "dist/${RELEASE_TAG}"
+          sha256sum --check checksums.txt
+          cd "${GITHUB_WORKSPACE}/vscode-extension"
+          sha256sum --check vsix-checksums.txt
+      - name: Resolve versioned asset paths
+        id: assets
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          semver="${RELEASE_TAG#v}"
+          sbom_name="$(jq -r --arg semver "$semver" '.sbom_template | gsub("\\{semver\\}"; $semver)' release/manifest.json)"
+          echo "sbom=dist/${RELEASE_TAG}/${sbom_name}" >> "$GITHUB_OUTPUT"
+      - name: Attest CLI release assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/${{ github.ref_name }}/*
+      - name: Attest CLI SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/${{ github.ref_name }}/*.tar.gz
+            dist/${{ github.ref_name }}/*.zip
+          sbom-path: ${{ steps.assets.outputs.sbom }}
+      - name: Attest VSIX
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: vscode-extension/*.vsix
+      - name: Verify attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in dist/${{ github.ref_name }}/* vscode-extension/*.vsix; do
+            gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY"
+          done
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "release $RELEASE_TAG already exists; refusing to overwrite it" >&2
+            exit 1
+          fi
+          release_assets=(dist/"${RELEASE_TAG}"/* vscode-extension/*.vsix vscode-extension/vsix-checksums.txt)
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --latest \
+            --title "docs-puller $RELEASE_TAG" \
+            --notes-file "release/notes-${RELEASE_TAG}.md" \
+            "${release_assets[@]}"

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"strings"
@@ -57,6 +58,13 @@ type evalDriftReport struct {
 	SourceDrift []evalSourceDrift
 }
 
+type evalThresholds struct {
+	MinHitAt1 float64
+	MinHitAt5 float64
+	MinMRR    float64
+	MaxP99MS  float64
+}
+
 func cmdEval(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("eval", flag.ExitOnError)
@@ -74,6 +82,10 @@ func cmdEval(args []string) {
 	runRoot := fs.String("run-root", "", "override eval run artifact root (default: ~/.docs-puller/evals; legacy: DOCS_PULLER_LEGACY_NDEV_PATHS=1 → ~/.nicos-dev/evals/docs-puller)")
 	checkFixture := fs.Bool("check-fixture", false, "verify every fixture expect: path exists in the corpus; skip running search")
 	bySource := fs.Bool("by-source", false, "run each source's queries independently and print a per-source summary (measures source-internal ranking quality without cross-source interference)")
+	minHitAt1 := fs.Float64("min-hit-at-1", -1, "fail unless Hit@1 meets this 0..1 floor (disabled by default)")
+	minHitAt5 := fs.Float64("min-hit-at-5", -1, "fail unless Hit@5 meets this 0..1 floor (disabled by default)")
+	minMRR := fs.Float64("min-mrr", -1, "fail unless MRR meets this 0..1 floor (disabled by default)")
+	maxP99MS := fs.Float64("max-p99-ms", -1, "fail unless p99 search latency is at most this many milliseconds (disabled by default)")
 	profileName := fs.String("profile", "", "active profile name — applies the rerank boost (and --strict if set) so eval can measure profile-on impact against a no-profile baseline")
 	strictProfile := fs.Bool("strict", false, "with --profile: hard-filter to profile-matched docs only (mirrors search --strict)")
 	rerank := fs.Bool("rerank", false, "rerank BM25 top-K by OpenAI embedding cosine (mirrors search --rerank). Requires `embed` to have run.")
@@ -88,6 +100,13 @@ func cmdEval(args []string) {
 	rerankHyde := fs.Bool("rerank-hyde", true, "use HyDE query rewriting on the hybrid first-stage embedding (mirrors search --rerank-hyde; default ON since 2026-05-04)")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	thresholds := evalThresholds{MinHitAt1: *minHitAt1, MinHitAt5: *minHitAt5, MinMRR: *minMRR, MaxP99MS: *maxP99MS}
+	if err := validateEvalThresholdValues(thresholds); err != nil {
+		die(err)
+	}
+	if thresholds.enabled() && (*checkFixture || *bySource) {
+		die(fmt.Errorf("eval: quality thresholds require a normal aggregate eval run"))
+	}
 
 	var profileOpts searchOpts
 	if *profileName != "" {
@@ -173,6 +192,49 @@ func cmdEval(args []string) {
 			fmt.Fprint(os.Stderr, searchruntime.EvalRecordRunLatestUpdatedMessage(paths.LatestPath))
 		}
 	}
+	if err := checkEvalThresholds(summary, thresholds); err != nil {
+		die(err)
+	}
+}
+
+func validateEvalThresholdValues(thresholds evalThresholds) error {
+	for name, value := range map[string]float64{
+		"min-hit-at-1": thresholds.MinHitAt1,
+		"min-hit-at-5": thresholds.MinHitAt5,
+		"min-mrr":      thresholds.MinMRR,
+	} {
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < -1 || value > 1 {
+			return fmt.Errorf("eval: --%s must be between 0 and 1, or -1 to disable it", name)
+		}
+	}
+	if math.IsNaN(thresholds.MaxP99MS) || math.IsInf(thresholds.MaxP99MS, 0) || thresholds.MaxP99MS < -1 {
+		return fmt.Errorf("eval: --max-p99-ms must be non-negative, or -1 to disable it")
+	}
+	return nil
+}
+
+func (thresholds evalThresholds) enabled() bool {
+	return thresholds.MinHitAt1 >= 0 || thresholds.MinHitAt5 >= 0 || thresholds.MinMRR >= 0 || thresholds.MaxP99MS >= 0
+}
+
+func checkEvalThresholds(summary evalSummary, thresholds evalThresholds) error {
+	var failures []string
+	if thresholds.MinHitAt1 >= 0 && summary.HitAt1 < thresholds.MinHitAt1 {
+		failures = append(failures, fmt.Sprintf("Hit@1 %.4f is below %.4f", summary.HitAt1, thresholds.MinHitAt1))
+	}
+	if thresholds.MinHitAt5 >= 0 && summary.HitAt5 < thresholds.MinHitAt5 {
+		failures = append(failures, fmt.Sprintf("Hit@5 %.4f is below %.4f", summary.HitAt5, thresholds.MinHitAt5))
+	}
+	if thresholds.MinMRR >= 0 && summary.MRR < thresholds.MinMRR {
+		failures = append(failures, fmt.Sprintf("MRR %.4f is below %.4f", summary.MRR, thresholds.MinMRR))
+	}
+	if thresholds.MaxP99MS >= 0 && summary.P99MS > thresholds.MaxP99MS {
+		failures = append(failures, fmt.Sprintf("p99 %.2f ms exceeds %.2f ms", summary.P99MS, thresholds.MaxP99MS))
+	}
+	if len(failures) != 0 {
+		return fmt.Errorf("eval quality gate failed: %s", strings.Join(failures, "; "))
+	}
+	return nil
 }
 
 type evalSweepConfig struct {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1080,6 +1081,35 @@ func TestNormalizeEvalPath(t *testing.T) {
 		if got := searchruntime.NormalizeEvalPath(in); got != want {
 			t.Errorf("NormalizeEvalPath(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestEvalThresholdGateReportsEveryRegression(t *testing.T) {
+	summary := evalSummary{HitAt1: 0.80, HitAt5: 0.90, MRR: 0.85, P99MS: 50}
+	err := checkEvalThresholds(summary, evalThresholds{MinHitAt1: 0.90, MinHitAt5: 1, MinMRR: 0.95, MaxP99MS: 40})
+	if err == nil {
+		t.Fatal("regressed metrics passed the quality gate")
+	}
+	for _, want := range []string{"Hit@1", "Hit@5", "MRR", "p99"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("quality gate error %q does not mention %s", err, want)
+		}
+	}
+}
+
+func TestEvalThresholdGateAcceptsInclusiveFloorsAndDisabledLimits(t *testing.T) {
+	summary := evalSummary{HitAt1: 0.90, HitAt5: 1, MRR: 0.95, P99MS: 40}
+	if err := checkEvalThresholds(summary, evalThresholds{MinHitAt1: 0.90, MinHitAt5: 1, MinMRR: 0.95, MaxP99MS: 40}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateEvalThresholdValues(evalThresholds{MinHitAt1: -1, MinHitAt5: -1, MinMRR: -1, MaxP99MS: -1}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEvalThresholdValuesRejectNonFiniteInput(t *testing.T) {
+	if err := validateEvalThresholdValues(evalThresholds{MinHitAt1: math.NaN(), MinHitAt5: -1, MinMRR: -1, MaxP99MS: -1}); err == nil {
+		t.Fatal("NaN threshold was accepted")
 	}
 }
 

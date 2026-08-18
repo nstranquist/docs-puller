@@ -29,7 +29,7 @@ type syncReport struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal(errors.New("usage: release-tool check|sync|dist|verify [flags]"))
+		fatal(errors.New("usage: release-tool check|sync|dist|verify|vsix [flags]"))
 	}
 	var err error
 	switch os.Args[1] {
@@ -41,6 +41,8 @@ func main() {
 		err = runDist(os.Args[2:])
 	case "verify":
 		err = runVerify(os.Args[2:])
+	case "vsix":
+		err = runVSIX(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown release-tool subcommand %q", os.Args[1])
 	}

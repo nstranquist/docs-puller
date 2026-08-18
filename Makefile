@@ -1,26 +1,46 @@
-# Local developer gates for the docs-puller open-core CLI.
-# CI is defined in .github/workflows/ci.yml (gofmt, build, vet, test, vscode).
+# Local developer and release gates for the docs-puller open-core CLI.
 
-.PHONY: help build test vet fmt verify publish-ready install smoke version help-sizes
+.PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
+	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
+	extension-check extension-package verify-public-sample verify-held-out \
+	release-check release-sync-check release-sync-write release-dist \
+	release-verify release-ready verify-clean-clone
 
-GOFLAGS := -tags sqlite_fts5
+GO_TAG_FLAGS := -tags sqlite_fts5
+STATICCHECK_VERSION ?= v0.7.0
+GOVULNCHECK_VERSION ?= v1.1.4
+RELEASE_VERSION ?=
+RELEASE_VERSION_ARG := $(if $(RELEASE_VERSION),--version $(RELEASE_VERSION),)
+NDEV_ROOT ?=
+PUBLIC_SAMPLE_MIN_HIT_AT_1 ?= 0.90
+PUBLIC_SAMPLE_MIN_HIT_AT_5 ?= 1.0
+PUBLIC_SAMPLE_MIN_MRR ?= 0.95
+PUBLIC_SAMPLE_MAX_P99_MS ?= 250
+HELD_OUT_CORPUS ?= $(HOME)/code/docs
+HELD_OUT_MIN_HIT_AT_5 ?= 0.9001
 
 help:
 	@echo "docs-puller local targets:"
 	@echo "  make build | test | vet | fmt | verify | publish-ready"
-	@echo "  make install | smoke | version | help-sizes"
+	@echo "  make install | smoke | demo-smoke | version | help-sizes"
+	@echo "  make verify-public-sample | verify-held-out | verify-clean-clone"
+	@echo "  make release-check | release-dist | release-verify | release-ready"
+	@echo "  make release-sync-check NDEV_ROOT=/path/to/nicos-tools"
 
-# Alias: local publication gate (no remote push).
-publish-ready: verify
+# Complete local publication gate. It does not push or publish.
+publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package
 
 build:
-	go build $(GOFLAGS) -o bin/docs-puller .
+	go build $(GO_TAG_FLAGS) -o bin/docs-puller .
 
 test:
-	go test $(GOFLAGS) ./...
+	go test $(GO_TAG_FLAGS) ./...
+
+test-race:
+	go test -race $(GO_TAG_FLAGS) ./...
 
 vet:
-	go vet $(GOFLAGS) ./...
+	go vet $(GO_TAG_FLAGS) ./...
 
 fmt:
 	@unformatted=$$(gofmt -l .); \
@@ -30,10 +50,21 @@ fmt:
 		exit 1; \
 	fi
 
-verify: fmt vet test build
+staticcheck:
+	GOWORK=off go run honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION) $(GO_TAG_FLAGS) ./...
+
+vulncheck:
+	GOWORK=off go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) $(GO_TAG_FLAGS) ./...
+
+secret-scan:
+	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks is required" >&2; exit 1; }
+	gitleaks dir . --no-banner --redact
+	gitleaks git . --no-banner --redact
+
+verify: fmt vet test build demo-smoke extension-check
 
 install: build
-	go install $(GOFLAGS) .
+	go install $(GO_TAG_FLAGS) .
 
 version: build
 	./bin/docs-puller version --json
@@ -49,10 +80,75 @@ help-sizes: build
 # Tiny isolated corpus — no network, no HOME corpus mutation.
 smoke: build
 	@tmp=$$(mktemp -d); \
+	trap 'rm -rf -- "$$tmp"' EXIT; \
 	mkdir -p "$$tmp/input"; \
 	printf '# PurpleWidget setup\n\nRun `purplewidget init`.\n' > "$$tmp/input/setup.md"; \
 	./bin/docs-puller pull --local "$$tmp/input" --name smoke --out "$$tmp/corpus"; \
 	./bin/docs-puller reindex --out "$$tmp/corpus"; \
 	./bin/docs-puller status --out "$$tmp/corpus" --check; \
 	./bin/docs-puller search "purplewidget init" --out "$$tmp/corpus" --source smoke --limit 1 --json; \
-	echo "smoke ok ($$tmp)"
+	echo "smoke ok"
+
+# Built-in isolated demo — no network and no normal corpus mutation.
+demo-smoke: build
+	./bin/docs-puller demo --json
+
+fuzz-smoke:
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzDedupeLocaleVariants$$' -fuzztime 3s .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzManifestParse$$' -fuzztime 3s .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzFtsBuildQuery$$' -fuzztime 3s .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzConfigParse$$' -fuzztime 3s ./internal/userconfig
+
+extension-check:
+	npm ci --prefix vscode-extension
+	npm run check --prefix vscode-extension
+	npm test --prefix vscode-extension
+	npm audit --prefix vscode-extension --audit-level=high
+
+extension-package: extension-check
+	npm run package --prefix vscode-extension
+	npm run package --prefix vscode-extension
+
+# Live, key-free replay of the public 24-query fixture.
+verify-public-sample: build
+	@sample_root=$$(mktemp -d); \
+	trap 'rm -rf -- "$$sample_root"' EXIT; \
+	./bin/docs-puller pull --from eval/sample-corpus/sources.md --out "$$sample_root/corpus"; \
+	./bin/docs-puller reindex --out "$$sample_root/corpus"; \
+	./bin/docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$$sample_root/corpus" --json \
+		--min-hit-at-1 $(PUBLIC_SAMPLE_MIN_HIT_AT_1) \
+		--min-hit-at-5 $(PUBLIC_SAMPLE_MIN_HIT_AT_5) \
+		--min-mrr $(PUBLIC_SAMPLE_MIN_MRR) \
+		--max-p99-ms $(PUBLIC_SAMPLE_MAX_P99_MS)
+
+# Private/local held-out gate. The fixture is public; the corpus can be private.
+verify-held-out: build
+	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --check
+	./bin/docs-puller eval --fixture eval/fixture.yaml --out "$(HELD_OUT_CORPUS)" --json \
+		--min-hit-at-5 $(HELD_OUT_MIN_HIT_AT_5)
+
+release-check:
+	go run ./cmd/release-tool check $(RELEASE_VERSION_ARG) --json
+
+release-sync-check:
+	@test -n "$(NDEV_ROOT)" || { echo "NDEV_ROOT is required" >&2; exit 1; }
+	go run ./cmd/release-tool sync $(RELEASE_VERSION_ARG) --ndev-root "$(NDEV_ROOT)" --json
+
+release-sync-write:
+	@test -n "$(NDEV_ROOT)" || { echo "NDEV_ROOT is required" >&2; exit 1; }
+	go run ./cmd/release-tool sync $(RELEASE_VERSION_ARG) --ndev-root "$(NDEV_ROOT)" --write --json
+
+release-dist:
+	go run ./cmd/release-tool dist $(RELEASE_VERSION_ARG) --json
+
+release-verify: release-dist
+	go run ./cmd/release-tool verify $(RELEASE_VERSION_ARG) --json
+
+release-ready: publish-ready release-check verify-public-sample release-verify verify-clean-clone
+
+# Proves committed source from a fresh clone, excluding local generated state.
+verify-clean-clone:
+	@clone_root=$$(mktemp -d); \
+	trap 'rm -rf -- "$$clone_root"' EXIT; \
+	git clone --quiet --no-hardlinks . "$$clone_root/docs-puller"; \
+	$(MAKE) -C "$$clone_root/docs-puller" publish-ready
