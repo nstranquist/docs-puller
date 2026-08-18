@@ -20,6 +20,9 @@ tags:
   - local-first
   - oss
   - ai-agents
+refs:
+  - kind: documented_by
+    target: doc.docs-puller-user
 checks:
   - name: test
     command: [go, test, ./...]
