@@ -173,6 +173,14 @@ const (
 	// specific lift keeps the guide pages competitive without changing other
 	// vendors' reference-vs-guide tradeoffs.
 	searchAnthropicBuildGuideBoost = 40
+	// PostHog mirrors product docs, tutorials, blogs, newsletters, and its
+	// handbook in one source. For product questions, the canonical docs tree
+	// should beat prose that merely discusses the same terms.
+	searchPostHogCanonicalDocsBoost = 50
+	// When the query names the canonical docs subtree itself (for example,
+	// "experiment" and docs/experiments/**), prefer that product manual over
+	// framework-specific tutorials and blog posts with denser prose.
+	searchPostHogTopicPathBoost = 150
 	// searchTitleBasenameAlignmentBoost: small lift when a candidate matches
 	// at least two non-source query tokens in BOTH its title and path basename,
 	// or when a single matched token is backed by an exact title↔basename
@@ -522,6 +530,12 @@ var relaxedSynonymClasses = [][]string{
 	{"command", "cli"},
 	{"rebuild", "reindex"},
 	{"precomputed", "projection"},
+	{"continue", "continues", "background", "asynchronous"},
+	{"cite", "citation", "citations"},
+	{"export", "dump"},
+	{"inspect", "monitor", "monitoring"},
+	{"property", "key", "keyof"},
+	{"schedule", "cron"},
 }
 
 var relaxedSynonymsByToken = map[string][]string{}

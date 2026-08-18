@@ -128,6 +128,18 @@ func TestFTSRelaxedSemanticExpansionAndSurfaceMatching(t *testing.T) {
 	if ftsSurfaceMatchesRelaxedConcept(normalizeFTSSurface("Card brands"), "return") {
 		t.Fatal("unrelated card title matched return/refund concept")
 	}
+	for queryToken, surface := range map[string]string{
+		"continues": "background tasks",
+		"cite":      "citations",
+		"export":    "backup dump",
+		"inspect":   "monitoring",
+		"property":  "keyof type operator",
+		"schedule":  "cron quickstart",
+	} {
+		if !ftsSurfaceMatchesRelaxedConcept(normalizeFTSSurface(surface), queryToken) {
+			t.Errorf("%q concept did not match %q", queryToken, surface)
+		}
+	}
 }
 
 func TestFTSScopeRelaxedQuery(t *testing.T) {

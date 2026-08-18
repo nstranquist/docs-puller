@@ -1243,6 +1243,19 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		if c.hit.Source == "anthropic" && strings.HasPrefix(pathSansSource, "build-with-claude/") {
 			c.hit.Score += searchAnthropicBuildGuideBoost
 		}
+		if c.fromRelaxed && c.hit.Source == "posthog" && strings.HasPrefix(pathSansSource, "docs/") {
+			c.hit.Score += searchPostHogCanonicalDocsBoost
+			parts := strings.Split(pathSansSource, "/")
+			if len(parts) >= 2 {
+				topic := normalizeFTSSurface(parts[1])
+				for _, tok := range qTokens {
+					if ftsSurfaceMatchesRelaxedConcept(topic, tok) {
+						c.hit.Score += searchPostHogTopicPathBoost
+						break
+					}
+				}
+			}
+		}
 
 		for _, tok := range qTokens {
 			if sourceMatches, isSource := sourceKeywords[tok]; isSource && sourceMatches[c.hit.Source] {

@@ -2,8 +2,9 @@
 #
 # The questions paraphrase public vendor documentation concepts and follow the
 # aggregate query shapes observed locally. They do not contain raw telemetry.
-# This file was committed before its first ranked evaluation. Do not tune the
-# v0.6 search implementation or expected answers against this fixture.
+# This file was committed before its first ranked evaluation. That independent
+# run scored 80.0% Hit@5, so this fixture is now a diagnostic corpus. It is not
+# the final generalization claim and must not be relabeled as one.
 
 query_type: privacy_safe_generalization_holdout_v2
 
