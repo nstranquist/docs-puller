@@ -4,6 +4,33 @@
 
 `docs-puller` copies vendor, reference, and local project docs into Markdown, builds a local SQLite FTS5 index, and searches that index on your machine. Retrieval quality is measured with checked-in evaluations you can rerun.
 
+## Quick Start
+
+Install the CLI, then run the built-in proof. The demo uses an isolated,
+three-document corpus. It does not change your normal corpus and does not need
+an API key.
+
+```sh
+go install github.com/nstranquist/docs-puller@v0.6.0
+docs-puller demo
+```
+
+The top result must be `docs-puller-demo/sqlite-fts5.md`. Use `--json` for a
+stable result that an agent or CI job can check.
+
+To search one real public document:
+
+```sh
+corpus="$(mktemp -d)"
+docs-puller pull-url https://www.sqlite.org/fts5.html --out "$corpus"
+docs-puller status --out "$corpus" --check
+docs-puller search "external content table" --out "$corpus" --source sqlite
+```
+
+Read the [install guide](docs/user/install.md), the
+[first-hour guide](docs/user/first-hour.md), or the complete
+[user-guide index](docs/user/README.md).
+
 ## Showcase
 
 <img src="https://raw.githubusercontent.com/nstranquist/docs-puller/main/assets/brand/docs-puller.png" width="96" height="96" alt="docs-puller application icon">
@@ -67,21 +94,7 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.5.0`.
-
-## Hosted Team Design Partner
-
-The local CLI stays free and local-first. I am recruiting one founding design
-partner for the proprietary hosted Team service: a 30-day, single-tenant pilot
-for an engineering team that wants private docs and repositories continuously
-synchronized and searchable by people and coding agents.
-
-The pilot is **$1,500 fixed**, has no automatic renewal, and includes a measured
-retrieval baseline plus a full corpus export at exit. The provisional post-pilot
-price is $199/month for up to 10 users; it will be validated with the first
-partner before becoming a public plan. Read the complete scope and exclusions in
-[DESIGN_PARTNERS.md](DESIGN_PARTNERS.md), then use the
-[design-partner intake issue](https://github.com/nstranquist/docs-puller/issues/new?template=design-partner.yml).
+automation can fail closed with `docs-puller version --expect v0.6.0`.
 
 ## Install
 
@@ -99,22 +112,21 @@ cd docs-puller
 go install .
 ```
 
+Release archives, checksum verification, Windows steps, and upgrades are in the
+[install guide](docs/user/install.md).
+
 ## Five-Minute Smoke
 
-This creates a tiny local corpus, indexes it, checks health, then searches it.
+This creates a tiny isolated corpus, indexes it, and searches it. It removes the
+temporary corpus after the check.
 
 ```sh
-tmp="$(mktemp -d)"
-mkdir -p "$tmp/input"
-printf '# PurpleWidget setup\n\nRun `purplewidget init` to configure the local docs mirror.\n' > "$tmp/input/setup.md"
-
-docs-puller pull --local "$tmp/input" --name smoke --out "$tmp/corpus"
-docs-puller reindex --out "$tmp/corpus"
-docs-puller status --out "$tmp/corpus" --check
-docs-puller search "purplewidget init" --out "$tmp/corpus" --source smoke --limit 1 --json
+docs-puller demo --json
 ```
 
-The search result should include `setup.md`.
+The result must report `"ok": true`, `"mode": "fts5"`, and three documents.
+Pass `--keep` to inspect the generated corpus, or `--out DIR` to choose its
+location.
 
 ## Core Commands
 
@@ -425,6 +437,20 @@ docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --for
 The main `eval/*.yaml` fixture numbers are measured on the maintainer's larger
 multi-vendor corpus mirror — treat those as operator-measured until you rebuild
 an equivalent corpus.
+
+## Hosted Team Design Partner
+
+The local CLI stays free and local-first. I am recruiting one founding design
+partner for the proprietary hosted Team service: a 30-day, single-tenant pilot
+for an engineering team that wants private docs and repositories continuously
+synchronized and searchable by people and coding agents.
+
+The pilot is **$1,500 fixed**, has no automatic renewal, and includes a measured
+retrieval baseline plus a full corpus export at exit. The provisional post-pilot
+price is $199/month for up to 10 users; it will be validated with the first
+partner before becoming a public plan. Read the complete scope and exclusions in
+[DESIGN_PARTNERS.md](DESIGN_PARTNERS.md), then use the
+[design-partner intake issue](https://github.com/nstranquist/docs-puller/issues/new?template=design-partner.yml).
 
 ## License
 
