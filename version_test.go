@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -23,6 +24,21 @@ func TestCurrentVersionInfoPublishesStableContract(t *testing.T) {
 		if !slices.Contains(info.Capabilities, capability) {
 			t.Errorf("capabilities missing %q: %v", capability, info.Capabilities)
 		}
+	}
+}
+
+func TestReleaseManifestMatchesCommandRegistry(t *testing.T) {
+	manifest := releaseManifest()
+	got := make([]string, 0, len(topLevelCommandHandlers))
+	for command := range topLevelCommandHandlers {
+		got = append(got, command)
+	}
+	slices.Sort(got)
+	if !reflect.DeepEqual(got, manifest.Commands) {
+		t.Fatalf("registered commands drifted from release manifest:\nregistered=%v\nmanifest=%v", got, manifest.Commands)
+	}
+	if userAgent != "docs-puller/0.6.0 (+https://github.com/nstranquist/docs-puller)" {
+		t.Fatalf("user agent drifted from release manifest: %q", userAgent)
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
-	"sort"
 	"strings"
 )
 
@@ -96,36 +95,7 @@ func currentVersionInfo() versionInfo {
 		version = "devel"
 	}
 
-	commands := []string{
-		"config", "crawl-refs", "curation", "demo", "embed", "emit-llmstxt", "eval",
-		"eval-diagnose", "eval-leaderboard", "eval-suite", "eval-sweep", "extract",
-		"init", "list", "log", "pins", "pdf-doctor", "profile", "pull", "pull-article", "pull-pdf",
-		"pull-local-batch", "pull-pins", "pull-url", "refresh", "reindex", "search",
-		"search-batch", "serve", "show", "status", "telemetry", "version",
-	}
-	capabilities := []string{
-		"contract.version-json.v1",
-		"embed.stale-prune.v1",
-		"pull.docc",
-		"pull.from",
-		"pull.gatsby-pagedata",
-		"pull.git-repo",
-		"pull.github-repo",
-		"pull.llms-txt",
-		"pull.local",
-		"pull.pdf-inspector.doctor.v1",
-		"pull.pdf-inspector.v1",
-		"pull.replace-source-guard.v1",
-		"pull.rst",
-		"pull.sitemap",
-		"search.fts5",
-		"search.fts5.self-heal.v1",
-		"search.hybrid-source-scope.v1",
-		"serve.http.v1",
-		"telemetry.provenance.v1",
-	}
-	sort.Strings(commands)
-	sort.Strings(capabilities)
+	manifest := releaseManifest()
 	return versionInfo{
 		SchemaVersion:   1,
 		Name:            "docs-puller",
@@ -134,7 +104,7 @@ func currentVersionInfo() versionInfo {
 		Commit:          commit,
 		Dirty:           dirty,
 		ContractVersion: cliContractVersion,
-		Commands:        commands,
-		Capabilities:    capabilities,
+		Commands:        append([]string(nil), manifest.Commands...),
+		Capabilities:    append([]string(nil), manifest.Capabilities...),
 	}
 }

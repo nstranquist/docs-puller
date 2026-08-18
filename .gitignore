@@ -1,6 +1,8 @@
 # Compiled CLI binary (built locally; not committed)
 /docs-puller
 /bin/
+/dist/
+*.vsix
 *.test
 *.exe
 coverage.out

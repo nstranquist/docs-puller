@@ -70,8 +70,9 @@ import (
 
 const (
 	supabaseHost = "supabase.com"
-	userAgent    = "docs-puller/0.3 (+https://github.com/nstranquist/docs-puller)"
 )
+
+var userAgent = releaseManifest().UserAgent()
 
 var urlRE = regexp.MustCompile(`https?://[^\s)>"']+`)
 
@@ -85,80 +86,54 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
-	switch os.Args[1] {
-	case "pull":
-		cmdPull(os.Args[2:])
-	case "pull-local-batch":
-		cmdPullLocalBatch(os.Args[2:])
-	case "pull-url":
-		cmdPullURL(os.Args[2:])
-	case "pull-article":
-		cmdPullArticle(os.Args[2:])
-	case "pull-pdf":
-		cmdPullPDF(os.Args[2:])
-	case "pdf-doctor":
-		cmdPDFDoctor(os.Args[2:])
-	case "crawl-refs":
-		cmdCrawlRefs(os.Args[2:])
-	case "curation":
-		cmdCuration(os.Args[2:])
-	case "refresh":
-		cmdRefresh(os.Args[2:])
-	case "init":
-		cmdInit(os.Args[2:])
-	case "demo":
-		cmdDemo(os.Args[2:])
-	case "config":
-		cmdConfig(os.Args[2:])
-	case "search":
-		cmdSearch(os.Args[2:])
-	case "search-batch":
-		cmdSearchBatch(os.Args[2:])
-	case "reindex":
-		cmdReindex(os.Args[2:])
-	case "status":
-		cmdStatus(os.Args[2:])
-	case "list":
-		cmdList(os.Args[2:])
-	case "show":
-		cmdShow(os.Args[2:])
-	case "log":
-		cmdLog(os.Args[2:])
-	case "pins":
-		cmdPins(os.Args[2:])
-	case "pull-pins":
-		cmdPullPins(os.Args[2:])
-	case "eval":
-		cmdEval(os.Args[2:])
-	case "eval-diagnose":
-		cmdEvalDiagnose(os.Args[2:])
-	case "eval-sweep":
-		cmdEvalSweep(os.Args[2:])
-	case "eval-suite":
-		cmdEvalSuite(os.Args[2:])
-	case "eval-leaderboard":
-		cmdEvalLeaderboard(os.Args[2:])
-	case "extract":
-		cmdExtract(os.Args[2:])
-	case "embed":
-		cmdEmbed(os.Args[2:])
-	case "serve":
-		cmdServe(os.Args[2:])
-	case "profile":
-		cmdProfile(os.Args[2:])
-	case "telemetry":
-		cmdTelemetry(os.Args[2:])
-	case "emit-llmstxt":
-		cmdEmitLLMsTxt(os.Args[2:])
-	case "version":
-		cmdVersion(os.Args[2:])
-	case "-h", "--help", "help":
-		cmdHelp(os.Args[2:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", os.Args[1])
+	command := os.Args[1]
+	if command == "-h" || command == "--help" {
+		command = "help"
+	}
+	handler, ok := topLevelCommandHandlers[command]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", command)
 		usage()
 		os.Exit(2)
 	}
+	handler(os.Args[2:])
+}
+
+var topLevelCommandHandlers = map[string]func([]string){
+	"config":           cmdConfig,
+	"crawl-refs":       cmdCrawlRefs,
+	"curation":         cmdCuration,
+	"demo":             cmdDemo,
+	"embed":            cmdEmbed,
+	"emit-llmstxt":     cmdEmitLLMsTxt,
+	"eval":             cmdEval,
+	"eval-diagnose":    cmdEvalDiagnose,
+	"eval-leaderboard": cmdEvalLeaderboard,
+	"eval-suite":       cmdEvalSuite,
+	"eval-sweep":       cmdEvalSweep,
+	"extract":          cmdExtract,
+	"help":             cmdHelp,
+	"init":             cmdInit,
+	"list":             cmdList,
+	"log":              cmdLog,
+	"pdf-doctor":       cmdPDFDoctor,
+	"pins":             cmdPins,
+	"profile":          cmdProfile,
+	"pull":             cmdPull,
+	"pull-article":     cmdPullArticle,
+	"pull-local-batch": cmdPullLocalBatch,
+	"pull-pdf":         cmdPullPDF,
+	"pull-pins":        cmdPullPins,
+	"pull-url":         cmdPullURL,
+	"refresh":          cmdRefresh,
+	"reindex":          cmdReindex,
+	"search":           cmdSearch,
+	"search-batch":     cmdSearchBatch,
+	"serve":            cmdServe,
+	"show":             cmdShow,
+	"status":           cmdStatus,
+	"telemetry":        cmdTelemetry,
+	"version":          cmdVersion,
 }
 
 // helpText returns full human usage or a token-efficient compact verb map.
