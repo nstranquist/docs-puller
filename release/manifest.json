@@ -6,7 +6,7 @@
   "binary": "docs-puller",
   "version": "v0.6.0",
   "tag": "v0.6.0",
-  "release_date": "2026-08-18",
+  "release_date": "2026-08-19",
   "go_version": "1.26",
   "contract_version": 1,
   "archive_template": "docs-puller_{semver}_{goos}_{goarch}.{ext}",

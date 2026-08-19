@@ -47,15 +47,17 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 
 	localPaths := []string{
 		filepath.Join(repoRoot, "release", "manifest.json"),
+		filepath.Join(repoRoot, "VERSION"),
 		filepath.Join(repoRoot, manifest.Consumers.NShipLaunch),
 		filepath.Join(repoRoot, "README.md"),
 		filepath.Join(repoRoot, "docs", "user", "install.md"),
 		filepath.Join(repoRoot, "docs", "user", "first-hour.md"),
 	}
 	report.CheckedConsumerPaths = append(report.CheckedConsumerPaths, localPaths...)
-	checkContainsVersion(&report, localPaths[1], manifest.Module+"@"+manifest.Version)
-	checkContainsVersion(&report, localPaths[1], "--expect, "+manifest.Version)
-	for _, path := range localPaths[2:] {
+	checkVersionFile(&report, localPaths[1], manifest.SemVer())
+	checkContainsVersion(&report, localPaths[2], manifest.Module+"@"+manifest.Version)
+	checkContainsVersion(&report, localPaths[2], "--expect, "+manifest.Version)
+	for _, path := range localPaths[3:] {
 		checkContainsVersion(&report, path, manifest.Version)
 	}
 
@@ -79,6 +81,17 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	slices.Sort(report.CheckedConsumerPaths)
 	report.OK = len(report.Drift) == 0
 	return report, nil
+}
+
+func checkVersionFile(report *syncReport, path, expected string) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	if string(body) != expected+"\n" {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: version %q != %q", path, strings.TrimSpace(string(body)), expected))
+	}
 }
 
 func checkContainsVersion(report *syncReport, path, expected string) {

@@ -92,3 +92,22 @@ func TestNShipRewriteUpdatesModuleAndExpectedVersion(t *testing.T) {
 		t.Fatalf("nship contract still drifted: %s", got)
 	}
 }
+
+func TestVersionFileMustExactlyMatchManifestSemVer(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "VERSION")
+	if err := os.WriteFile(path, []byte("0.6.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var report syncReport
+	checkVersionFile(&report, path, "0.6.0")
+	if len(report.Drift) != 0 {
+		t.Fatalf("matching VERSION drifted: %v", report.Drift)
+	}
+	if err := os.WriteFile(path, []byte("v0.6.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checkVersionFile(&report, path, "0.6.0")
+	if len(report.Drift) != 1 || !strings.Contains(report.Drift[0], `version "v0.6.0" != "0.6.0"`) {
+		t.Fatalf("prefixed VERSION drift = %v", report.Drift)
+	}
+}
