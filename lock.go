@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/nstranquist/docs-puller/searchruntime"
@@ -20,9 +19,6 @@ import (
 // inconsistent state until the next manual `reindex`. Concurrency was real:
 // during the 4-source parallel pull session we observed exactly this failure.
 //
-// macOS / Linux only — `syscall.Flock` is POSIX-only. The rest of the tool
-// already assumes a Unix runtime (git, sqlite3 driver), so this is consistent.
-//
 // Returns a release closure the caller MUST defer.
 func acquireWriteLock(out string) (release func(), err error) {
 	cacheDir := filepath.Join(out, ".cache")
@@ -34,14 +30,14 @@ func acquireWriteLock(out string) (release func(), err error) {
 	if err != nil {
 		return nil, searchruntime.WriteLockOpenError(err)
 	}
-	// LOCK_EX without LOCK_NB blocks until the lock is available.
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := lockFile(f)
+	if err != nil {
 		f.Close()
 		return nil, searchruntime.WriteLockFlockError(err)
 	}
 	return func() {
-		syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-		f.Close()
+		_ = unlock()
+		_ = f.Close()
 	}, nil
 }
 

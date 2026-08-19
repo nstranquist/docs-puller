@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/nstranquist/docs-puller/internal/embeddb"
@@ -525,26 +524,6 @@ func filterEmbeddingVectorsBySource(vecs map[string][]float32, source string) ma
 		}
 	}
 	return filtered
-}
-
-func mmapReadOnly(path string) ([]byte, func(), error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return nil, nil, err
-	}
-	if info.Size() == 0 {
-		return nil, nil, searchruntime.EmbeddingFlatIndexVectorFileEmptyError(path)
-	}
-	data, err := syscall.Mmap(int(f.Fd()), 0, int(info.Size()), syscall.PROT_READ, syscall.MAP_SHARED)
-	if err != nil {
-		return nil, nil, err
-	}
-	return data, func() { _ = syscall.Munmap(data) }, nil
 }
 
 func vectorNorm(v []float32) float64 {
