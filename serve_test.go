@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -172,6 +173,52 @@ func TestDocAPIHandler(t *testing.T) {
 		}
 		if got.Bytes != len(body) {
 			t.Errorf("bytes = %d, want %d", got.Bytes, len(body))
+		}
+		if got.TotalBytes != len(body) || got.Truncated || got.StartLine != 1 || got.EndLine != 3 || got.TotalLines != 3 {
+			t.Errorf("full document window = %#v", got)
+		}
+	})
+
+	t.Run("returns a bounded window around the requested line", func(t *testing.T) {
+		lines := make([]string, 240)
+		for index := range lines {
+			lines[index] = fmt.Sprintf("line-%03d documented behavior with enough text to form a useful preview", index+1)
+		}
+		largeBody := strings.Join(lines, "\n") + "\n"
+		if err := os.WriteFile(filepath.Join(srcDir, "guides", "hooks.md"), []byte(largeBody), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/api/doc?source=react&path=guides/hooks.md&max_bytes=800&line=120", nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+		}
+		var got docAPIResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if !got.Truncated || got.Bytes > 800 || got.TotalBytes != len(largeBody) {
+			t.Fatalf("bounded document window = %#v", got)
+		}
+		if got.StartLine > 120 || got.EndLine < 120 || !strings.Contains(got.Content, "line-120") {
+			t.Fatalf("window does not contain focus line: %#v", got)
+		}
+	})
+
+	t.Run("rejects invalid preview bounds", func(t *testing.T) {
+		for _, query := range []string{
+			"max_bytes=0",
+			"max_bytes=100&line=9999",
+			"line=2",
+			"max_bytes=100&max_bytes=200",
+		} {
+			req := httptest.NewRequest(http.MethodGet, "/api/doc?source=react&path=guides/hooks.md&"+query, nil)
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("query %q: status = %d, want 400", query, rec.Code)
+			}
 		}
 	})
 

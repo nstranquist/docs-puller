@@ -270,7 +270,11 @@ The UI supports live search with source filtering and doc preview over the JSON 
 - `GET /api/search?q=<query>&source=<id>&limit=<n>`
 - `GET /api/sources`
 - `GET /api/status`
-- `GET /api/doc?path=<rel>`
+- `GET /api/doc?source=<id>&path=<rel>[&max_bytes=<n>&line=<n>]`
+
+`max_bytes` returns a bounded plain-text Markdown window. Add the one-based
+`line` value to keep a search hit inside that window. `line` requires
+`max_bytes`. If you omit both fields, the local API returns the full document.
 
 Security defaults: binds `127.0.0.1` and refuses a non-loopback `--addr` unless a
 bearer token is set (`--auth-token`, `--auth-token-file`, or `$DOCS_SERVE_TOKEN`).

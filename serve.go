@@ -1,20 +1,26 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-const serveAPIVersion = "v1"
+const (
+	serveAPIVersion      = "v1"
+	maxDocAPIPreviewSize = 1 << 20
+)
 
 // Web UI: `docs-puller serve [--port 7799]` runs an HTTP server that exposes
 // search via /api/search and the static UI at /. Same Go functions as the
@@ -31,7 +37,9 @@ func cmdServe(args []string) {
 	authToken := fs.String("auth-token", "", "require `Authorization: Bearer <token>` on every request (or --auth-token-file / $DOCS_SERVE_TOKEN)")
 	authTokenFile := fs.String("auth-token-file", "", "read the bearer token from the first line of this file")
 	bindOpts(fs, &o)
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		die(err)
+	}
 
 	token, err := resolveServeAuthToken(*authToken, *authTokenFile)
 	if err != nil {
@@ -152,12 +160,17 @@ func statusAPIHandler(defaults pullOpts, live *liveFTSIndex) http.HandlerFunc {
 }
 
 type docAPIResponse struct {
-	Source  string `json:"source"`
-	Path    string `json:"path"`
-	Title   string `json:"title,omitempty"`
-	URL     string `json:"url,omitempty"`
-	Content string `json:"content"`
-	Bytes   int    `json:"bytes"`
+	Source     string `json:"source"`
+	Path       string `json:"path"`
+	Title      string `json:"title,omitempty"`
+	URL        string `json:"url,omitempty"`
+	Content    string `json:"content"`
+	Bytes      int    `json:"bytes"`
+	TotalBytes int    `json:"total_bytes"`
+	Truncated  bool   `json:"truncated"`
+	StartLine  int    `json:"start_line"`
+	EndLine    int    `json:"end_line"`
+	TotalLines int    `json:"total_lines"`
 }
 
 // docAPIHandler returns the full markdown body of one doc so the app can render
@@ -170,6 +183,20 @@ func docAPIHandler(defaults pullOpts) http.HandlerFunc {
 		rawPath := r.URL.Query().Get("path")
 		if source == "" || rawPath == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing source or path"})
+			return
+		}
+		maxBytes, err := parseBoundedDocParameter(r, "max_bytes", maxDocAPIPreviewSize)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		focusLine, err := parseBoundedDocParameter(r, "line", 10_000_000)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		if focusLine != 0 && maxBytes == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "line requires max_bytes"})
 			return
 		}
 		rel := strings.TrimPrefix(rawPath, source+"/")
@@ -189,16 +216,117 @@ func docAPIHandler(defaults pullOpts) http.HandlerFunc {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 			return
 		}
+		window, err := makeDocumentWindow(data, maxBytes, focusLine)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
 		urlByPath, _ := loadManifestMaps(srcDir, source)
 		writeJSON(w, http.StatusOK, docAPIResponse{
-			Source:  source,
-			Path:    clean,
-			Title:   firstMarkdownHeading(data),
-			URL:     urlByPath[clean],
-			Content: string(data),
-			Bytes:   len(data),
+			Source:     source,
+			Path:       clean,
+			Title:      firstMarkdownHeading(data),
+			URL:        urlByPath[clean],
+			Content:    window.Content,
+			Bytes:      len([]byte(window.Content)),
+			TotalBytes: window.TotalBytes,
+			Truncated:  window.Truncated,
+			StartLine:  window.StartLine,
+			EndLine:    window.EndLine,
+			TotalLines: window.TotalLines,
 		})
 	}
+}
+
+type documentWindow struct {
+	Content    string
+	TotalBytes int
+	Truncated  bool
+	StartLine  int
+	EndLine    int
+	TotalLines int
+}
+
+func parseBoundedDocParameter(r *http.Request, name string, maximum int) (int, error) {
+	values, present := r.URL.Query()[name]
+	if !present {
+		return 0, nil
+	}
+	if len(values) != 1 || values[0] == "" {
+		return 0, fmt.Errorf("%s must appear once", name)
+	}
+	value, err := strconv.Atoi(values[0])
+	if err != nil || value < 1 || value > maximum {
+		return 0, fmt.Errorf("%s must be an integer from 1 to %d", name, maximum)
+	}
+	return value, nil
+}
+
+func makeDocumentWindow(data []byte, maxBytes, focusLine int) (documentWindow, error) {
+	content := []byte(strings.ToValidUTF8(string(data), "\uFFFD"))
+	lineStarts := []int{0}
+	for index, value := range content {
+		if value == '\n' && index+1 < len(content) {
+			lineStarts = append(lineStarts, index+1)
+		}
+	}
+	totalLines := len(lineStarts)
+	if focusLine == 0 {
+		focusLine = 1
+	}
+	if focusLine > totalLines {
+		return documentWindow{}, fmt.Errorf("line exceeds document line count")
+	}
+	if maxBytes == 0 || len(content) <= maxBytes {
+		return documentWindow{
+			Content:    string(content),
+			TotalBytes: len(content),
+			StartLine:  1,
+			EndLine:    totalLines,
+			TotalLines: totalLines,
+		}, nil
+	}
+
+	focusOffset := lineStarts[focusLine-1]
+	wantedStart := max(0, focusOffset-maxBytes/2)
+	startLineIndex := 0
+	for startLineIndex+1 < len(lineStarts) && lineStarts[startLineIndex] < wantedStart {
+		startLineIndex++
+	}
+	if lineStarts[startLineIndex] > focusOffset {
+		startLineIndex--
+	}
+	start := lineStarts[startLineIndex]
+	end := min(len(content), start+maxBytes)
+	if end < len(content) {
+		if lastNewline := bytes.LastIndexByte(content[start:end], '\n'); lastNewline >= 0 {
+			end = start + lastNewline + 1
+		}
+		for end > start && !utf8.Valid(content[start:end]) {
+			end--
+		}
+	}
+	if end <= focusOffset {
+		startLineIndex = focusLine - 1
+		start = focusOffset
+		end = min(len(content), start+maxBytes)
+		for end > start && !utf8.Valid(content[start:end]) {
+			end--
+		}
+	}
+	window := content[start:end]
+	endLine := startLineIndex + 1 + bytes.Count(window, []byte{'\n'})
+	if len(window) > 0 && window[len(window)-1] == '\n' && endLine > startLineIndex+1 {
+		endLine--
+	}
+	return documentWindow{
+		Content:    string(window),
+		TotalBytes: len(content),
+		Truncated:  start > 0 || end < len(content),
+		StartLine:  startLineIndex + 1,
+		EndLine:    endLine,
+		TotalLines: totalLines,
+	}, nil
 }
 
 func firstMarkdownHeading(data []byte) string {
@@ -284,7 +412,11 @@ func sourcesAPIHandler(defaults pullOpts) http.HandlerFunc {
 		}
 		out := make([]sourceInfo, 0, len(sources))
 		for _, s := range sources {
-			n := countMarkdownFiles(filepath.Join(defaults.out, s))
+			n, err := countMarkdownFiles(filepath.Join(defaults.out, s))
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not count source documents"})
+				return
+			}
 			out = append(out, sourceInfo{Name: s, Docs: n})
 		}
 		writeJSON(w, http.StatusOK, sourcesAPIResponse{
@@ -294,10 +426,13 @@ func sourcesAPIHandler(defaults pullOpts) http.HandlerFunc {
 	}
 }
 
-func countMarkdownFiles(srcDir string) int {
+func countMarkdownFiles(srcDir string) (int, error) {
 	var n int
-	filepath.WalkDir(srcDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	err := filepath.WalkDir(srcDir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
 			return nil
 		}
 		name := d.Name()
@@ -309,7 +444,7 @@ func countMarkdownFiles(srcDir string) int {
 		}
 		return nil
 	})
-	return n
+	return n, err
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
@@ -317,5 +452,7 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	enc.Encode(body)
+	if err := enc.Encode(body); err != nil {
+		log.Printf("docs-puller serve: write JSON response: %v", err)
+	}
 }
