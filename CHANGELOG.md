@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.6.0 — 2026-08-19
+
 ### Added
 
 - Added `docs-puller demo`, an isolated three-document proof that needs no API

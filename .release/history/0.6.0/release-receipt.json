@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "previous_version": "0.5.0",
+  "version": "0.6.0",
+  "required_bump": "minor",
+  "tag": "v0.6.0",
+  "consumed_intents": [
+    ".release/changes/20260819T012624Z-241080a8ee81.json"
+  ],
+  "updated_paths": [
+    ".release/history/0.6.0/20260819T012624Z-241080a8ee81.json",
+    ".release/history/0.6.0/release-receipt.json",
+    "CHANGELOG.md",
+    "VERSION"
+  ],
+  "input_sha256": "2f7c209b5b372b2d05a60200f839b8b161c397f4bf19199beb4b3b2d79422c83",
+  "output_sha256": "b7f0b853d8bc25e80d715873298f34b2b9add6f6ff84efcf293588f51a3bf0c0"
+}
