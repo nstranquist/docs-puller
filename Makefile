@@ -18,8 +18,13 @@ PUBLIC_SAMPLE_MIN_HIT_AT_5 ?= 1.0
 PUBLIC_SAMPLE_MIN_MRR ?= 0.95
 PUBLIC_SAMPLE_MAX_P99_MS ?= 250
 HELD_OUT_CORPUS ?= $(HOME)/code/docs
-HELD_OUT_FIXTURE ?= eval/heldout-v0.6.yaml
+HELD_OUT_FIXTURE ?= eval/heldout-v0.6-final.yaml
+HELD_OUT_MIN_HIT_AT_1 ?= 0.45
 HELD_OUT_MIN_HIT_AT_5 ?= 0.9001
+HELD_OUT_MIN_MRR ?= 0.65
+# Full-corpus cold reads can pay filesystem cache cost; the immutable audit
+# recorded 191ms p99 warm and 1.56s p99 cold. Keep a 2s fail-closed ceiling.
+HELD_OUT_MAX_P99_MS ?= 2000
 REGRESSION_FIXTURE ?= eval/fixture.yaml
 REGRESSION_MIN_HIT_AT_5 ?= 1.0
 
@@ -130,7 +135,10 @@ verify-public-sample: build
 verify-held-out: build
 	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --stale-days 0 --check
 	./bin/docs-puller eval --fixture "$(HELD_OUT_FIXTURE)" --out "$(HELD_OUT_CORPUS)" --json \
-		--min-hit-at-5 $(HELD_OUT_MIN_HIT_AT_5)
+		--min-hit-at-1 $(HELD_OUT_MIN_HIT_AT_1) \
+		--min-hit-at-5 $(HELD_OUT_MIN_HIT_AT_5) \
+		--min-mrr $(HELD_OUT_MIN_MRR) \
+		--max-p99-ms $(HELD_OUT_MAX_P99_MS)
 
 # Tuned regression corpus. Keep this distinct from the frozen generalization holdout.
 verify-retrieval-regression: build

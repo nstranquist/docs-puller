@@ -1,4 +1,4 @@
-# Final independent privacy-safe generalization holdout for docs-puller v0.6.
+# Diagnostic privacy-safe generalization corpus for docs-puller v0.6.
 #
 # These public-documentation questions cover concepts and sources that are not
 # in the two v0.6 tuning corpora. No raw telemetry text is present. This file
