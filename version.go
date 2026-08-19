@@ -7,16 +7,15 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+
+	"github.com/nstranquist/docs-puller/internal/releasecontract"
 )
 
 const cliContractVersion = 1
 
-// These values can be overridden by release builds with -ldflags. Local and
+// This value can be overridden by release builds with -ldflags. Local and
 // go-install builds fall back to Go's embedded build information.
-var (
-	releaseVersion = ""
-	releaseCommit  = ""
-)
+var releaseIdentity = ""
 
 type versionInfo struct {
 	SchemaVersion   int      `json:"schema_version"`
@@ -69,8 +68,7 @@ func checkExpectedVersion(actual, expected string) error {
 }
 
 func currentVersionInfo() versionInfo {
-	version := strings.TrimSpace(releaseVersion)
-	commit := strings.TrimSpace(releaseCommit)
+	version, commit, _ := releasecontract.ParseBuildIdentity(releaseIdentity)
 	dirty := false
 	module := "github.com/nstranquist/docs-puller"
 	if bi, ok := debug.ReadBuildInfo(); ok {

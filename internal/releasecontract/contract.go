@@ -16,7 +16,10 @@ var (
 	semverPattern    = regexp.MustCompile(`^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
 	goVersionPattern = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$`)
 	targetPattern    = regexp.MustCompile(`^[a-z0-9]+$`)
+	commitPattern    = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 )
+
+const buildIdentityPrefix = "docs-puller-release:"
 
 type Target struct {
 	GOOS    string `json:"goos"`
@@ -200,6 +203,28 @@ func (m Manifest) SemVer() string {
 
 func (m Manifest) UserAgent() string {
 	return m.Name + "/" + m.SemVer() + " (+https://github.com/nstranquist/docs-puller)"
+}
+
+// BuildIdentity returns the exact release identity embedded in every packaged
+// binary. Keeping the version and commit in one value lets the release verifier
+// prove that both values were linked into binaries for non-host platforms.
+func BuildIdentity(version, commit string) string {
+	return buildIdentityPrefix + version + "@" + commit
+}
+
+// ParseBuildIdentity decodes a release identity only when both components have
+// the same strict shapes used by the release manifest and Git object formats.
+func ParseBuildIdentity(value string) (version, commit string, ok bool) {
+	value = strings.TrimSpace(value)
+	remainder, found := strings.CutPrefix(value, buildIdentityPrefix)
+	if !found {
+		return "", "", false
+	}
+	version, commit, found = strings.Cut(remainder, "@")
+	if !found || !semverPattern.MatchString(version) || !commitPattern.MatchString(commit) {
+		return "", "", false
+	}
+	return version, commit, true
 }
 
 func (m Manifest) ArchiveName(target Target) string {

@@ -4,11 +4,27 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nstranquist/docs-puller/internal/releasecontract"
 )
+
+func TestBuildBinaryEmbedsVerifiableReleaseIdentity(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join("..", ".."))
+	output := filepath.Join(t.TempDir(), "docs-puller")
+	manifest := releasecontract.Manifest{Binary: "docs-puller", Version: "v0.6.0"}
+	target := releasecontract.Target{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}
+	commit := strings.Repeat("a", 40)
+	if err := buildBinary(repoRoot, output, target, manifest, commit, 1_700_000_000); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyBuildInfoFile(output, target, manifest, commit); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestDeterministicArchives(t *testing.T) {
 	inputs := []archiveInput{

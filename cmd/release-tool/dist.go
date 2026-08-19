@@ -293,8 +293,7 @@ func buildBinary(repoRoot, output string, target releasecontract.Target, manifes
 	}
 	ldflags := strings.Join([]string{
 		"-s", "-w", "-buildid=",
-		"-X", "main.releaseVersion=" + manifest.Version,
-		"-X", "main.releaseCommit=" + commit,
+		"-X", "main.releaseIdentity=" + releasecontract.BuildIdentity(manifest.Version, commit),
 	}, " ")
 	env := []string{
 		"CGO_ENABLED=0", "GOOS=" + target.GOOS, "GOARCH=" + target.GOARCH,
@@ -322,9 +321,13 @@ func verifyBuildInfoFile(path string, target releasecontract.Target, manifest re
 			return fmt.Errorf("%s build setting %s = %q, want %q", path, key, settings[key], want)
 		}
 	}
-	ldflags := settings["-ldflags"]
-	if !strings.Contains(ldflags, "main.releaseVersion="+manifest.Version) || !strings.Contains(ldflags, "main.releaseCommit="+commit) {
-		return fmt.Errorf("%s build metadata does not contain the release version and commit", path)
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read release identity %s: %w", path, err)
+	}
+	identity := releasecontract.BuildIdentity(manifest.Version, commit)
+	if !bytes.Contains(body, []byte(identity)) {
+		return fmt.Errorf("%s does not contain the embedded release identity", path)
 	}
 	if settings["-trimpath"] != "true" {
 		return fmt.Errorf("%s was not built with -trimpath", path)

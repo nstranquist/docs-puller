@@ -51,6 +51,23 @@ func TestParseAndRenderReleaseNames(t *testing.T) {
 	}
 }
 
+func TestBuildIdentityRoundTrip(t *testing.T) {
+	commit := strings.Repeat("a", 40)
+	identity := BuildIdentity("v0.6.0", commit)
+	version, gotCommit, ok := ParseBuildIdentity(identity)
+	if !ok || version != "v0.6.0" || gotCommit != commit {
+		t.Fatalf("ParseBuildIdentity(%q) = %q, %q, %v", identity, version, gotCommit, ok)
+	}
+	for _, invalid := range []string{
+		"", "v0.6.0@" + commit, BuildIdentity("0.6.0", commit),
+		BuildIdentity("v0.6.0", "ABC"), BuildIdentity("v0.6.0", strings.Repeat("a", 39)),
+	} {
+		if _, _, ok := ParseBuildIdentity(invalid); ok {
+			t.Fatalf("invalid build identity %q was accepted", invalid)
+		}
+	}
+}
+
 func TestParseRejectsDriftProneManifestShapes(t *testing.T) {
 	tests := map[string]string{
 		"unknown field":   strings.Replace(validManifestJSON(), `"schema_version": 1`, `"schema_version": 1, "extra": true`, 1),
