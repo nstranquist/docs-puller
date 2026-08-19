@@ -4,8 +4,8 @@
   "name": "docs-puller",
   "module": "github.com/nstranquist/docs-puller",
   "binary": "docs-puller",
-  "version": "v0.6.0",
-  "tag": "v0.6.0",
+  "version": "v0.7.0",
+  "tag": "v0.7.0",
   "release_date": "2026-08-19",
   "go_version": "1.26",
   "contract_version": 1,
@@ -71,6 +71,7 @@
     "search.fts5.self-heal.v1",
     "search.hybrid-source-scope.v1",
     "serve.auth-loopback-guard.v1",
+    "serve.document-window.v1",
     "serve.http.v1",
     "telemetry.provenance.v1"
   ],

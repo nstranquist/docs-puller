@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.7.0 — 2026-08-19
+
 ### Added
 
 - Serve bounded document windows around matched lines.
