@@ -12,8 +12,8 @@ Markdown and searches them on your machine.
 Requirement: Go 1.26.6 or later.
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.7.3
-docs-puller version --expect v0.7.3 --json
+go install github.com/nstranquist/docs-puller@v0.7.4
+docs-puller version --expect v0.7.4 --json
 docs-puller demo
 ```
 
@@ -27,12 +27,12 @@ If `GOBIN` is set, the directory is `$(go env GOBIN)`. Otherwise, it is
 ## Install a release archive
 
 GitHub release archives contain one binary. Select the archive for your
-operating system and CPU from the v0.7.3 release page.
+operating system and CPU from the v0.7.4 release page.
 
 On macOS or Linux:
 
 ```sh
-version="0.7.3"
+version="0.7.4"
 platform="$(go env GOOS)_$(go env GOARCH)"
 archive="docs-puller_${version}_${platform}.tar.gz"
 curl --fail --location --remote-name \
@@ -52,7 +52,7 @@ On Windows PowerShell, download the matching `.zip` and `checksums.txt`. Then
 verify and extract it:
 
 ```powershell
-$Version = "0.7.3"
+$Version = "0.7.4"
 $Archive = "docs-puller_${Version}_windows_amd64.zip"
 Invoke-WebRequest "https://github.com/nstranquist/docs-puller/releases/download/v$Version/$Archive" -OutFile $Archive
 Invoke-WebRequest "https://github.com/nstranquist/docs-puller/releases/download/v$Version/checksums.txt" -OutFile checksums.txt
