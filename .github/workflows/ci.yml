@@ -111,3 +111,23 @@ jobs:
           path: vscode-extension/*.vsix
           if-no-files-found: error
           archive: false
+
+  public-demo:
+    name: public demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.4.0
+        with:
+          node-version: '24'
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@11.15.1
+      - name: Verify public demo
+        run: |
+          pnpm --dir site install --frozen-lockfile
+          pnpm --dir site run check
+          pnpm --dir site audit --audit-level high
+          pnpm --dir site run deploy:dry-run

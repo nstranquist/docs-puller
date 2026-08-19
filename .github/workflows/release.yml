@@ -48,9 +48,17 @@ jobs:
           go run ./cmd/release-tool verify --version "$RELEASE_TAG" --json
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.4.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: vscode-extension/package-lock.json
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@11.15.1
+      - name: Verify public demo
+        run: |
+          pnpm --dir site install --frozen-lockfile
+          pnpm --dir site run check
+          pnpm --dir site audit --audit-level high
+          pnpm --dir site run deploy:dry-run
       - name: Package VS Code extension
         run: |
           npm ci --prefix vscode-extension

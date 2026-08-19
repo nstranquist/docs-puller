@@ -2,7 +2,7 @@
 
 .PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
-	extension-check extension-package verify-public-sample verify-held-out \
+	extension-check extension-package site-check verify-public-sample verify-held-out \
 	verify-retrieval-regression \
 	release-check release-sync-check release-sync-write release-dist \
 	release-verify release-ready verify-clean-clone
@@ -32,13 +32,14 @@ help:
 	@echo "docs-puller local targets:"
 	@echo "  make build | test | vet | fmt | verify | publish-ready"
 	@echo "  make install | smoke | demo-smoke | version | help-sizes"
+	@echo "  make site-check"
 	@echo "  make verify-public-sample | verify-retrieval-regression | verify-held-out"
 	@echo "  make verify-clean-clone"
 	@echo "  make release-check | release-dist | release-verify | release-ready"
 	@echo "  make release-sync-check NDEV_ROOT=/path/to/nicos-tools"
 
 # Complete local publication gate. It does not push or publish.
-publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package
+publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package site-check
 
 build:
 	go build $(GO_TAG_FLAGS) -o bin/docs-puller .
@@ -118,6 +119,13 @@ extension-check:
 extension-package: extension-check
 	npm run package --prefix vscode-extension
 	npm run package --prefix vscode-extension
+
+site-check:
+	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required" >&2; exit 1; }
+	pnpm --dir site install --frozen-lockfile
+	pnpm --dir site run check
+	pnpm --dir site audit --audit-level high
+	pnpm --dir site run deploy:dry-run
 
 # Live, key-free replay of the public 24-query fixture.
 verify-public-sample: build
