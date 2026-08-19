@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Make the overflowing document preview keyboard-scrollable in Safari and cover the real overflow path in browser accessibility tests.
+
 ## v0.7.4 — 2026-08-19
 
 ### Fixed

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Make the overflowing document preview keyboard-scrollable in Safari and cover the real overflow path in browser accessibility tests.",
+  "category": "Fixed",
+  "commit_type": "fix",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}
