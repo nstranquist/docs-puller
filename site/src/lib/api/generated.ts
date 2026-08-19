@@ -260,6 +260,15 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description The request origin is outside the exact public allowlist. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description The bounded public request budget was exceeded. */
         RateLimited: {
             headers: {
@@ -323,6 +332,7 @@ export interface operations {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
+            403: components["responses"]["Forbidden"];
         };
     };
     getReadiness: {
@@ -343,6 +353,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -364,6 +375,7 @@ export interface operations {
                     "application/json": components["schemas"]["MetaResponse"];
                 };
             };
+            403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -386,6 +398,7 @@ export interface operations {
                     "application/json": components["schemas"]["SourcesResponse"];
                 };
             };
+            403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -415,6 +428,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
             502: components["responses"]["BadGateway"];
             503: components["responses"]["ServiceUnavailable"];
@@ -443,6 +457,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             502: components["responses"]["BadGateway"];

@@ -27,6 +27,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /readyz:
     get:
       operationId: getReadiness
@@ -39,6 +41,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadinessResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
   /api/v1/demo/meta:
@@ -53,6 +57,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MetaResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
         "503":
@@ -69,6 +75,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SourcesResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
         "503":
@@ -116,6 +124,8 @@ paths:
                 $ref: "#/components/schemas/SearchResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
         "502":
@@ -152,6 +162,8 @@ paths:
                 $ref: "#/components/schemas/DocumentResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -172,6 +184,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: The reviewed document does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: The request origin is outside the exact public allowlist.
       content:
         application/json:
           schema:

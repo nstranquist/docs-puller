@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
-    "typecheck": "astro check && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.tests.json --noEmit && tsc -p tsconfig.worker-tests.json --noEmit",
+    "typecheck": "astro check && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.tests.json --noEmit && tsc -p tsconfig.worker-tests.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "generate:api": "openapi-typescript openapi/demo-v1.yaml -o src/lib/api/generated.ts",
     "check:api": "node scripts/check-generated.mjs",
     "test:unit": "vitest run",

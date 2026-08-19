@@ -4,10 +4,13 @@ compatibility_date = "2026-08-18"
 workers_dev = true
 preview_urls = true
 
+[secrets]
+required = ["SIDECAR_TOKEN", "RATE_KEY_SECRET"]
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-run_worker_first = ["/api/*", "/healthz", "/readyz"]
+run_worker_first = true
 
 [vars]
 PUBLIC_ORIGIN = "https://docs-puller-demo.darthbitcoin.workers.dev"
@@ -16,7 +19,7 @@ BUILD_ID = "development"
 BUILD_COMMIT = "0000000"
 DEPLOYED_AT = "2026-08-18T00:00:00.000Z"
 ENGINE_VERSION = "development"
-CORPUS_DIGEST = "sha256:2882265a3e9cec112bd0720366a1427ecfa19383541c112e3a4747624f1efe87"
+CORPUS_DIGEST = "sha256:39b337204d4a8dfe034a0fcff2f70dfbd855653cc6cb389b9514947dbea35e6e"
 CORPUS_INDEX_DIGEST = "sha256:cddbf287eb3b2cb4144de7c8630be5be24d8dca5bf96af3af4de3e349266bdc6"
 CORPUS_RETRIEVED_AT = "2026-08-19T01:06:48Z"
 

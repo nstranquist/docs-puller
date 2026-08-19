@@ -41,7 +41,7 @@ const sourceCatalog: readonly Source[] = [
     label: "Go",
     document_count: 8,
     homepage: "https://go.dev/doc/",
-    license: "BSD-style documentation license",
+    license: "CC BY 4.0 website content, unless noted otherwise",
   },
   {
     id: "postgresql",
