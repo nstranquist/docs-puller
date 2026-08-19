@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Keep the portable logical-path assertion platform independent in Windows CI.
+
 ## v0.7.1 — 2026-08-19
 
 ### Fixed
