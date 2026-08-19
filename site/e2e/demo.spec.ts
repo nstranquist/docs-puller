@@ -77,6 +77,134 @@ test("renders every public page without horizontal overflow", async ({
   }
 })
 
+test("stays inside browser performance and discovery budgets", async ({
+  page,
+}, testInfo) => {
+  const measurements: Array<{
+    path: string
+    metrics: Record<string, number>
+  }> = []
+  await page.addInitScript(() => {
+    const state = { cls: 0, lcpMs: 0, tbtMs: 0 }
+    Object.defineProperty(window, "__docsPullerPerformance", {
+      value: state,
+      configurable: false,
+      enumerable: false,
+      writable: false,
+    })
+
+    if (PerformanceObserver.supportedEntryTypes.includes("layout-shift")) {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          const shift = entry as PerformanceEntry & {
+            hadRecentInput: boolean
+            value: number
+          }
+          if (!shift.hadRecentInput) state.cls += shift.value
+        }
+      }).observe({ type: "layout-shift", buffered: true })
+    }
+    if (
+      PerformanceObserver.supportedEntryTypes.includes(
+        "largest-contentful-paint"
+      )
+    ) {
+      new PerformanceObserver((list) => {
+        const entries = list.getEntries()
+        state.lcpMs = entries.at(-1)?.startTime ?? state.lcpMs
+      }).observe({ type: "largest-contentful-paint", buffered: true })
+    }
+    if (PerformanceObserver.supportedEntryTypes.includes("longtask")) {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          state.tbtMs += Math.max(0, entry.duration - 50)
+        }
+      }).observe({ type: "longtask", buffered: true })
+    }
+  })
+
+  for (const path of ["/", "/demo/", "/method/"]) {
+    await page.goto(path, { waitUntil: "networkidle" })
+    await page.waitForTimeout(250)
+
+    const metrics = await page.evaluate(() => {
+      const state = (
+        window as typeof window & {
+          __docsPullerPerformance?: {
+            cls: number
+            lcpMs: number
+            tbtMs: number
+          }
+        }
+      ).__docsPullerPerformance ?? { cls: 0, lcpMs: 0, tbtMs: 0 }
+      const navigation = performance.getEntriesByType("navigation")[0] as
+        PerformanceNavigationTiming | undefined
+      const resources = performance.getEntriesByType(
+        "resource"
+      ) as PerformanceResourceTiming[]
+      const encodedBytes = (entry: PerformanceResourceTiming): number =>
+        Math.max(entry.transferSize, entry.encodedBodySize)
+      const fcp = performance.getEntriesByName("first-contentful-paint")[0]
+
+      return {
+        cls: state.cls,
+        domContentLoadedMs: navigation?.domContentLoadedEventEnd ?? 0,
+        fcpMs: fcp?.startTime ?? 0,
+        lcpMs: state.lcpMs,
+        loadMs: navigation?.loadEventEnd ?? 0,
+        scriptBytes: resources
+          .filter((entry) => entry.initiatorType === "script")
+          .reduce((total, entry) => total + encodedBytes(entry), 0),
+        styleBytes: resources
+          .filter((entry) => new URL(entry.name).pathname.endsWith(".css"))
+          .reduce((total, entry) => total + encodedBytes(entry), 0),
+        tbtMs: state.tbtMs,
+        transferBytes: resources.reduce(
+          (total, entry) => total + encodedBytes(entry),
+          0
+        ),
+      }
+    })
+    measurements.push({ path, metrics })
+
+    expect(metrics.fcpMs, `${path} FCP`).toBeLessThanOrEqual(1_800)
+    expect(metrics.lcpMs, `${path} LCP`).toBeGreaterThan(0)
+    expect(metrics.lcpMs, `${path} LCP`).toBeLessThanOrEqual(2_500)
+    expect(metrics.cls, `${path} CLS`).toBeLessThanOrEqual(0.1)
+    expect(metrics.tbtMs, `${path} TBT`).toBeLessThanOrEqual(200)
+    expect(
+      metrics.domContentLoadedMs,
+      `${path} DOMContentLoaded`
+    ).toBeLessThanOrEqual(2_000)
+    expect(metrics.loadMs, `${path} load`).toBeLessThanOrEqual(3_000)
+    expect(metrics.scriptBytes, `${path} script bytes`).toBeLessThanOrEqual(
+      250_000
+    )
+    expect(metrics.styleBytes, `${path} style bytes`).toBeLessThanOrEqual(
+      250_000
+    )
+    expect(metrics.transferBytes, `${path} transfer bytes`).toBeLessThanOrEqual(
+      750_000
+    )
+
+    await expect(page).toHaveTitle(/\S+/u)
+    await expect(page.locator('html[lang="en"]')).toHaveCount(1)
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      "content",
+      /\S+/u
+    )
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      /^https:\/\/docs-puller-demo\.darthbitcoin\.workers\.dev\//u
+    )
+  }
+
+  await testInfo.attach("performance-budgets.json", {
+    body: Buffer.from(JSON.stringify(measurements, null, 2)),
+    contentType: "application/json",
+  })
+})
+
 test("keeps the dark theme accessible", async ({ page }) => {
   await page.goto("/demo/")
   await page.getByRole("button", { name: "Use dark theme" }).click()
