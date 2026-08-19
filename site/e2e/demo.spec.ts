@@ -37,6 +37,10 @@ test("searches, previews a document, and keeps the primary journey accessible", 
     dialog.getByRole("heading", { name: "SQLite FTS5 Extension", exact: true })
   ).toBeVisible()
   await expect(dialog.locator("pre")).toContainText("External content tables")
+  await expect(dialog.locator('[data-slot="dialog-footer"]')).toBeInViewport()
+  await expect(
+    dialog.getByRole("link", { name: "Open canonical source" })
+  ).toBeInViewport()
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth

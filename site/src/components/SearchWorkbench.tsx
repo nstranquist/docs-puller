@@ -553,7 +553,7 @@ export function SearchWorkbench({
             </DialogTitle>
             <DialogDescription>{selectedResult?.path}</DialogDescription>
           </DialogHeader>
-          <div className="border-border min-h-64 overflow-auto border-y bg-[#101827] p-5 sm:p-6">
+          <div className="border-border h-[min(58vh,32rem)] min-h-0 overflow-auto border-y bg-[#101827] p-5 sm:p-6">
             {document.kind === "loading" && (
               <div className="space-y-3" aria-label="Loading document">
                 <Skeleton className="h-5 w-2/3 bg-white/10" />

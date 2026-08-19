@@ -49,7 +49,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "border-border bg-popover text-popover-foreground data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[min(86vh,52rem)] w-[min(94vw,52rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border p-0 shadow-2xl duration-150 outline-none",
+          "border-border bg-popover text-popover-foreground data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[min(86vh,52rem)] w-[min(94vw,52rem)] -translate-x-1/2 -translate-y-1/2 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden rounded-2xl border p-0 shadow-2xl duration-150 outline-none",
           className
         )}
         {...props}
@@ -116,7 +116,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "bg-muted/40 flex items-center justify-between border-t px-6 py-4",
+        "bg-muted/40 flex flex-col items-start gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between",
         className
       )}
       {...props}
