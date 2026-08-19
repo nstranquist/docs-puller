@@ -3,7 +3,7 @@
 ## Service identities
 
 - Public Worker: `docs-puller-demo`
-- Public URL: `https://docs-puller-demo.darthbitcoin.workers.dev`
+- Public URL: `https://docs-puller-demo.nstranquist.workers.dev`
 - Origin app: `docs-puller-demo-origin`
 - Origin URL: `https://docs-puller-demo-origin.fly.dev`
 - Fly primary region: `ord`

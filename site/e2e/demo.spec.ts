@@ -205,7 +205,7 @@ test("stays inside browser performance and discovery budgets", async ({
     )
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      /^https:\/\/docs-puller-demo\.darthbitcoin\.workers\.dev\//u
+      /^https:\/\/docs-puller-demo\.nstranquist\.workers\.dev\//u
     )
   }
 

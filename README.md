@@ -6,13 +6,13 @@
 
 ## Live Demo
 
-**[Try the public docs-puller demo](https://docs-puller-demo.darthbitcoin.workers.dev)**
+**[Try the public docs-puller demo](https://docs-puller-demo.nstranquist.workers.dev)**
 
 The demo needs no account and no API key. It searches a reviewed snapshot of
 24 public SQLite, Go, and PostgreSQL pages with the same Go and SQLite FTS5
 engine as the CLI. It does not use AI. A rate-limited Cloudflare boundary
 protects the bearer-authenticated origin and limits public document previews.
-Read the [method and claim boundaries](https://docs-puller-demo.darthbitcoin.workers.dev/method).
+Read the [method and claim boundaries](https://docs-puller-demo.nstranquist.workers.dev/method).
 Deployment health and synthetic checks do not prove external adoption.
 
 ## Quick Start

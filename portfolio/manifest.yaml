@@ -16,10 +16,10 @@ access:
     primary_action:
         kind: try
         label: Try the live demo
-        url: https://docs-puller-demo.darthbitcoin.workers.dev
+        url: https://docs-puller-demo.nstranquist.workers.dev
     repository_url: https://github.com/nstranquist/docs-puller
     documentation_url: https://github.com/nstranquist/docs-puller#quick-start
-    demo_url: https://docs-puller-demo.darthbitcoin.workers.dev
+    demo_url: https://docs-puller-demo.nstranquist.workers.dev
     feedback_url: https://github.com/nstranquist/docs-puller/issues/new
     module: github.com/nstranquist/docs-puller
     binary: docs-puller
@@ -41,7 +41,7 @@ proof:
         - id: public-live-demo
           statement: The public demo searches the reviewed sample corpus through the same Go and SQLite FTS5 engine as the CLI.
           evidence_kind: demo
-          evidence_url: https://docs-puller-demo.darthbitcoin.workers.dev
+          evidence_url: https://docs-puller-demo.nstranquist.workers.dev
     boundaries:
         - Optional reranking and embeddings need separately configured model providers.
         - Public source, releases, deployment health, and synthetic checks do not prove external adoption.

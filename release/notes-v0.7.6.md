@@ -6,7 +6,7 @@ reproducibility fix.
 
 ## Try it
 
-Open the [public live demo](https://docs-puller-demo.darthbitcoin.workers.dev).
+Open the [public live demo](https://docs-puller-demo.nstranquist.workers.dev).
 It needs no account and no API key. It searches a reviewed snapshot of 24
 public SQLite, Go, and PostgreSQL pages with the same Go and SQLite FTS5 engine
 as the CLI. It makes zero AI calls.

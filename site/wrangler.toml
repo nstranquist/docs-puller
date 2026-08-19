@@ -13,7 +13,7 @@ binding = "ASSETS"
 run_worker_first = true
 
 [vars]
-PUBLIC_ORIGIN = "https://docs-puller-demo.darthbitcoin.workers.dev"
+PUBLIC_ORIGIN = "https://docs-puller-demo.nstranquist.workers.dev"
 SIDECAR_URL = "https://docs-puller-demo-origin.fly.dev"
 BUILD_ID = "development"
 BUILD_COMMIT = "0000000"

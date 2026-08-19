@@ -187,7 +187,7 @@ type verifier struct {
 
 func main() {
 	var cfg config
-	flag.StringVar(&cfg.BaseURL, "base-url", "https://docs-puller-demo.darthbitcoin.workers.dev", "public demo base URL")
+	flag.StringVar(&cfg.BaseURL, "base-url", "https://docs-puller-demo.nstranquist.workers.dev", "public demo base URL")
 	flag.StringVar(&cfg.OriginURL, "origin-url", "", "optional Fly origin URL to verify rejects anonymous requests")
 	flag.StringVar(&cfg.ExpectedCommit, "expect-commit", "", "required deployment commit when set")
 	flag.StringVar(&cfg.ExpectedCorpus, "expect-corpus", "", "required corpus SHA-256 when set")

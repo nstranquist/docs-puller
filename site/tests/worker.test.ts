@@ -74,7 +74,7 @@ function createHarness(
     SIDECAR_URL: "https://docs-puller-demo-origin.fly.dev",
     SIDECAR_TOKEN: "origin-secret",
     RATE_KEY_SECRET: "rate-key-secret-with-enough-entropy",
-    PUBLIC_ORIGIN: "https://docs-puller-demo.darthbitcoin.workers.dev",
+    PUBLIC_ORIGIN: "https://docs-puller-demo.nstranquist.workers.dev",
     BUILD_ID: "build-20260818",
     BUILD_COMMIT: "abcdef0123456789",
     DEPLOYED_AT: "2026-08-18T13:00:00.000Z",
@@ -106,7 +106,7 @@ function request(path: string, init: RequestInit = {}): Request {
   if (!headers.has("CF-Connecting-IP"))
     headers.set("CF-Connecting-IP", "203.0.113.42")
   return new Request(
-    `https://docs-puller-demo.darthbitcoin.workers.dev${path}`,
+    `https://docs-puller-demo.nstranquist.workers.dev${path}`,
     {
       ...init,
       headers,

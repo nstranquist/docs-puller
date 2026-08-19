@@ -33,7 +33,7 @@ jobs:
         run: |
           set -o pipefail
           go run ./deploy/demo/cmd/demo-smoke \
-            --base-url https://docs-puller-demo.darthbitcoin.workers.dev \
+            --base-url https://docs-puller-demo.nstranquist.workers.dev \
             --origin-url https://docs-puller-demo-origin.fly.dev \
             --expect-version "$(jq -r .version release/manifest.json)" \
             --expect-corpus "$(jq -r .corpus_digest deploy/demo/corpus.lock.json)" \

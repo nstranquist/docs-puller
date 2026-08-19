@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 45
     environment:
       name: production
-      url: https://docs-puller-demo.darthbitcoin.workers.dev
+      url: https://docs-puller-demo.nstranquist.workers.dev
     permissions:
       contents: read
       id-token: write
@@ -162,7 +162,7 @@ jobs:
           pnpm exec wrangler deploy --strict \
             --message "docs-puller demo ${DEPLOY_COMMIT}" \
             --tag "$DEPLOY_COMMIT" \
-            --var 'PUBLIC_ORIGIN:https://docs-puller-demo.darthbitcoin.workers.dev' \
+            --var 'PUBLIC_ORIGIN:https://docs-puller-demo.nstranquist.workers.dev' \
             --var 'SIDECAR_URL:https://docs-puller-demo-origin.fly.dev' \
             --var "BUILD_ID:${build_id}" \
             --var "BUILD_COMMIT:${DEPLOY_COMMIT}" \
@@ -174,7 +174,7 @@ jobs:
       - name: Verify production from the public internet
         run: |
           go run ./deploy/demo/cmd/demo-smoke \
-            --base-url https://docs-puller-demo.darthbitcoin.workers.dev \
+            --base-url https://docs-puller-demo.nstranquist.workers.dev \
             --origin-url https://docs-puller-demo-origin.fly.dev \
             --expect-commit "$DEPLOY_COMMIT" \
             --expect-version "$(jq -r .version release/manifest.json)" \
