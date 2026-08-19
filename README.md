@@ -22,7 +22,7 @@ three-document corpus. It does not change your normal corpus and does not need
 an API key.
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.7.4
+go install github.com/nstranquist/docs-puller@v0.7.5
 docs-puller demo
 ```
 
@@ -109,7 +109,7 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.7.4`.
+automation can fail closed with `docs-puller version --expect v0.7.5`.
 
 ## Install
 
@@ -292,7 +292,7 @@ bearer token is set (`--auth-token`, `--auth-token-file`, or `$DOCS_SERVE_TOKEN`
 The server picks up out-of-process `pull`/`reindex` runs automatically — no
 restart needed.
 
-`vscode-extension/` ships a VS Code client for the same endpoint. The v0.7.4
+`vscode-extension/` ships a VS Code client for the same endpoint. The v0.7.5
 GitHub release includes a checksummed `docs-puller-search-0.3.0.vsix`. The
 extension is not published in the VS Code Marketplace. It supports bearer
 tokens through VS Code SecretStorage and confines returned paths to the local
