@@ -20,7 +20,7 @@ func TestCurrentVersionInfoPublishesStableContract(t *testing.T) {
 			t.Errorf("commands missing %q: %v", command, info.Commands)
 		}
 	}
-	for _, capability := range []string{"contract.version-json.v1", "embed.stale-prune.v1", "pull.git-repo", "pull.llms-txt", "pull.pdf-inspector.doctor.v1", "pull.pdf-inspector.v1", "pull.replace-source-guard.v1", "pull.rst", "search.fts5", "search.fts5.self-heal.v1", "search.hybrid-source-scope.v1", "telemetry.provenance.v1"} {
+	for _, capability := range []string{"contract.version-json.v1", "embed.stale-prune.v1", "pull.git-repo", "pull.llms-txt", "pull.pdf-inspector.doctor.v1", "pull.pdf-inspector.v1", "pull.replace-source-guard.v1", "pull.rst", "search.fts5", "search.fts5.self-heal.v1", "search.hybrid-source-scope.v1", "serve.document-window.v1", "telemetry.provenance.v1"} {
 		if !slices.Contains(info.Capabilities, capability) {
 			t.Errorf("capabilities missing %q: %v", capability, info.Capabilities)
 		}
@@ -37,8 +37,8 @@ func TestReleaseManifestMatchesCommandRegistry(t *testing.T) {
 	if !reflect.DeepEqual(got, manifest.Commands) {
 		t.Fatalf("registered commands drifted from release manifest:\nregistered=%v\nmanifest=%v", got, manifest.Commands)
 	}
-	if userAgent != "docs-puller/0.6.0 (+https://github.com/nstranquist/docs-puller)" {
-		t.Fatalf("user agent drifted from release manifest: %q", userAgent)
+	if userAgent != manifest.UserAgent() {
+		t.Fatalf("user agent drifted from release manifest: got %q want %q", userAgent, manifest.UserAgent())
 	}
 }
 
