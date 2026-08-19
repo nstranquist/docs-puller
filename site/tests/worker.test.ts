@@ -81,7 +81,7 @@ function createHarness(
     ENGINE_VERSION: "v0.6.0",
     CORPUS_DIGEST: corpusDigest,
     CORPUS_INDEX_DIGEST: indexDigest,
-    CORPUS_RETRIEVED_AT: "2026-08-18T12:00:00.000Z",
+    CORPUS_RETRIEVED_AT: "2026-08-18T12:00:00Z",
   }
   return {
     env,
@@ -262,7 +262,11 @@ describe("public demo Worker", () => {
       service: "docs-puller-demo",
       build_id: "build-20260818",
       commit: "abcdef0123456789",
-      corpus: { document_count: 24, source_count: 3 },
+      corpus: {
+        document_count: 24,
+        source_count: 3,
+        retrieved_at: "2026-08-18T12:00:00.000Z",
+      },
     })
     expect(JSON.stringify(body)).not.toContain("SIDECAR")
     expect(JSON.stringify(body)).not.toContain("/app/docs")

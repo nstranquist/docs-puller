@@ -1173,18 +1173,14 @@ function requiredText(value: string, name: string, maxLength: number): string {
 
 function requiredDate(value: string, name: string): string {
   const parsed = new Date(value)
-  if (
-    !value ||
-    Number.isNaN(parsed.getTime()) ||
-    parsed.toISOString() !== value
-  ) {
+  if (!value || Number.isNaN(parsed.getTime())) {
     throw new PublicError(
       503,
       "internal_error",
       `${name} is not a canonical timestamp.`
     )
   }
-  return value
+  return parsed.toISOString()
 }
 
 function rejectQueryFields(
