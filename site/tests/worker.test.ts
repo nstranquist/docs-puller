@@ -144,13 +144,20 @@ async function defaultOrigin(originRequest: Request): Promise<Response> {
     })
   }
   if (url.pathname === "/api/doc") {
+    expect(url.searchParams.get("max_bytes")).toBe("32000")
+    const focusLine = Number(url.searchParams.get("line") ?? "1")
     return json({
       source: "sqlite",
       path: "fts5.md",
       title: "SQLite FTS5 Extension",
       url: "https://sqlite.org/fts5.html",
       content: "# SQLite FTS5\n\nExternal content tables.",
-      bytes: 42,
+      bytes: 39,
+      total_bytes: 165924,
+      truncated: true,
+      start_line: Math.max(1, focusLine - 10),
+      end_line: focusLine + 10,
+      total_lines: 3100,
     })
   }
   return json({
@@ -484,7 +491,25 @@ describe("public demo Worker", () => {
     expect(body.content_type).toBe("text/markdown")
     expect(body.content).toContain("# SQLite FTS5")
     expect(body.path).toBe("fts5.md")
+    expect(body).toMatchObject({
+      bytes: 39,
+      total_bytes: 165924,
+      truncated: true,
+      start_line: 1,
+      end_line: 11,
+      total_lines: 3100,
+    })
     expect(response.headers.get("Content-Type")).toContain("application/json")
+
+    const focused = await run(
+      harness,
+      "/api/v1/demo/doc?source=sqlite&path=fts5.md&line=911"
+    )
+    expect(focused.status).toBe(200)
+    expect(await responseJSON(focused)).toMatchObject({
+      start_line: 901,
+      end_line: 921,
+    })
   })
 
   it("maps a missing reviewed document without returning the origin body", async () => {

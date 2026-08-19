@@ -96,7 +96,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get one bounded reviewed document as plain Markdown. */
+        /** Get one bounded reviewed Markdown excerpt around a result line. */
         get: operations["getDemoDocument"];
         put?: never;
         post?: never;
@@ -227,6 +227,11 @@ export interface components {
             content_type: "text/markdown";
             content: string;
             bytes: number;
+            total_bytes: number;
+            truncated: boolean;
+            start_line: number;
+            end_line: number;
+            total_lines: number;
             corpus: components["schemas"]["CorpusIdentity"];
         };
         ErrorResponse: {
@@ -440,6 +445,8 @@ export interface operations {
             query: {
                 source: components["schemas"]["SourceID"];
                 path: string;
+                /** @description A one-based search-result line to keep inside the excerpt. */
+                line?: number;
             };
             header?: never;
             path?: never;
@@ -447,7 +454,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A reviewed Markdown document. Clients must render it as text. */
+            /** @description A reviewed Markdown excerpt. Clients must render it as text. */
             200: {
                 headers: {
                     [name: string]: unknown;

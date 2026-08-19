@@ -239,7 +239,13 @@ export function SearchWorkbench({
     documentAbortRef.current = controller
     try {
       const data = await client.document(
-        { source: result.source, path: result.path },
+        {
+          source: result.source,
+          path: result.path,
+          ...(result.snippets[0]?.line
+            ? { line: result.snippets[0].line }
+            : {}),
+        },
         controller.signal
       )
       setDocument({ kind: "success", data })
@@ -539,7 +545,7 @@ export function SearchWorkbench({
                   : "Document"}
               </Badge>
               <span className="text-muted-foreground font-mono text-[0.65rem]">
-                plain Markdown preview
+                bounded Markdown excerpt
               </span>
             </div>
             <DialogTitle>
@@ -570,7 +576,9 @@ export function SearchWorkbench({
           <DialogFooter>
             <span className="text-muted-foreground font-mono text-[0.65rem]">
               {document.kind === "success"
-                ? `${document.data.bytes.toLocaleString()} bytes · rendered as text`
+                ? document.data.truncated
+                  ? `${document.data.bytes.toLocaleString()} of ${document.data.total_bytes.toLocaleString()} bytes · lines ${document.data.start_line.toLocaleString()}–${document.data.end_line.toLocaleString()} of ${document.data.total_lines.toLocaleString()}`
+                  : `${document.data.bytes.toLocaleString()} bytes · complete document`
                 : "Content never executes"}
             </span>
             {selectedResult && (

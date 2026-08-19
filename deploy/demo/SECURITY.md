@@ -23,6 +23,8 @@ untrusted input, even when it comes from an allowlisted project.
 - Search supports one fixed FTS5 mode, three source IDs, a bounded query, and a
   limit from 1 through 10.
 - Document reads require an allowlisted source and a canonical Markdown path.
+  The Worker requests at most 32,000 bytes around the selected search-result
+  line. The response states the excerpt and full-document byte and line bounds.
 - CORS permits only the exact public origin.
 - Search and API rate limits use an ephemeral HMAC of the client address. The
   raw address is not stored.

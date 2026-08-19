@@ -51,7 +51,7 @@ describe("demo API client", () => {
       })
     ).resolves.toEqual(searchFixture)
     await expect(
-      client.document({ source: "sqlite", path: "fts5.md" })
+      client.document({ source: "sqlite", path: "fts5.md", line: 911 })
     ).resolves.toEqual(documentFixture)
 
     const searchURL = new URL(requests[2]?.url ?? "")
@@ -59,6 +59,8 @@ describe("demo API client", () => {
     expect(searchURL.searchParams.get("source")).toBe("sqlite")
     expect(searchURL.searchParams.get("limit")).toBe("6")
     expect(searchURL.searchParams.get("mode")).toBe("fts5")
+    const documentURL = new URL(requests[3]?.url ?? "")
+    expect(documentURL.searchParams.get("line")).toBe("911")
     expect(
       requests.every(
         (request) => request.headers.get("Accept") === "application/json"

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -169,6 +170,11 @@ type documentResponse struct {
 	ContentType string         `json:"content_type"`
 	Content     string         `json:"content"`
 	Bytes       int            `json:"bytes"`
+	TotalBytes  int            `json:"total_bytes"`
+	Truncated   bool           `json:"truncated"`
+	StartLine   int            `json:"start_line"`
+	EndLine     int            `json:"end_line"`
+	TotalLines  int            `json:"total_lines"`
 	Corpus      corpusIdentity `json:"corpus"`
 }
 
@@ -294,7 +300,7 @@ func (v *verifier) verify(ctx context.Context) error {
 	}
 
 	first := search.Results[0]
-	documentPath := "/api/v1/demo/doc?source=" + url.QueryEscape(first.Source) + "&path=" + url.QueryEscape(first.Path)
+	documentPath := "/api/v1/demo/doc?source=" + url.QueryEscape(first.Source) + "&path=" + url.QueryEscape(first.Path) + "&line=" + strconv.Itoa(first.Snippets[0].Line)
 	var document documentResponse
 	if err := v.getJSON(ctx, "document", documentPath, &document); err != nil {
 		return err
@@ -398,7 +404,7 @@ func validateSearch(response searchResponse, corpusDigest string) error {
 		return fmt.Errorf("search used an unexpected corpus")
 	}
 	for _, result := range response.Results {
-		if !allowedSources[result.Source] || result.Title == "" || result.Path == "" || len(result.Snippets) > 3 {
+		if !allowedSources[result.Source] || result.Title == "" || result.Path == "" || len(result.Snippets) == 0 || len(result.Snippets) > 3 {
 			return fmt.Errorf("search returned an invalid result")
 		}
 		sourceURL, err := url.Parse(result.URL)
@@ -413,8 +419,11 @@ func validateDocument(document documentResponse, result searchResult, corpusDige
 	if !document.OK || document.Source != result.Source || document.Path != result.Path || document.Title == "" || document.ContentType != "text/markdown" {
 		return fmt.Errorf("document response does not match its search result")
 	}
-	if document.Bytes < 1 || document.Bytes > 60000 || len(document.Content) == 0 || len(document.Content) > 60000 {
+	if document.Bytes < 1 || document.Bytes > 32000 || len(document.Content) != document.Bytes || document.TotalBytes < document.Bytes || document.TotalBytes > 2<<20 {
 		return fmt.Errorf("document response exceeds the public content boundary")
+	}
+	if !document.Truncated || document.Bytes >= document.TotalBytes || document.StartLine < 1 || document.StartLine > result.Snippets[0].Line || document.EndLine < result.Snippets[0].Line || document.EndLine > document.TotalLines {
+		return fmt.Errorf("document response does not contain the matched excerpt")
 	}
 	if document.Corpus.Digest != corpusDigest {
 		return fmt.Errorf("document used an unexpected corpus")

@@ -17,13 +17,13 @@ const serviceName = "docs-puller-demo" as const
 const apiPrefix = "/api/v1/demo/"
 const maxURLBytes = 2048
 const maxResponseBytes = 65_536
-const maxDocumentBytes = 60_000
+const maxDocumentBytes = 32_000
 const originTimeoutMS = 4_000
 const searchCacheSeconds = 30
 const documentCacheSeconds = 3_600
 const allowedSources = new Set<SourceID>(["sqlite", "go", "postgresql"])
 const allowedSearchFields = new Set(["q", "source", "limit", "mode"])
-const allowedDocumentFields = new Set(["source", "path"])
+const allowedDocumentFields = new Set(["source", "path", "line"])
 const digestPattern = /^sha256:[a-f0-9]{64}$/u
 const commitPattern = /^[a-f0-9]{7,64}$/u
 const pathPattern = /^[A-Za-z0-9._/-]+\.md$/u
@@ -126,6 +126,7 @@ interface ParsedSearch {
 interface ParsedDocument {
   source: SourceID
   path: string
+  line?: number
 }
 
 interface OriginSearchResponse {
@@ -151,6 +152,11 @@ interface OriginDocumentResponse {
   url: string
   content: string
   bytes: number
+  total_bytes: number
+  truncated: boolean
+  start_line: number
+  end_line: number
+  total_lines: number
 }
 
 interface OriginStatusResponse {
@@ -461,6 +467,7 @@ async function documentOutcome(
   const cacheRequest = normalizedCacheRequest(publicURL, {
     source: parsed.source,
     path: parsed.path,
+    ...(parsed.line ? { line: String(parsed.line) } : {}),
   })
   const cached = await dependencies.cache?.match(cacheRequest)
   if (cached?.ok)
@@ -469,7 +476,9 @@ async function documentOutcome(
   const originQuery = new URLSearchParams({
     source: parsed.source,
     path: parsed.path,
+    max_bytes: String(maxDocumentBytes),
   })
+  if (parsed.line) originQuery.set("line", String(parsed.line))
   const origin = await fetchOrigin(`/api/doc?${originQuery}`, env, dependencies)
   if (origin.status === 404) {
     throw new PublicError(
@@ -540,7 +549,24 @@ function parseDocument(params: URLSearchParams): ParsedDocument {
   rejectDuplicateFields(params, allowedDocumentFields)
   const source = parseSource(params.get("source") ?? "")
   const path = normalizePublicPath(params.get("path") ?? "", source)
-  return { source, path }
+  const rawLine = params.get("line")
+  if (rawLine === null) return { source, path }
+  if (!/^\d{1,8}$/u.test(rawLine)) {
+    throw new PublicError(
+      400,
+      "invalid_request",
+      "Line must be an integer from 1 to 10000000."
+    )
+  }
+  const line = Number(rawLine)
+  if (!Number.isSafeInteger(line) || line < 1 || line > 10_000_000) {
+    throw new PublicError(
+      400,
+      "invalid_request",
+      "Line must be an integer from 1 to 10000000."
+    )
+  }
+  return { source, path, line }
 }
 
 function sanitizeSearch(
@@ -623,11 +649,51 @@ function sanitizeDocument(
     )
   }
   const encoded = new TextEncoder().encode(origin.content)
-  if (encoded.byteLength > maxDocumentBytes || hasNullByte(origin.content)) {
+  const bytes = boundedInteger(
+    origin.bytes,
+    0,
+    maxDocumentBytes,
+    "origin document bytes"
+  )
+  const totalBytes = boundedInteger(
+    origin.total_bytes,
+    1,
+    2_097_152,
+    "origin document total bytes"
+  )
+  const startLine = boundedInteger(
+    origin.start_line,
+    1,
+    10_000_000,
+    "origin document start line"
+  )
+  const endLine = boundedInteger(
+    origin.end_line,
+    startLine,
+    10_000_000,
+    "origin document end line"
+  )
+  const totalLines = boundedInteger(
+    origin.total_lines,
+    endLine,
+    10_000_000,
+    "origin document total lines"
+  )
+  if (
+    encoded.byteLength > maxDocumentBytes ||
+    encoded.byteLength !== bytes ||
+    totalBytes < bytes ||
+    hasNullByte(origin.content) ||
+    (origin.truncated && bytes >= totalBytes) ||
+    (!origin.truncated &&
+      (bytes !== totalBytes || startLine !== 1 || endLine !== totalLines)) ||
+    (request.line !== undefined &&
+      (request.line < startLine || request.line > endLine))
+  ) {
     throw new PublicError(
       502,
       "origin_invalid",
-      "The origin document exceeds the public limit."
+      "The origin document excerpt is outside the public limit."
     )
   }
   return {
@@ -638,7 +704,12 @@ function sanitizeDocument(
     url: validateCanonicalURL(origin.url, source),
     content_type: "text/markdown",
     content: origin.content,
-    bytes: encoded.byteLength,
+    bytes,
+    total_bytes: totalBytes,
+    truncated: origin.truncated,
+    start_line: startLine,
+    end_line: endLine,
+    total_lines: totalLines,
     corpus: corpusIdentity(env),
   }
 }
@@ -792,6 +863,11 @@ function parseOriginDocument(value: unknown): OriginDocumentResponse {
     url: optionalString(record.url, "origin document URL"),
     content: asString(record.content, "origin document content"),
     bytes: asNumber(record.bytes, "origin document bytes"),
+    total_bytes: asNumber(record.total_bytes, "origin document total bytes"),
+    truncated: asBoolean(record.truncated, "origin document truncation"),
+    start_line: asNumber(record.start_line, "origin document start line"),
+    end_line: asNumber(record.end_line, "origin document end line"),
+    total_lines: asNumber(record.total_lines, "origin document total lines"),
   }
 }
 
@@ -1275,6 +1351,13 @@ function optionalString(value: unknown, label: string): string {
 
 function asNumber(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new PublicError(502, "origin_invalid", `The ${label} is invalid.`)
+  }
+  return value
+}
+
+function asBoolean(value: unknown, label: string): boolean {
+  if (typeof value !== "boolean") {
     throw new PublicError(502, "origin_invalid", `The ${label} is invalid.`)
   }
   return value

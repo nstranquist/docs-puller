@@ -194,6 +194,11 @@ async function installDemoAPI(page: Page): Promise<void> {
             content:
               "# SQLite FTS5 Extension\n\n## External content tables\n\nThe index refers to content in another table.",
             bytes: 100,
+            total_bytes: 165924,
+            truncated: true,
+            start_line: 500,
+            end_line: 525,
+            total_lines: 3100,
             corpus,
           },
         })

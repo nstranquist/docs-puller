@@ -238,13 +238,13 @@ describe("SearchWorkbench", () => {
       await screen.findByText(/External content tables use/)
     ).toBeInTheDocument()
     expect(document).toHaveBeenCalledWith(
-      { source: "sqlite", path: "fts5.md" },
+      { source: "sqlite", path: "fts5.md", line: 911 },
       expect.any(AbortSignal)
     )
     expect(
       screen.getByRole("link", { name: /Open canonical source/ })
     ).toHaveAttribute("href", "https://sqlite.org/fts5.html")
-    expect(screen.getByText(/rendered as text/)).toBeInTheDocument()
+    expect(screen.getByText(/lines 900–925 of 3,100/)).toBeInTheDocument()
   })
 
   it("has no automated accessibility violations in the idle workbench", async () => {

@@ -19,6 +19,7 @@ export interface SearchInput {
 export interface DocumentInput {
   source: SourceID
   path: string
+  line?: number
 }
 
 export interface DemoClient {

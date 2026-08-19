@@ -140,7 +140,7 @@ func testHandler(t *testing.T) http.Handler {
 				Results: []searchResult{{Title: "SQLite FTS5 Extension", Source: "sqlite", Path: "fts5.md", URL: "https://sqlite.org/fts5.html", Score: 944, Snippets: []snippet{{Line: 1, Text: "External content"}}}},
 			})
 		case "/api/v1/demo/doc":
-			writeTestJSON(t, response, documentResponse{OK: true, Source: "sqlite", Path: "fts5.md", Title: "SQLite FTS5 Extension", URL: "https://sqlite.org/fts5.html", ContentType: "text/markdown", Content: "# SQLite FTS5", Bytes: 13, Corpus: corpus})
+			writeTestJSON(t, response, documentResponse{OK: true, Source: "sqlite", Path: "fts5.md", Title: "SQLite FTS5 Extension", URL: "https://sqlite.org/fts5.html", ContentType: "text/markdown", Content: "# SQLite FTS5", Bytes: 13, TotalBytes: 100, Truncated: true, StartLine: 1, EndLine: 5, TotalLines: 10, Corpus: corpus})
 		case "/api/status":
 			response.WriteHeader(http.StatusUnauthorized)
 		case "/", "/demo/", "/method/":

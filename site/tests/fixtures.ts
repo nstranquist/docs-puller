@@ -95,6 +95,11 @@ export const documentFixture: DocumentResponse = {
   content:
     "# SQLite FTS5 Extension\n\nExternal content tables use another table for content.",
   bytes: 78,
+  total_bytes: 165924,
+  truncated: true,
+  start_line: 900,
+  end_line: 925,
+  total_lines: 3100,
   corpus,
 }
 
