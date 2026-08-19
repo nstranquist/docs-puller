@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Added the tested public demo site and bounded Cloudflare Worker API.",
+  "category": "Added",
+  "commit_type": "feat",
+  "bump": "minor",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

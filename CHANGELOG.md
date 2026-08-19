@@ -6,10 +6,6 @@ must name both the old and new behavior.
 
 ## Unreleased
 
-No user-facing changes yet.
-
-## v0.6.0 — 2026-08-18
-
 ### Added
 
 - Added `docs-puller demo`, an isolated three-document proof that needs no API
@@ -19,6 +15,9 @@ No user-facing changes yet.
 - Added native Markdown mirroring for Unity documentation.
 - Added a secure VS Code search client and a deterministic v0.3.0 VSIX package.
 - Added a public engineering case study and a typed product passport.
+- Added the tested public demo site and bounded Cloudflare Worker API.
+  It uses the 24-document public sample. Deployment proof remains separate
+  from source readiness.
 - Added final frozen holdout, PostHog, and Unity retrieval fixtures.
 
 ### Changed

@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "changelogs": [
+    {
+      "id": "docs-puller",
+      "path": "CHANGELOG.md",
+      "owner": "product.docs-puller",
+      "scope_roots": [
+        "."
+      ],
+      "state": "active",
+      "format": "keep-a-changelog",
+      "unreleased_heading": "## Unreleased",
+      "wip_split_policy": "propose",
+      "include_types": [
+        "feat",
+        "fix",
+        "perf",
+        "refactor"
+      ],
+      "release": {
+        "scheme": "semver-2.0.0",
+        "public_api": "README.md",
+        "canonical_version": {
+          "path": "VERSION",
+          "kind": "text"
+        },
+        "intent_dir": ".release/changes",
+        "history_dir": ".release/history",
+        "tag_template": "v{version}",
+        "release_heading_template": "## v{version} — {date}",
+        "zero_major_breaking": "breaking-minor",
+        "prerelease_channels": [
+          "beta",
+          "rc"
+        ]
+      }
+    }
+  ]
+}
