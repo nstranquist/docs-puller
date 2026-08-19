@@ -28,7 +28,8 @@ import (
 
 const (
 	lockSchemaVersion  = 1
-	stageSchemaVersion = 2
+	stageSchemaVersion = 3
+	dockerfileMarker   = "__ROOTFS_ARCHIVE__"
 	corpusID           = "public-sample-v1"
 	expectedDocuments  = 24
 	expectedSources    = 3
@@ -100,6 +101,7 @@ type stageManifest struct {
 	IndexDigest     string           `json:"index_digest"`
 	BinaryDigest    string           `json:"binary_digest"`
 	RootFSDigest    string           `json:"rootfs_digest,omitempty"`
+	RootFSArchive   string           `json:"rootfs_archive,omitempty"`
 	DocumentCount   int              `json:"document_count"`
 	SourceCount     int              `json:"source_count"`
 	Documents       []lockedDocument `json:"documents"`
@@ -111,6 +113,7 @@ type commandResult struct {
 	CorpusDigest   string `json:"corpus_digest"`
 	IndexDigest    string `json:"index_digest"`
 	RootFSDigest   string `json:"rootfs_digest,omitempty"`
+	RootFSArchive  string `json:"rootfs_archive,omitempty"`
 	DocumentCount  int    `json:"document_count"`
 	SourceCount    int    `json:"source_count"`
 	BuildContext   string `json:"build_context,omitempty"`
@@ -194,6 +197,7 @@ func run(corpusRoot, sourceList, lockPath string, writeLock bool, buildContext, 
 		result.BuildContext = buildContext
 		result.IndexDigest = manifest.IndexDigest
 		result.RootFSDigest = manifest.RootFSDigest
+		result.RootFSArchive = manifest.RootFSArchive
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
@@ -517,9 +521,6 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 	if err := copyFile(binaryPath, filepath.Join(buildContext, "docs-puller"), 0o555); err != nil {
 		return stageManifest{}, fmt.Errorf("stage docs-puller binary: %w", err)
 	}
-	if err := copyFile(dockerfilePath, filepath.Join(buildContext, "Dockerfile"), 0o444); err != nil {
-		return stageManifest{}, fmt.Errorf("stage Dockerfile: %w", err)
-	}
 	binaryDigest, _, err := regularFileDigest(binaryPath)
 	if err != nil {
 		return stageManifest{}, err
@@ -539,7 +540,7 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 	if err := writeJSONAtomic(filepath.Join(corpusOut, "demo-manifest.json"), manifest, 0o444); err != nil {
 		return stageManifest{}, err
 	}
-	rootfsPath := filepath.Join(buildContext, "rootfs.tar")
+	rootfsPath := filepath.Join(buildContext, ".rootfs.pending.tar")
 	if err := createRootFSTar(rootfsPath, filepath.Join(buildContext, "docs-puller"), corpusOut, lock.RetrievedAt); err != nil {
 		return stageManifest{}, err
 	}
@@ -548,6 +549,17 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 		return stageManifest{}, fmt.Errorf("digest root filesystem archive: %w", err)
 	}
 	manifest.RootFSDigest = rootfsDigest
+	rootfsArchive, err := rootFSArchiveName(rootfsDigest)
+	if err != nil {
+		return stageManifest{}, err
+	}
+	if err := os.Rename(rootfsPath, filepath.Join(buildContext, rootfsArchive)); err != nil {
+		return stageManifest{}, fmt.Errorf("content-address root filesystem archive: %w", err)
+	}
+	manifest.RootFSArchive = rootfsArchive
+	if err := stageDockerfile(dockerfilePath, filepath.Join(buildContext, "Dockerfile"), rootfsArchive); err != nil {
+		return stageManifest{}, err
+	}
 	if err := os.RemoveAll(corpusOut); err != nil {
 		return stageManifest{}, fmt.Errorf("remove loose corpus from build context: %w", err)
 	}
@@ -561,6 +573,46 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 		return stageManifest{}, err
 	}
 	return manifest, nil
+}
+
+func rootFSArchiveName(digest string) (string, error) {
+	const prefix = "sha256:"
+	hexDigest := strings.TrimPrefix(digest, prefix)
+	if !strings.HasPrefix(digest, prefix) || len(hexDigest) != sha256.Size*2 {
+		return "", fmt.Errorf("invalid root filesystem digest %q", digest)
+	}
+	if _, err := hex.DecodeString(hexDigest); err != nil {
+		return "", fmt.Errorf("invalid root filesystem digest %q: %w", digest, err)
+	}
+	return "rootfs-" + hexDigest + ".tar", nil
+}
+
+func stageDockerfile(templatePath, destination, rootfsArchive string) error {
+	if filepath.Base(rootfsArchive) != rootfsArchive || strings.ContainsAny(rootfsArchive, `/\\`) {
+		return fmt.Errorf("invalid root filesystem archive name %q", rootfsArchive)
+	}
+	info, err := os.Lstat(templatePath)
+	if err != nil {
+		return fmt.Errorf("inspect Dockerfile template: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("Dockerfile template is not a regular file")
+	}
+	if info.Size() > 64<<10 {
+		return fmt.Errorf("Dockerfile template is larger than 64 KiB")
+	}
+	template, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("read Dockerfile template: %w", err)
+	}
+	if bytes.Count(template, []byte(dockerfileMarker)) != 1 {
+		return fmt.Errorf("Dockerfile template must contain exactly one %s marker", dockerfileMarker)
+	}
+	staged := bytes.Replace(template, []byte(dockerfileMarker), []byte(rootfsArchive), 1)
+	if err := writeFileExclusive(destination, staged, 0o444); err != nil {
+		return fmt.Errorf("stage Dockerfile: %w", err)
+	}
+	return nil
 }
 
 type rootFSEntry struct {
@@ -927,6 +979,32 @@ func copyFile(source, destination string, mode fs.FileMode) (returnErr error) {
 		return closeErr
 	}
 	return os.Chmod(destination, mode)
+}
+
+func writeFileExclusive(path string, data []byte, mode fs.FileMode) (returnErr error) {
+	output, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	closed := false
+	defer func() {
+		if !closed {
+			if closeErr := output.Close(); closeErr != nil {
+				returnErr = errors.Join(returnErr, closeErr)
+			}
+		}
+	}()
+	if _, err := output.Write(data); err != nil {
+		return err
+	}
+	if err := output.Sync(); err != nil {
+		return err
+	}
+	if err := output.Close(); err != nil {
+		return err
+	}
+	closed = true
+	return os.Chmod(path, mode)
 }
 
 func writeJSONAtomic(path string, value any, mode fs.FileMode) (returnErr error) {

@@ -36,7 +36,9 @@ not weaken the open-core boundary in [`OPEN-CORE.md`](../../OPEN-CORE.md).
   contracts.
 
 The generated `deploy/demo/.build` directory is ignored. It contains only a
-deterministic `rootfs.tar`, a Dockerfile, and a build manifest. The builder
+deterministic content-addressed `rootfs-<sha256>.tar`, a Dockerfile that names
+that exact archive, and a build manifest. The changing archive name prevents a
+stale BuildKit local-source snapshot when a same-size binary changes. The builder
 refuses any other output path.
 
 ## Local verification

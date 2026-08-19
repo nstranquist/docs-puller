@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -282,7 +283,7 @@ func TestStageBuildContextCopiesOnlyReviewedFiles(t *testing.T) {
 	binaryPath := filepath.Join(root, "docs-puller-linux-amd64")
 	dockerfilePath := filepath.Join(root, "Dockerfile")
 	mustWriteFile(t, binaryPath, []byte("binary"), 0o755)
-	mustWriteFile(t, dockerfilePath, []byte("FROM scratch\n"), 0o644)
+	mustWriteFile(t, dockerfilePath, []byte("FROM scratch\nADD __ROOTFS_ARCHIVE__ /\n"), 0o644)
 	buildContext := filepath.Join(root, "deploy", "demo", ".build")
 	t.Cleanup(func() {
 		_ = makeDirectoriesWritableForRemoval(buildContext)
@@ -299,7 +300,14 @@ func TestStageBuildContextCopiesOnlyReviewedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	names := readTarNames(t, filepath.Join(buildContext, "rootfs.tar"), wantTime)
+	wantArchive, err := rootFSArchiveName(manifest.RootFSDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.RootFSArchive != wantArchive {
+		t.Fatalf("root filesystem archive = %q, want %q", manifest.RootFSArchive, wantArchive)
+	}
+	names := readTarNames(t, filepath.Join(buildContext, manifest.RootFSArchive), wantTime)
 	if !names["usr/local/bin/docs-puller"] || !names["app/docs/go/ref/spec.md"] {
 		t.Fatalf("root filesystem entries = %#v", names)
 	}
@@ -316,12 +324,32 @@ func TestStageBuildContextCopiesOnlyReviewedFiles(t *testing.T) {
 	if !info.ModTime().Equal(wantTime) {
 		t.Fatalf("normalized mtime = %s, want %s", info.ModTime(), wantTime)
 	}
+	dockerfile, err := os.ReadFile(filepath.Join(buildContext, "Dockerfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(dockerfile, []byte(dockerfileMarker)) || !bytes.Contains(dockerfile, []byte("ADD "+manifest.RootFSArchive+" /")) {
+		t.Fatalf("staged Dockerfile does not bind the content-addressed archive:\n%s", dockerfile)
+	}
 	second, err := stageBuildContext(lock, corpusRoot, buildContext, binaryPath, dockerfilePath, "sha256:index")
 	if err != nil {
 		t.Fatalf("replace immutable build context: %v", err)
 	}
 	if second.RootFSDigest != manifest.RootFSDigest {
 		t.Fatalf("root filesystem digest changed: %s != %s", second.RootFSDigest, manifest.RootFSDigest)
+	}
+	if second.RootFSArchive != manifest.RootFSArchive {
+		t.Fatalf("root filesystem archive changed: %s != %s", second.RootFSArchive, manifest.RootFSArchive)
+	}
+	if err := os.WriteFile(binaryPath, []byte("BINARY"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	third, err := stageBuildContext(lock, corpusRoot, buildContext, binaryPath, dockerfilePath, "sha256:index")
+	if err != nil {
+		t.Fatalf("stage changed same-size binary: %v", err)
+	}
+	if third.RootFSArchive == manifest.RootFSArchive {
+		t.Fatalf("same-size binary change reused archive %s", third.RootFSArchive)
 	}
 }
 

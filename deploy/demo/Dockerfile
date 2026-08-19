@@ -6,7 +6,9 @@ LABEL org.opencontainers.image.title="docs-puller public demo origin" \
       org.opencontainers.image.source="https://github.com/nstranquist/docs-puller" \
       org.opencontainers.image.licenses="Apache-2.0"
 
-ADD rootfs.tar /
+# corpus-builder replaces this marker with the full content-addressed archive
+# name. A changing filename prevents stale local-source snapshots.
+ADD __ROOTFS_ARCHIVE__ /
 
 USER 65532:65532
 WORKDIR /app

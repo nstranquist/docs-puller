@@ -131,7 +131,7 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            deploy/demo/.build/rootfs.tar
+            deploy/demo/.build/rootfs-*.tar
             deploy/demo/.build/build-manifest.json
             demo-origin.spdx.json
       - name: Deploy bearer-authenticated Fly origin
