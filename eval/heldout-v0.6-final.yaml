@@ -1,0 +1,185 @@
+# Final independent retrieval audit for docs-puller v0.6.
+#
+# These 35 privacy-safe questions cover public documentation concepts that do
+# not occur in the earlier v0.6 tuning corpora. Every query uses an explicit
+# source, which is the contract for the source-scoped semantic lexical tier.
+# This file was committed before its first ranked evaluation. The first result
+# is immutable release evidence; do not tune v0.6 against this fixture.
+
+query_type: privacy_safe_final_independent_holdout_v4
+
+queries:
+  - q: fetch all emoji reactions attached to a Slack message
+    source: slack
+    expect:
+      - slack/reference/methods/reactions.get.md
+
+  - q: choose and use authentication tokens for a Slack application
+    source: slack
+    expect:
+      - slack/authentication/tokens.md
+
+  - q: declare Slack application configuration in an app manifest
+    source: slack
+    expect:
+      - slack/app-manifests.md
+
+  - q: understand and manage event usage quotas in Sentry
+    source: sentry
+    expect:
+      - sentry/pricing/quotas.md.md
+
+  - q: create and update cron monitors through the Sentry API
+    source: sentry
+    expect:
+      - sentry/api/crons.md.md
+
+  - q: upload mobile build information through the Sentry API
+    source: sentry
+    expect:
+      - sentry/api/mobile-builds.md.md
+
+  - q: update complex React component state with a reducer
+    source: react
+    expect:
+      - react/reference/react/useReducer.md
+
+  - q: skip rerendering a React component when its props have not changed
+    source: react
+    expect:
+      - react/reference/react/memo.md
+
+  - q: expose a DOM node reference from a React component
+    source: react
+    expect:
+      - react/reference/react/forwardRef.md
+
+  - q: show an optimistic React interface while an action is pending
+    source: react
+    expect:
+      - react/reference/react/useOptimistic.md
+
+  - q: add outer spacing around an element with Tailwind margin utilities
+    source: tailwindcss
+    expect:
+      - tailwindcss/margin.md
+
+  - q: set responsive text sizes with Tailwind font size utilities
+    source: tailwindcss
+    expect:
+      - tailwindcss/font-size.md
+
+  - q: arrange flex children in a row or column with Tailwind
+    source: tailwindcss
+    expect:
+      - tailwindcss/flex-direction.md
+
+  - q: apply a box shadow to an element with Tailwind
+    source: tailwindcss
+    expect:
+      - tailwindcss/box-shadow.md
+
+  - q: read set and delete HTTP cookies in a Hono application
+    source: hono
+    expect:
+      - hono/helpers/cookie.md
+
+  - q: proxy an incoming Hono request to an upstream server
+    source: hono
+    expect:
+      - hono/helpers/proxy.md
+
+  - q: test a Hono route handler without starting a network server
+    source: hono
+    expect:
+      - hono/helpers/testing.md
+
+  - q: generate escaped HTML content with Hono helpers
+    source: hono
+    expect:
+      - hono/helpers/html.md
+
+  - q: build an agent that interacts with Linear workspaces
+    source: linear
+    expect:
+      - linear/agents.md
+
+  - q: filter Linear issues projects and views
+    source: linear
+    expect:
+      - linear/filtering.md
+
+  - q: create and manage customer records in Linear
+    source: linear
+    expect:
+      - linear/managing-customers.md
+
+  - q: handle failures returned by the Linear SDK
+    source: linear
+    expect:
+      - linear/sdk-errors.md
+
+  - q: let Expo manage application signing credentials
+    source: expo
+    expect:
+      - expo/app-signing/managed-credentials.md
+
+  - q: distribute an internal Expo build to testers
+    source: expo
+    expect:
+      - expo/build/internal-distribution.md
+
+  - q: run Expo EAS builds from a continuous integration system
+    source: expo
+    expect:
+      - expo/build/building-on-ci.md
+
+  - q: roll back a broken over the air update in Expo
+    source: expo
+    expect:
+      - expo/eas-update/rollbacks.md
+
+  - q: create preview database branches for Supabase development
+    source: supabase
+    expect:
+      - supabase/guides/deployment/branching.md
+
+  - q: send an HTTP webhook when a Supabase database row changes
+    source: supabase
+    expect:
+      - supabase/guides/database/webhooks.md
+
+  - q: configure email and password sign in for Supabase users
+    source: supabase
+    expect:
+      - supabase/guides/auth/passwords.md
+
+  - q: give Claude an additional reasoning token budget with extended thinking
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/extended-thinking.md
+
+  - q: stream tool call arguments as Claude generates them
+    source: anthropic
+    expect:
+      - anthropic/agents-and-tools/tool-use/fine-grained-tool-streaming.md
+
+  - q: handle end turn and maximum token stop reasons from Claude
+    source: anthropic
+    expect:
+      - anthropic/build-with-claude/handling-stop-reasons.md
+
+  - q: save payment details now for a future Stripe charge
+    source: stripe
+    expect:
+      - stripe/payments/setup-intents.md
+
+  - q: verify a Stripe PaymentIntent status after a redirect
+    source: stripe
+    expect:
+      - stripe/payments/payment-intents/verifying-status.md
+
+  - q: compare the index types available in PostgreSQL
+    source: postgresql
+    expect:
+      - postgresql/docs/current/indexes-types.md
