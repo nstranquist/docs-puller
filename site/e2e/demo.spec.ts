@@ -37,6 +37,16 @@ test("searches, previews a document, and keeps the primary journey accessible", 
     dialog.getByRole("heading", { name: "SQLite FTS5 Extension", exact: true })
   ).toBeVisible()
   await expect(dialog.locator("pre")).toContainText("External content tables")
+  const preview = dialog.getByRole("region", {
+    name: "Document preview content",
+  })
+  await expect(preview).toHaveAttribute("tabindex", "0")
+  await preview.focus()
+  await expect(preview).toBeFocused()
+  await page.keyboard.press("End")
+  await expect
+    .poll(() => preview.evaluate((node) => node.scrollTop))
+    .toBeGreaterThan(0)
   await expect(dialog.locator('[data-slot="dialog-footer"]')).toBeInViewport()
   await expect(
     dialog.getByRole("link", { name: "Open canonical source" })
@@ -324,7 +334,8 @@ async function installDemoAPI(page: Page): Promise<void> {
             url: "https://sqlite.org/fts5.html",
             content_type: "text/markdown",
             content:
-              "# SQLite FTS5 Extension\n\n## External content tables\n\nThe index refers to content in another table.",
+              "# SQLite FTS5 Extension\n\n## External content tables\n\n" +
+              "The index refers to content in another table.\n\n".repeat(80),
             bytes: 100,
             total_bytes: 165924,
             truncated: true,
