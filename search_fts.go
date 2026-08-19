@@ -65,13 +65,14 @@ const (
 // hub pages with short titles aren't buried by BM25 length norm. Used by
 // both `search` and the helper `runTier`.
 type cand struct {
-	hit         searchHit
-	body        string
-	fromTitle   bool
-	fromPath    bool
-	fromRelaxed bool
-	exactTitle  bool
-	tieBreak    int
+	hit             searchHit
+	body            string
+	fromTitle       bool
+	fromPath        bool
+	fromRelaxed     bool
+	relaxedBodyRank int
+	exactTitle      bool
+	tieBreak        int
 }
 
 func ftsDBPath(out string) string {
@@ -1063,7 +1064,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	titleLimit := limit*2 + 5
 	if titleQ != "" {
-		if err := f.runTier(candByPath, titleSQL, titleSQLNoBody, titleQ, titleSourceFilter, titleLimit, true, false, false, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, titleSQL, titleSQLNoBody, titleQ, titleSourceFilter, titleLimit, true, false, false, false, includeSnippets); err != nil {
 			return nil, err
 		}
 	}
@@ -1099,7 +1100,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	pathLimit := limit*8 + 30
 	if pathQ != "" {
-		if err := f.runTier(candByPath, pathSQL, pathSQLNoBody, pathQ, pathSourceFilter, pathLimit, false, true, false, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, pathSQL, pathSQLNoBody, pathQ, pathSourceFilter, pathLimit, false, true, false, false, includeSnippets); err != nil {
 			return nil, err
 		}
 	}
@@ -1113,7 +1114,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	                 FROM docs WHERE docs MATCH ?`
 	const bodySQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 1) AS rank
 	                       FROM docs WHERE docs MATCH ?`
-	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, includeSnippets); err != nil {
+	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, false, includeSnippets); err != nil {
 		return nil, err
 	}
 
@@ -1136,8 +1137,23 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			relaxedLimit := limit*10 + 25
 			for _, sourceFilter := range ftsRelaxedSourceFilters(query, source, relaxedSource) {
 				scopedQ := ftsScopeRelaxedQuery(relaxedQ, sourceFilter)
-				if err := f.runTier(candByPath, relaxedSQL, relaxedSQLNoBody, scopedQ, sourceFilter, relaxedLimit, false, false, true, includeSnippets); err != nil {
+				if err := f.runTier(candByPath, relaxedSQL, relaxedSQLNoBody, scopedQ, sourceFilter, relaxedLimit, false, false, true, false, includeSnippets); err != nil {
 					return nil, err
+				}
+				// The surface tier cannot recover concept-to-identifier cases such
+				// as "cache an expensive calculation" -> React useMemo. Within a
+				// known source, a second OR pass over body text supplies that
+				// semantic lexical evidence without the cost/noise of a corpus-wide
+				// OR scan. Require an explicit --source: inferred vendor words can
+				// be incidental context ("rows in postgres" may still ask for a
+				// Supabase guide). Its rank is fused later instead of comparing raw
+				// BM25 magnitudes from different query expressions.
+				if source != "" && sourceFilter != "" {
+					bodyRelaxedQ := strings.Replace(relaxedQ, "{title path_tokens}", "{title path_tokens body}", 1)
+					scopedBodyQ := ftsScopeRelaxedQuery(bodyRelaxedQ, sourceFilter)
+					if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, includeSnippets); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -1339,6 +1355,26 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		}
 		cands = append(cands, c)
 	}
+	// Fuse the source-scoped relaxed-body rank against the strongest adjusted
+	// lexical score. Raw BM25 values from strict AND and relaxed OR expressions
+	// are not directly comparable; reciprocal rank normalized to the current
+	// score range is. The body-rank leader gets one max-score share, rank two
+	// gets half, and so on. Existing title/path/basename evidence remains in the
+	// base score, so this is a fusion rather than a replacement ranking.
+	preFusionMax := 0
+	for _, c := range cands {
+		if c.hit.Score > preFusionMax {
+			preFusionMax = c.hit.Score
+		}
+	}
+	if preFusionMax > 0 {
+		for _, c := range cands {
+			if c.relaxedBodyRank > 0 {
+				c.hit.Score += preFusionMax / c.relaxedBodyRank
+			}
+		}
+	}
+
 	// Exact-title matching is a ranking invariant, not a fixed-score guess.
 	// BM25 magnitudes grow with corpus shape and can exceed any empirically
 	// tuned constant (the Blender corpus exposed raw scores above 500). Lift
@@ -1388,7 +1424,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 // expression are logged and ignored — the body tier alone still gives a
 // usable result, which is the right degradation for a Tier-1 search-quality
 // optimization (no full-search outage if SQL syntax is off).
-func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutBody, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed bool, includeBody bool) error {
+func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutBody, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed, fromRelaxedBody bool, includeBody bool) error {
 	ctx := context.Background()
 	sqlBase := sqlWithBody
 	if !includeBody {
@@ -1416,7 +1452,9 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		return err
 	}
 	defer rows.Close()
+	rowRank := 0
 	for rows.Next() {
+		rowRank++
 		var (
 			h    searchHit
 			body string
@@ -1447,10 +1485,17 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 			if fromRelaxed {
 				existing.fromRelaxed = true
 			}
+			if fromRelaxedBody && (existing.relaxedBodyRank == 0 || rowRank < existing.relaxedBodyRank) {
+				existing.relaxedBodyRank = rowRank
+			}
 			continue
 		}
 		h.Score = bm25Score
-		candByPath[h.Path] = &cand{hit: h, body: body, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed}
+		bodyRank := 0
+		if fromRelaxedBody {
+			bodyRank = rowRank
+		}
+		candByPath[h.Path] = &cand{hit: h, body: body, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
 	}
 	return rows.Err()
 }

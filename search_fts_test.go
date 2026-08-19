@@ -151,6 +151,42 @@ func TestFTSScopeRelaxedQuery(t *testing.T) {
 	}
 }
 
+func TestFTSRelaxedBodyTierRecoversConceptNamedAPI(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "react")
+	writeFTSDoc(t, src, "reference/react/useMemo.md",
+		"# useMemo\n\nCache the result of an expensive calculation between re-renders.\n")
+	writeFTSDoc(t, src, "reference/react/useDebugValue.md",
+		"# useDebugValue\n\nDisplay a readable value in React developer tools on every render.\n")
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := idx.searchWithOptions(
+		"avoid recalculating an expensive React value on every render",
+		"react", 2, false, nil, false, false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, hit := range hits {
+		if strings.HasSuffix(hit.Path, "useMemo.md") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("relaxed body hits = %+v, want useMemo in candidate window", hits)
+	}
+}
+
 func TestFTSBuildTitleQueryDropsStopWordsBeforeSourceStrip(t *testing.T) {
 	got, src := ftsBuildTitleQuery("how do I upload files to Supabase storage", false)
 	if src != "supabase" {

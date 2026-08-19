@@ -2,8 +2,9 @@
 #
 # These public-documentation questions cover concepts and sources that are not
 # in the two v0.6 tuning corpora. No raw telemetry text is present. This file
-# was committed before its first ranked evaluation. The first run is the final
-# v0.6 generalization claim and must remain immutable evidence.
+# was committed before its first ranked evaluation. That run scored 82.9%
+# Hit@5 and remains immutable evidence. This fixture is now diagnostic, not the
+# final v0.6 generalization claim.
 
 query_type: privacy_safe_independent_holdout_v3
 
