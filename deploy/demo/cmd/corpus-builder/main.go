@@ -495,10 +495,10 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 		if err := os.MkdirAll(filepath.Join(corpusOut, source), 0o755); err != nil {
 			return stageManifest{}, err
 		}
-		if err := copyFile(
-			filepath.Join(corpusRoot, source, "manifest.json"),
+		if err := writeCanonicalSourceManifest(
 			filepath.Join(corpusOut, source, "manifest.json"),
-			0o444,
+			lock,
+			source,
 		); err != nil {
 			return stageManifest{}, err
 		}
@@ -574,6 +574,40 @@ func stageBuildContext(lock corpusLock, corpusRoot, buildContext, binaryPath, do
 		return stageManifest{}, err
 	}
 	return manifest, nil
+}
+
+// writeCanonicalSourceManifest removes pull-time metadata from the immutable
+// runtime. Every retained field is derived from the reviewed corpus lock. The
+// snapshot timestamp is intentionally shared by all entries so two clean pulls
+// of unchanged documents produce the same root filesystem archive.
+func writeCanonicalSourceManifest(destination string, lock corpusLock, source string) error {
+	manifest := sourceManifest{
+		Version: 1,
+		Entries: make(map[string]sourceEntry),
+	}
+	for _, document := range lock.Documents {
+		if document.Source != source {
+			continue
+		}
+		if _, exists := manifest.Entries[document.URL]; exists {
+			return fmt.Errorf("canonical source manifest contains duplicate URL %s", document.URL)
+		}
+		manifest.Entries[document.URL] = sourceEntry{
+			URL:       document.URL,
+			Source:    document.Source,
+			Path:      document.Path,
+			Mode:      "http",
+			SHA256:    strings.TrimPrefix(document.SHA256, "sha256:"),
+			FetchedAt: lock.RetrievedAt,
+		}
+	}
+	if len(manifest.Entries) == 0 {
+		return fmt.Errorf("canonical source manifest has no documents for %s", source)
+	}
+	if err := writeJSONAtomic(destination, manifest, 0o444); err != nil {
+		return fmt.Errorf("write canonical source manifest for %s: %w", source, err)
+	}
+	return nil
 }
 
 func rootFSArchiveName(digest string) (string, error) {

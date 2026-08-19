@@ -268,12 +268,12 @@ func TestStageBuildContextCopiesOnlyReviewedFiles(t *testing.T) {
 	corpusRoot := filepath.Join(root, "corpus")
 	lock := fixtureLock()
 	lock.Documents = []lockedDocument{
-		{Source: "go", Path: "go/ref/spec.md", SHA256: "sha256:1", Bytes: 2},
-		{Source: "postgresql", Path: "postgresql/sql-select.md", SHA256: "sha256:2", Bytes: 2},
-		{Source: "sqlite", Path: "sqlite/fts5.md", SHA256: "sha256:3", Bytes: 2},
+		{Source: "go", Path: "go/ref/spec.md", URL: "https://go.dev/ref/spec", License: allowedSources["go"].License, SHA256: "sha256:" + strings.Repeat("1", 64), Bytes: 2},
+		{Source: "postgresql", Path: "postgresql/sql-select.md", URL: "https://www.postgresql.org/docs/current/sql-select.html", License: allowedSources["postgresql"].License, SHA256: "sha256:" + strings.Repeat("2", 64), Bytes: 2},
+		{Source: "sqlite", Path: "sqlite/fts5.md", URL: "https://sqlite.org/fts5.html", License: allowedSources["sqlite"].License, SHA256: "sha256:" + strings.Repeat("3", 64), Bytes: 2},
 	}
 	for _, source := range sortedSourceIDs() {
-		mustWriteFile(t, filepath.Join(corpusRoot, source, "manifest.json"), []byte("{}\n"), 0o644)
+		mustWriteFile(t, filepath.Join(corpusRoot, source, "manifest.json"), []byte(`{"version":1,"entries":{"dynamic":{"fetched_at":"first-pull"}}}`+"\n"), 0o644)
 	}
 	for _, document := range lock.Documents {
 		mustWriteFile(t, filepath.Join(corpusRoot, document.Path), []byte("ok"), 0o644)
@@ -330,6 +330,9 @@ func TestStageBuildContextCopiesOnlyReviewedFiles(t *testing.T) {
 	}
 	if bytes.Contains(dockerfile, []byte(dockerfileMarker)) || !bytes.Contains(dockerfile, []byte("ADD "+manifest.RootFSArchive+" /")) {
 		t.Fatalf("staged Dockerfile does not bind the content-addressed archive:\n%s", dockerfile)
+	}
+	for _, source := range sortedSourceIDs() {
+		mustWriteFile(t, filepath.Join(corpusRoot, source, "manifest.json"), []byte(`{"version":1,"entries":{"dynamic":{"fetched_at":"second-pull"}}}`+"\n"), 0o644)
 	}
 	second, err := stageBuildContext(lock, corpusRoot, buildContext, binaryPath, dockerfilePath, "sha256:index")
 	if err != nil {
