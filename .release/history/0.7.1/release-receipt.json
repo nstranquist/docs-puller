@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "previous_version": "0.7.0",
+  "version": "0.7.1",
+  "required_bump": "patch",
+  "tag": "v0.7.1",
+  "consumed_intents": [
+    ".release/changes/20260819T032107Z-05f89a529cdc.json",
+    ".release/changes/20260819T032107Z-7bc178904b60.json"
+  ],
+  "updated_paths": [
+    ".release/history/0.7.1/20260819T032107Z-05f89a529cdc.json",
+    ".release/history/0.7.1/20260819T032107Z-7bc178904b60.json",
+    ".release/history/0.7.1/release-receipt.json",
+    "CHANGELOG.md",
+    "VERSION"
+  ],
+  "input_sha256": "ade4513c184939b204442be4cdfc02f06767bba6946de2de917b1fa16bf77433",
+  "output_sha256": "2faede7278e677327a40823e05ef7e0befa4e2f5f552f5e5977226cb99d87931"
+}

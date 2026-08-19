@@ -17,7 +17,7 @@ The extension is distributed as an asset with a SHA-256 checksum on the
 docs-puller GitHub release. It is not published in the VS Code Marketplace.
 
 Download `docs-puller-search-0.3.0.vsix` and `vsix-checksums.txt` from the
-v0.7.0 release. Check the checksum before installation:
+v0.7.1 release. Check the checksum before installation:
 
 ```sh
 shasum -a 256 -c vsix-checksums.txt
@@ -46,7 +46,7 @@ It refuses to send a token over non-loopback HTTP.
 
 ## Build and test from source
 
-Node.js 22 and Go 1.26 are required.
+Node.js 22 and Go 1.26.6 are required.
 
 ```sh
 npm ci

@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.7.1 — 2026-08-19
+
 ### Fixed
 
 - Build release and demo binaries with Go 1.26.6 security fixes.

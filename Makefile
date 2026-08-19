@@ -10,6 +10,7 @@
 GO_TAG_FLAGS := -tags sqlite_fts5
 STATICCHECK_VERSION ?= v0.7.0
 GOVULNCHECK_VERSION ?= v1.1.4
+FUZZ_SMOKE_BUDGET ?= 10000x
 RELEASE_VERSION ?=
 RELEASE_VERSION_ARG := $(if $(RELEASE_VERSION),--version $(RELEASE_VERSION),)
 NDEV_ROOT ?=
@@ -105,10 +106,10 @@ demo-smoke: build
 	./bin/docs-puller demo --json
 
 fuzz-smoke:
-	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzDedupeLocaleVariants$$' -fuzztime 3s .
-	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzManifestParse$$' -fuzztime 3s .
-	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzFtsBuildQuery$$' -fuzztime 3s .
-	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzConfigParse$$' -fuzztime 3s ./internal/userconfig
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzDedupeLocaleVariants$$' -fuzztime $(FUZZ_SMOKE_BUDGET) .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzManifestParse$$' -fuzztime $(FUZZ_SMOKE_BUDGET) .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzFtsBuildQuery$$' -fuzztime $(FUZZ_SMOKE_BUDGET) .
+	go test $(GO_TAG_FLAGS) -run '^$$' -fuzz '^FuzzConfigParse$$' -fuzztime $(FUZZ_SMOKE_BUDGET) ./internal/userconfig
 
 extension-check:
 	npm ci --prefix vscode-extension
