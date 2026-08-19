@@ -17,7 +17,7 @@ The extension is distributed as an asset with a SHA-256 checksum on the
 docs-puller GitHub release. It is not published in the VS Code Marketplace.
 
 Download `docs-puller-search-0.3.0.vsix` and `vsix-checksums.txt` from the
-v0.7.2 release. Check the checksum before installation:
+v0.7.3 release. Check the checksum before installation:
 
 ```sh
 shasum -a 256 -c vsix-checksums.txt
