@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "corpus_id": "public-sample-v1",
+  "retrieved_at": "2026-08-19T01:06:48Z",
+  "source_date_epoch": 1787101608,
+  "source_list_digest": "sha256:ed0459a03368c48b3d6a97e4ac2792f3dd03eadf36326c06d4d35ba084d5178a",
+  "corpus_digest": "sha256:39b337204d4a8dfe034a0fcff2f70dfbd855653cc6cb389b9514947dbea35e6e",
+  "document_count": 24,
+  "source_count": 3,
+  "documents": [
+    {
+      "source": "go",
+      "path": "go/blog/maps.md",
+      "url": "https://go.dev/blog/maps",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:21a5731cc0cc61e632218fd93f8e5aef7e8cfdcd2886bdfcff6f0e987dde0c0a",
+      "bytes": 8696
+    },
+    {
+      "source": "go",
+      "path": "go/blog/pipelines.md",
+      "url": "https://go.dev/blog/pipelines",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:2b58a5b25a7344f59bc0edaa378fe74323fd3ed91b7f7bce1fccbe487919445d",
+      "bytes": 22407
+    },
+    {
+      "source": "go",
+      "path": "go/blog/slices-intro.md",
+      "url": "https://go.dev/blog/slices-intro",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:cb6a7bcc188c273067b2b02fdda570c03f70398945c3e2d2d0016c44b10751e8",
+      "bytes": 11082
+    },
+    {
+      "source": "go",
+      "path": "go/doc/effective_go.md",
+      "url": "https://go.dev/doc/effective_go",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:2d1b67d2f6149267c96954f8892e6eef4f53e5beb6254c7605560a3377bda324",
+      "bytes": 102309
+    },
+    {
+      "source": "go",
+      "path": "go/doc/modules/managing-dependencies.md",
+      "url": "https://go.dev/doc/modules/managing-dependencies",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:c738c3941ae77e3a589e8b8e033332f2fd73cf652831ae5f6dd591365fce5ae5",
+      "bytes": 24025
+    },
+    {
+      "source": "go",
+      "path": "go/doc/tutorial/generics.md",
+      "url": "https://go.dev/doc/tutorial/generics",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:a25a9c9274c0cb372453df468669cb699e54fdf69b4ec6cb3ec233f90b9d5964",
+      "bytes": 15943
+    },
+    {
+      "source": "go",
+      "path": "go/ref/mem.md",
+      "url": "https://go.dev/ref/mem",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:9d01630b892e431f6181875f3b6704b2906339d6f63463ed1eab66d888478418",
+      "bytes": 23588
+    },
+    {
+      "source": "go",
+      "path": "go/ref/spec.md",
+      "url": "https://go.dev/ref/spec",
+      "license": "CC BY 4.0 website content, unless noted otherwise",
+      "sha256": "sha256:4b1a1bf3ac094f279becbb7a5bae12631b38901be27a399cee65eb9491b1d790",
+      "bytes": 250910
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/ddl-partitioning.md",
+      "url": "https://www.postgresql.org/docs/current/ddl-partitioning.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:9bfad8bf9d7717ce0e2f41610dc76a2662941e17b1be1aa37e67f159086d9b03",
+      "bytes": 44271
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/functions-json.md",
+      "url": "https://www.postgresql.org/docs/current/functions-json.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:d8fb69660674c046c04247d7c2fd1a5d232a7ad1757deebe2ce30057eb105e94",
+      "bytes": 81746
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/indexes-partial.md",
+      "url": "https://www.postgresql.org/docs/current/indexes-partial.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:65a539159925b31b79fbb24c60035ed29dd415c70ed676447cac5209b2ac99a3",
+      "bytes": 9807
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/indexes-types.md",
+      "url": "https://www.postgresql.org/docs/current/indexes-types.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:5f911bc89c99d7823733eb14d85413356cc7fe208a2f0bc0f12fc0b6f60db145",
+      "bytes": 7607
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/mvcc-intro.md",
+      "url": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:07a2f44f210f9f20dd154d70feac402e235db3e13083ff5cabb534cb69bd7646",
+      "bytes": 1658
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/sql-createindex.md",
+      "url": "https://www.postgresql.org/docs/current/sql-createindex.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:2fa31e743ecb63b9997872a095042b818760bc9f53a8ca7c15be0dbb0feec2f4",
+      "bytes": 27365
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/sql-select.md",
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:dd66d460afebcd5f9df887080631df6552d003edad22f08595eb641d34a7061e",
+      "bytes": 66625
+    },
+    {
+      "source": "postgresql",
+      "path": "postgresql/docs/current/wal-intro.md",
+      "url": "https://www.postgresql.org/docs/current/wal-intro.html",
+      "license": "PostgreSQL documentation is distributed under the PostgreSQL License",
+      "sha256": "sha256:43838aa086fc1a29487a227de6d867ea7e300ac00ed16e15399e82559281cab5",
+      "bytes": 2594
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/fts5.md",
+      "url": "https://sqlite.org/fts5.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:ee89dbe4a185d0350f218798b6c7bcbb5312e1f5715432156cdc28472de053a6",
+      "bytes": 165924
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/isolation.md",
+      "url": "https://sqlite.org/isolation.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:9f4c6fb195aad556fd169b7f4e539dc1cac0854b7aaa5330e9b50ffdcc545661",
+      "bytes": 13509
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/json1.md",
+      "url": "https://sqlite.org/json1.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:c5fe68fb465febbdaf0e2004883aa0696c0044caa4648b286256adbfaa04c6ba",
+      "bytes": 52491
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/lang_select.md",
+      "url": "https://sqlite.org/lang_select.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:a3a15ef2f0a0a9fd0445f2580adc3cf676efde5dec34c99aaf334a670f8f213d",
+      "bytes": 61212
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/pragma.md",
+      "url": "https://sqlite.org/pragma.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:2c638c1aaea93aa76584089ab20db43b73cd8c34cd6f07b7821428319d54813e",
+      "bytes": 99479
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/queryplanner.md",
+      "url": "https://sqlite.org/queryplanner.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:b82c8fbcfcff552119b312ab001bd9071f303e2ffa3f818989772a0eb04216c5",
+      "bytes": 28302
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/rtree.md",
+      "url": "https://sqlite.org/rtree.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:3b0b5be2629672c1f77e8a999b352516c53ff304fe810b7df0245aa3ba5e843a",
+      "bytes": 34903
+    },
+    {
+      "source": "sqlite",
+      "path": "sqlite/wal.md",
+      "url": "https://sqlite.org/wal.html",
+      "license": "SQLite documentation is in the public domain",
+      "sha256": "sha256:0b191ffd71b22ba30ee5d6b4f5733ceb9d85e89152947994e237e9f3c66dea1a",
+      "bytes": 34731
+    }
+  ]
+}

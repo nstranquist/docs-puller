@@ -1,0 +1,46 @@
+app = "docs-puller-demo-origin"
+primary_region = "ord"
+kill_signal = "SIGINT"
+kill_timeout = "5s"
+
+[build]
+
+[deploy]
+strategy = "bluegreen"
+
+[env]
+DOCS_PULLER_QUERY_LOG = "0"
+DOCS_PULLER_RUN_CONTEXT = "production"
+DOCS_PULLER_QUERY_CLIENT = "public-demo"
+
+[[services]]
+protocol = "tcp"
+internal_port = 8080
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 1
+
+[services.concurrency]
+type = "requests"
+soft_limit = 20
+hard_limit = 40
+
+[[services.ports]]
+port = 80
+handlers = ["http"]
+force_https = true
+
+[[services.ports]]
+port = 443
+handlers = ["tls", "http"]
+
+[[services.tcp_checks]]
+interval = "15s"
+timeout = "2s"
+grace_period = "5s"
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "512mb"
+cpus = 1
+persist_rootfs = "never"

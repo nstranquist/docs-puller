@@ -1,0 +1,5 @@
+.build/
+*.eval.json
+*.sbom.json
+*.scan.json
+
