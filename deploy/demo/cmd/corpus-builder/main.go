@@ -596,17 +596,17 @@ func stageDockerfile(templatePath, destination, rootfsArchive string) error {
 		return fmt.Errorf("inspect Dockerfile template: %w", err)
 	}
 	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("Dockerfile template is not a regular file")
+		return fmt.Errorf("dockerfile template is not a regular file")
 	}
 	if info.Size() > 64<<10 {
-		return fmt.Errorf("Dockerfile template is larger than 64 KiB")
+		return fmt.Errorf("dockerfile template is larger than 64 KiB")
 	}
 	template, err := os.ReadFile(templatePath)
 	if err != nil {
 		return fmt.Errorf("read Dockerfile template: %w", err)
 	}
 	if bytes.Count(template, []byte(dockerfileMarker)) != 1 {
-		return fmt.Errorf("Dockerfile template must contain exactly one %s marker", dockerfileMarker)
+		return fmt.Errorf("dockerfile template must contain exactly one %s marker", dockerfileMarker)
 	}
 	staged := bytes.Replace(template, []byte(dockerfileMarker), []byte(rootfsArchive), 1)
 	if err := writeFileExclusive(destination, staged, 0o444); err != nil {
