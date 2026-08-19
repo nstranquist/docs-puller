@@ -1,0 +1,107 @@
+name: demo production monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: docs-puller-demo-monitor
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || vars.DOCS_PULLER_DEMO_MONITOR_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify the full public path
+        id: smoke
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          go run ./deploy/demo/cmd/demo-smoke \
+            --base-url https://docs-puller-demo.darthbitcoin.workers.dev \
+            --origin-url https://docs-puller-demo-origin.fly.dev \
+            --expect-version "$(jq -r .version release/manifest.json)" \
+            --expect-corpus "$(jq -r .corpus_digest deploy/demo/corpus.lock.json)" \
+            --max-latency 5s | tee monitor-proof.json
+      - name: Upload monitor evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: demo-monitor-${{ github.run_id }}
+          path: monitor-proof.json
+          if-no-files-found: warn
+          archive: false
+          retention-days: 14
+      - name: Manage two-strike incident
+        if: always()
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9.0.0
+        env:
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+        with:
+          script: |
+            const title = "docs-puller public demo monitor is failing";
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const openIncident = issues.find((issue) => issue.title === title);
+
+            if (process.env.SMOKE_OUTCOME === "success") {
+              if (openIncident) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: openIncident.number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+              }
+              return;
+            }
+
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: "demo-monitor.yml",
+              status: "completed",
+              per_page: 20,
+            });
+            const prior = runs.find((run) => run.id !== context.runId);
+            if (!prior || prior.conclusion !== "failure" || openIncident) return;
+
+            const currentURL = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body: [
+                "The external production smoke failed twice in sequence.",
+                "",
+                `Current run: ${currentURL}`,
+                `Prior run: ${prior.html_url}`,
+                "",
+                "Use deploy/demo/OPERATIONS.md. Check public readiness, provider status, deployment identity, and telemetry before rollback.",
+                "The monitor uses one fixed synthetic query and does not record visitor query text.",
+              ].join("\n"),
+            });
+      - name: Mark the monitor run failed
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1

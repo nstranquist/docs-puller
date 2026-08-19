@@ -1,0 +1,193 @@
+name: demo production deploy
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-puller-demo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.DOCS_PULLER_DEMO_CD_ENABLED == 'true' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://docs-puller-demo.darthbitcoin.workers.dev
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      DEPLOY_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DOCS_PULLER_QUERY_LOG: '0'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          ref: ${{ env.DEPLOY_COMMIT }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.4.0
+        with:
+          node-version: '24'
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@11.15.1
+      - name: Install pinned flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 2026-08-18
+        with:
+          version: 0.4.84
+      - name: Verify source and site
+        run: |
+          test "$(git rev-parse HEAD)" = "$DEPLOY_COMMIT"
+          go mod download
+          go mod verify
+          go test -race -tags sqlite_fts5 ./...
+          pnpm --dir site install --frozen-lockfile
+          pnpm --dir site run check
+          pnpm --dir site audit --audit-level high
+          pnpm --dir site run deploy:dry-run
+          pnpm --dir site exec playwright install --with-deps chromium
+          pnpm --dir site run test:e2e
+      - name: Build immutable production inputs
+        run: |
+          mkdir -p "${RUNNER_TEMP}/demo-bin"
+          version="$(jq -r .version release/manifest.json)"
+          ldflags="-s -w -buildid= -X main.releaseIdentity=docs-puller-release:${version}@${DEPLOY_COMMIT}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false -ldflags "$ldflags" -o "${RUNNER_TEMP}/demo-bin/docs-puller-a" .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false -ldflags "$ldflags" -o "${RUNNER_TEMP}/demo-bin/docs-puller-b" .
+          cmp "${RUNNER_TEMP}/demo-bin/docs-puller-a" "${RUNNER_TEMP}/demo-bin/docs-puller-b"
+          go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false -o "${RUNNER_TEMP}/demo-bin/docs-puller-host" .
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" pull --from eval/sample-corpus/sources.md --out "${RUNNER_TEMP}/demo-corpus"
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" reindex --out "${RUNNER_TEMP}/demo-corpus"
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" status --out "${RUNNER_TEMP}/demo-corpus" --check
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" eval \
+            --fixture eval/sample-corpus/fixture.yaml \
+            --out "${RUNNER_TEMP}/demo-corpus" \
+            --json --min-hit-at-1 0.90 --min-hit-at-5 1.0 --min-mrr 0.95 --max-p99-ms 250 | tee demo-eval.json
+          go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
+            --corpus "${RUNNER_TEMP}/demo-corpus" \
+            --binary "${RUNNER_TEMP}/demo-bin/docs-puller-a" \
+            --build-context deploy/demo/.build | tee demo-build.json
+      - name: Prove the production image is reproducible
+        run: |
+          source_date_epoch="$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
+          docker buildx build --load --no-cache --platform linux/amd64 \
+            --build-arg "SOURCE_DATE_EPOCH=${source_date_epoch}" \
+            --provenance=false --sbom=false \
+            --metadata-file "${RUNNER_TEMP}/demo-image-a.json" \
+            --tag docs-puller-demo-origin:production-proof-a deploy/demo/.build
+          docker buildx build --load --no-cache --platform linux/amd64 \
+            --build-arg "SOURCE_DATE_EPOCH=${source_date_epoch}" \
+            --provenance=false --sbom=false \
+            --metadata-file "${RUNNER_TEMP}/demo-image-b.json" \
+            --tag docs-puller-demo-origin:production-proof-b deploy/demo/.build
+          manifest_a="$(jq -er '."containerimage.digest"' "${RUNNER_TEMP}/demo-image-a.json")"
+          manifest_b="$(jq -er '."containerimage.digest"' "${RUNNER_TEMP}/demo-image-b.json")"
+          layers_a="$(docker image inspect docs-puller-demo-origin:production-proof-a --format '{{json .RootFS.Layers}}')"
+          layers_b="$(docker image inspect docs-puller-demo-origin:production-proof-b --format '{{json .RootFS.Layers}}')"
+          test "$manifest_a" = "$manifest_b"
+          test "$layers_a" = "$layers_b"
+          test "$(docker image inspect docs-puller-demo-origin:production-proof-a --format '{{.Config.User}}')" = '65532:65532'
+          jq -n \
+            --arg manifest_digest "$manifest_a" \
+            --argjson rootfs_layers "$layers_a" \
+            '{ok:true, manifest_digest:$manifest_digest, rootfs_layers:$rootfs_layers, user:"65532:65532"}' \
+            > demo-image-reproducibility.json
+      - name: Scan actionable image vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: docs-puller-demo-origin:production-proof-a
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+      - name: Generate image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: docs-puller-demo-origin:production-proof-a
+          format: spdx-json
+          output-file: demo-origin.spdx.json
+          upload-artifact: false
+      - name: Attest deployment inputs
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            deploy/demo/.build/rootfs.tar
+            deploy/demo/.build/build-manifest.json
+            demo-origin.spdx.json
+      - name: Deploy bearer-authenticated Fly origin
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          source_date_epoch="$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
+          image_label="git-${DEPLOY_COMMIT:0:12}"
+          flyctl deploy deploy/demo/.build \
+            --config deploy/demo/fly.toml \
+            --remote-only \
+            --build-arg "SOURCE_DATE_EPOCH=${source_date_epoch}" \
+            --image-label "$image_label" \
+            --strategy bluegreen \
+            --wait-timeout 5m
+      - name: Deploy Cloudflare Worker and static site
+        working-directory: site
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          build_id="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          engine_version="$(jq -r .version ../release/manifest.json)"
+          corpus_digest="$(jq -r .corpus_digest ../deploy/demo/corpus.lock.json)"
+          corpus_index_digest="$(jq -r .index_digest ../deploy/demo/.build/build-manifest.json)"
+          corpus_retrieved_at="$(jq -r .retrieved_at ../deploy/demo/corpus.lock.json)"
+          pnpm exec wrangler deploy --strict \
+            --message "docs-puller demo ${DEPLOY_COMMIT}" \
+            --tag "$DEPLOY_COMMIT" \
+            --var 'PUBLIC_ORIGIN:https://docs-puller-demo.darthbitcoin.workers.dev' \
+            --var 'SIDECAR_URL:https://docs-puller-demo-origin.fly.dev' \
+            --var "BUILD_ID:${build_id}" \
+            --var "BUILD_COMMIT:${DEPLOY_COMMIT}" \
+            --var "DEPLOYED_AT:${deployed_at}" \
+            --var "ENGINE_VERSION:${engine_version}" \
+            --var "CORPUS_DIGEST:${corpus_digest}" \
+            --var "CORPUS_INDEX_DIGEST:${corpus_index_digest}" \
+            --var "CORPUS_RETRIEVED_AT:${corpus_retrieved_at}"
+      - name: Verify production from the public internet
+        run: |
+          go run ./deploy/demo/cmd/demo-smoke \
+            --base-url https://docs-puller-demo.darthbitcoin.workers.dev \
+            --origin-url https://docs-puller-demo-origin.fly.dev \
+            --expect-commit "$DEPLOY_COMMIT" \
+            --expect-version "$(jq -r .version release/manifest.json)" \
+            --expect-corpus "$(jq -r .corpus_digest deploy/demo/corpus.lock.json)" | tee production-proof.json
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: demo-production-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            demo-build.json
+            demo-eval.json
+            demo-image-reproducibility.json
+            demo-origin.spdx.json
+            deploy/demo/.build/build-manifest.json
+            production-proof.json
+          if-no-files-found: warn
