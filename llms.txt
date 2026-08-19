@@ -1,0 +1,21 @@
+# docs-puller
+
+> Local-first documentation retrieval for developers and AI agents
+
+## Product
+
+- [Home](https://github.com/nstranquist/docs-puller): Official repository and install path
+- [Public demo](https://docs-puller-demo.nstranquist.workers.dev): Reviewed snapshot. No account.
+- Install: `go install github.com/nstranquist/docs-puller@v0.7.6`
+
+## Docs
+
+- [README](https://github.com/nstranquist/docs-puller): Install, measured retrieval table, and claim boundaries
+- [Public demo](https://docs-puller-demo.nstranquist.workers.dev): No account. Reviewed 24-page snapshot. Not the full corpus.
+- [Method](https://docs-puller-demo.nstranquist.workers.dev/method): Claim boundaries for the demo
+- [User guide](https://github.com/nstranquist/docs-puller/blob/main/docs/user/README.md): Install and first-hour guides
+- [emit-llmstxt](https://github.com/nstranquist/docs-puller): Generate llms.txt from a local corpus source
+
+## Optional
+
+- [AI info](https://docs-puller-demo.nstranquist.workers.dev/ai-info.md): Structured facts and assistant guidelines
