@@ -111,6 +111,18 @@ source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
 automation can fail closed with `docs-puller version --expect v0.7.6`.
 
+## For AI assistants
+
+These files are product facts, not a ranking claim. They do not prove that
+ChatGPT, Claude, or Gemini recommend docs-puller.
+
+- [`llms.txt`](llms.txt) — curated index of the product, demo, and docs
+- [`ai-info.md`](ai-info.md) — structured description, limitations, and assistant guidelines
+
+A first measured completions probe (2026-08-19, `openai-chat`) mentioned
+docs-puller in **0 of 20** buyer prompts. Dash, Zeal, DevDocs, Context7, and
+Mintlify appeared instead. Treat that as the current visibility, not a target.
+
 ## Install
 
 Requirements: Go 1.26.6 or later.

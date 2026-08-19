@@ -233,6 +233,18 @@ describe("public demo Worker", () => {
     )
   })
 
+  it("routes machine-readable product files through ASSETS", async () => {
+    const harness = createHarness()
+    for (const path of ["/llms.txt", "/ai-info.md"]) {
+      harness.assetFetch.mockClear()
+      const response = await run(harness, path)
+      expect(response.status, path).toBe(200)
+      expect(harness.assetFetch, path).toHaveBeenCalledOnce()
+      const requested = harness.assetFetch.mock.calls[0]?.[0] as Request
+      expect(new URL(requested.url).pathname, path).toBe(path)
+    }
+  })
+
   it("allows only the exact public origin for browser API access", async () => {
     const harness = createHarness()
     const denied = await run(harness, "/api/v1/demo/meta", {
