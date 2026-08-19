@@ -666,7 +666,7 @@ function ResultCard({
                   key={`${snippet.line}:${snippet.text}`}
                   className="text-muted-foreground text-sm leading-relaxed"
                 >
-                  <span className="text-primary/75 mr-2 font-mono text-[0.61rem]">
+                  <span className="text-primary mr-2 font-mono text-[0.61rem]">
                     L{snippet.line}
                   </span>
                   <Highlight text={snippet.text} query={query} />

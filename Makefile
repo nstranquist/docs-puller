@@ -124,6 +124,8 @@ site-check:
 	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required" >&2; exit 1; }
 	pnpm --dir site install --frozen-lockfile
 	pnpm --dir site run check
+	pnpm --dir site exec playwright install chromium
+	pnpm --dir site run test:e2e
 	pnpm --dir site audit --audit-level high
 	pnpm --dir site run deploy:dry-run
 

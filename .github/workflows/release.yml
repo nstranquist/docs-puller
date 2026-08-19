@@ -57,6 +57,8 @@ jobs:
         run: |
           pnpm --dir site install --frozen-lockfile
           pnpm --dir site run check
+          pnpm --dir site exec playwright install --with-deps chromium
+          pnpm --dir site run test:e2e
           pnpm --dir site audit --audit-level high
           pnpm --dir site run deploy:dry-run
       - name: Package VS Code extension
