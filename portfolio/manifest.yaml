@@ -33,6 +33,10 @@ proof:
           statement: The CLI can pull, index, and search a local documentation corpus with SQLite FTS5.
           evidence_kind: documentation
           evidence_url: https://github.com/nstranquist/docs-puller#five-minute-smoke
+        - id: engineering-case-study
+          statement: The public case study documents the architecture, measured results, release discipline, and claim boundaries.
+          evidence_kind: documentation
+          evidence_url: https://github.com/nstranquist/docs-puller/blob/main/CASE_STUDY.md
     boundaries:
         - Optional reranking and embeddings need separately configured model providers.
         - Public source, releases, and local evaluation do not prove external adoption.
@@ -60,5 +64,9 @@ assets:
       concept: docs-retrieval
       score: 100
 case_study:
-    enabled: false
-    evidence: []
+    enabled: true
+    summary: A local-first Go retrieval system with frozen evaluations, secure serving, and reproducible release artifacts.
+    evidence:
+        - portfolio/assets/search-results.png
+        - screenshots/landing.png
+        - assets/brand/docs-puller.svg

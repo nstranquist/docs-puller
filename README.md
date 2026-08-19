@@ -40,22 +40,25 @@ Read the [install guide](docs/user/install.md), the
 The screenshot is a real local FTS5 search for `sqlite` on this machine
 (47,924 documents in the index). It is the reviewed evidence declared in
 `portfolio/manifest.yaml`. A full-page capture is in
-[screenshots/](screenshots/).
+[screenshots/](screenshots/). Read the [engineering case study](CASE_STUDY.md)
+for the problem, architecture, measured results, and claim boundaries.
 
 ## Measured Retrieval
 
-Retrieval quality is measured, checked in, and reproducible. Both numbers below
-are published with their query count, mode, and date so they can be replayed
-rather than taken on trust.
+Retrieval quality is measured and checked in. Each result includes its query
+count, mode, and measurement date. The public sample can be reproduced exactly.
+The larger results need the maintainer's local corpus mirror.
 
 | Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Reproducible by you |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
-| Full fixture suite | 258 | HyDE + hybrid + LLM rerank | 69.0% | 92.2% | 0.786 | 2026-06-09 | No — maintainer's private corpus mirror |
+| Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Fixture yes; exact corpus no |
+| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-18 | Fixture yes; exact corpus no |
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-07-03 | Yes — pinned public pages |
 
-The right-hand column is the point. The flattering number is the one you can
-check; the headline number is operator-measured on a corpus you do not have, so
-treat it as a maintainer claim until you rebuild an equivalent corpus.
+The right-hand column is the claim boundary. Treat results on the local mirror
+as maintainer measurements until you rebuild an equivalent corpus. The final
+holdout was frozen before its first scored run. Earlier holdouts were promoted
+to tuning data and are not presented as independent results.
 
 The sample corpus is the honest floor: 24 pinned public pages (SQLite, Go,
 PostgreSQL) that anyone can reproduce end-to-end in a few minutes with no API
@@ -69,22 +72,21 @@ docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus" \
   --diff eval/sample-corpus/baseline-2026-07-03.json
 ```
 
-The full suite is the harder, more representative number — 258 queries across
-identifier lookups, natural-language questions, cross-source retrieval, and
-queries promoted from real production logs, including a deliberately retained
-set of known-tricky cases the pipeline currently ranks poorly.
+The full suite contains 459 queries across identifier lookups, natural-language
+questions, cross-source retrieval, and reviewed local telemetry. It retains
+known difficult cases. The final holdout adds 35 source-scoped questions that
+were not used to tune the ranker before their first run.
 
 ```sh
-docs-puller eval-suite --rerank-llm --json
+docs-puller eval-suite --json
 docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --format json
 ```
 
-**What this does and does not claim.** These results say the retrieval pipeline
-is competitive with the trained-reranker baselines commonly used for this job,
-at lower cost and lower latency (p50 <1 ms on the sample corpus), on
-documentation-retrieval corpora. They are not a claim to novel retrieval
-research, and they are not a general-benchmark result — a domain corpus is not
-MTEB. Scoring discipline, including the multi-fixture rule that exists because a
+**What this does and does not claim.** These results measure docs-puller on
+documentation-retrieval fixtures. They do not establish superiority over a
+hosted product or trained reranker. They are not a claim to novel retrieval
+research, and they are not a general benchmark — a domain corpus is not MTEB.
+Scoring discipline, including the multi-fixture rule that exists because a
 silent regression once cost 12 points of Hit@1, is documented in
 [eval/CONTRIBUTING.md](eval/CONTRIBUTING.md).
 

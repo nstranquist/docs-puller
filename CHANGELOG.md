@@ -6,13 +6,70 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+No user-facing changes yet.
+
+## v0.6.0 — 2026-08-18
+
+### Added
+
+- Added `docs-puller demo`, an isolated three-document proof that needs no API
+  key and does not change the normal corpus.
+- Added install, first-hour, search, architecture, security, troubleshooting,
+  and uninstall guides for the complete local CLI adopter journey.
+- Added native Markdown mirroring for Unity documentation.
+- Added a secure VS Code search client and a deterministic v0.3.0 VSIX package.
+- Added a public engineering case study and a typed product passport.
+- Added final frozen holdout, PostHog, and Unity retrieval fixtures.
+
 ### Changed
 
+- Natural-language search now adds a source-scoped lexical recall tier and
+  reciprocal-rank fusion. Boilerplate-only variant selectors do not receive
+  semantic body credit.
+- The 151-query main BM25 regression set changed from 83.44% to 84.11% Hit@1,
+  from 99.34% to 100% Hit@5, and from 0.8945 to 0.9000 MRR on the refreshed
+  maintainer corpus.
+- The final 35-query frozen holdout changed from 42.86% to 45.71% Hit@1 while
+  keeping 94.29% Hit@5; MRR changed from 0.6545 to 0.6736.
 - The `docs-puller serve` search page now has a landing state with corpus
-  counts, cleaner result cards, markdown-stripped snippets, and a dark/light
+  counts, cleaner result cards, Markdown-stripped snippets, and a dark/light
   toggle. Filesystem roots are not shown on the page.
 - Point README images at `raw.githubusercontent.com`. GitHub currently
   rewrites relative image paths to `/raw/main/...` URLs that return 404.
+
+### Fixed
+
+- Restored Firecrawl PDF routing and hardened provider URL and credential
+  handling.
+- Search index updates now repair missing FTS path entries during ingestion.
+- Refreshed direct Go dependencies and removed the known vulnerability finding.
+
+### Security
+
+- An unspecified or wildcard HTTP bind now requires authentication. Loopback
+  use keeps the local-first default.
+- Added fuzz coverage for manifest parsing, configuration parsing, query
+  construction, and locale-variant deduplication.
+- The VS Code client validates runtime identity, confines filesystem paths, and
+  preserves the server authentication boundary.
+
+### Release engineering
+
+- Added deterministic archives for six macOS, Linux, and Windows targets,
+  SHA-256 checksums, a CycloneDX SBOM, provenance, and reproducibility checks.
+- Added pinned GitHub Actions, secret scanning, verified artifact attestations,
+  and fail-closed release publication.
+- Added `make release-ready`, public-sample, retrieval-regression, held-out,
+  release-contract, package, and clean-clone gates.
+
+### Verification
+
+- `go test -tags sqlite_fts5 ./...`
+- `go vet -tags sqlite_fts5 ./...`
+- `make verify-public-sample`
+- `make verify-retrieval-regression`
+- `make verify-held-out`
+- `make release-ready RELEASE_VERSION=v0.6.0`
 
 ## v0.5.0 — 2026-07-22
 
