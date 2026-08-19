@@ -1646,6 +1646,20 @@ func nativeMarkdownMirrorURL(u *url.URL) (string, bool) {
 		mirror.RawPath = ""
 		return mirror.String(), true
 	}
+	if strings.EqualFold(u.Hostname(), "developers.jup.ag") &&
+		(u.Path == "/docs" || u.Path == "/docs/" || strings.HasPrefix(u.Path, "/docs/")) {
+		p := strings.ToLower(u.Path)
+		if p == "/docs/mcp" || strings.HasPrefix(p, "/docs/mcp/") {
+			return "", false
+		}
+		if strings.HasSuffix(p, ".yaml") || strings.HasSuffix(p, ".yml") {
+			return u.String(), true
+		}
+		mirror := *u
+		mirror.Path = strings.TrimSuffix(mirror.Path, "/") + ".md"
+		mirror.RawPath = ""
+		return mirror.String(), true
+	}
 	return "", false
 }
 

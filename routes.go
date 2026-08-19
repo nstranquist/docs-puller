@@ -69,6 +69,7 @@ var targetRoutes = []targetRoute{
 	simpleRoute("docs.obsidian.md", "obsidian-app-docs", relTrimmedPath),
 	simpleRoute("docs.slack.dev", "slack", relMarkdownMirror),
 	simpleRoute("docs.x.ai", "xai", relMarkdownMirror),
+	{name: "jupiter", match: routeJupiter},
 	simpleRoute("docs.langchain.com", "langchain", relMarkdownMirror),
 	simpleRoute("ai-sdk.dev", "ai-sdk", relMarkdownMirror),
 	simpleRoute("react.dev", "react", relMarkdownMirror),
@@ -355,6 +356,33 @@ func routeSQLC(u *url.URL) (string, string, bool) {
 	p = strings.TrimSuffix(p, ".html")
 	p = strings.Trim(p, "/")
 	return "sqlc", relWithIndex(p), true
+}
+
+func routeJupiter(u *url.URL) (string, string, bool) {
+	if u.Host != "developers.jup.ag" {
+		return "", "", false
+	}
+	if u.Path != "/docs" && u.Path != "/docs/" && !strings.HasPrefix(u.Path, "/docs/") {
+		return "", "", false
+	}
+	if u.Path == "/docs/mcp" || strings.HasPrefix(u.Path, "/docs/mcp/") {
+		return "", "", false
+	}
+	p := strings.TrimPrefix(u.Path, "/docs")
+	p = strings.Trim(p, "/")
+	if p == "" {
+		return "jupiter", "index.md", true
+	}
+	p = strings.TrimSuffix(p, ".md")
+	lower := strings.ToLower(p)
+	switch {
+	case strings.HasSuffix(lower, ".yaml"):
+		return "jupiter", p + ".md", true
+	case strings.HasSuffix(lower, ".yml"):
+		return "jupiter", p + ".md", true
+	default:
+		return "jupiter", relWithIndex(p), true
+	}
 }
 
 func routeLinear(u *url.URL) (string, string, bool) {

@@ -542,6 +542,10 @@ func TestNaturalLanguageSourceKeywords(t *testing.T) {
 	if !xaiSources["xai"] {
 		t.Fatalf("Grok query should infer xai source, got %v", xaiSources)
 	}
+	jupSources := sourcesFromQueryTokens(tokenizeForFTS("how do I quote a Jupiter swap on Solana"))
+	if !jupSources["jupiter"] {
+		t.Fatalf("Jupiter query should infer jupiter source, got %v", jupSources)
+	}
 	aiSDKSources := sourcesFromQueryTokens(tokenizeForFTS("how do I stream text with the Vercel AI SDK"))
 	if !aiSDKSources["ai-sdk"] {
 		t.Fatalf("AI SDK phrase should infer ai-sdk source, got %v", aiSDKSources)

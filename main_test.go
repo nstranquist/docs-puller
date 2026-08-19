@@ -159,6 +159,10 @@ func TestNativeMarkdownMirrorURL(t *testing.T) {
 		{"https://docs.unity.com/en-us/unity-cli/use-unity-cli", "https://docs.unity.com/en-us/unity-cli/use-unity-cli.md", true},
 		{"https://docs.unity.com/en-us/unity-cli/reference?version=latest", "https://docs.unity.com/en-us/unity-cli/reference.md?version=latest", true},
 		{"https://docs.unity.com/en-us/unity-cli/reference.md", "https://docs.unity.com/en-us/unity-cli/reference.md", true},
+		{"https://developers.jup.ag/docs/price", "https://developers.jup.ag/docs/price.md", true},
+		{"https://developers.jup.ag/docs/swap/index.md", "https://developers.jup.ag/docs/swap/index.md", true},
+		{"https://developers.jup.ag/docs/openapi-spec/price/v3/price.yaml", "https://developers.jup.ag/docs/openapi-spec/price/v3/price.yaml", true},
+		{"https://developers.jup.ag/docs/mcp", "", false},
 		{"https://example.com/docs/page", "", false},
 	}
 	for _, tc := range cases {
@@ -308,6 +312,18 @@ func TestResolveTarget(t *testing.T) {
 		{"https://docs.obsidian.md/Plugins/User+interface/Workspace",
 			"obsidian-app-docs", "Plugins/User+interface/Workspace.md"},
 		{"https://docs.obsidian.md/", "obsidian-app-docs", "index.md"},
+		{"https://developers.jup.ag/docs/get-started/index.md",
+			"jupiter", "get-started/index.md"},
+		{"https://developers.jup.ag/docs/swap/order-and-execute.md",
+			"jupiter", "swap/order-and-execute.md"},
+		{"https://developers.jup.ag/docs/price",
+			"jupiter", "price.md"},
+		{"https://developers.jup.ag/docs/",
+			"jupiter", "index.md"},
+		{"https://developers.jup.ag/docs/openapi-spec/swap/v2/swap.yaml",
+			"jupiter", "openapi-spec/swap/v2/swap.yaml.md"},
+		{"https://developers.jup.ag/docs/mcp", "", ""},
+		{"https://developers.jup.ag/portal", "", ""},
 		{"https://example.com/anything", "", ""},
 	}
 	for _, c := range cases {
