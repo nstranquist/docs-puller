@@ -1,16 +1,56 @@
-schema_version: 1
+schema_version: 2
 product_id: product.docs-puller
 visibility: public
 reviewed: true
+presentation:
+    summary: Local-first documentation retrieval with measurable search quality.
+    detail: Mirror documentation to Markdown, index it with SQLite FTS5, and compare deterministic or optional AI-assisted ranking from one Go CLI.
+    language: Go
+    lane: Retrieval and developer tooling
+    metric:
+        label: public BM25 sample
+        value: 95.8% Hit@1 · 100% Hit@5
+        evidence_url: https://github.com/nstranquist/docs-puller#measured-retrieval
+access:
+    profile: go-cli
+    primary_action:
+        kind: install
+        label: Install docs-puller
+        url: https://github.com/nstranquist/docs-puller#install
+    repository_url: https://github.com/nstranquist/docs-puller
+    documentation_url: https://github.com/nstranquist/docs-puller#quick-start
+    feedback_url: https://github.com/nstranquist/docs-puller/issues/new
+    module: github.com/nstranquist/docs-puller
+    binary: docs-puller
+    smoke_argv: [go, run, ., --help]
+proof:
+    claims:
+        - id: measured-retrieval
+          statement: The repository publishes deterministic retrieval evaluation results and the commands that reproduce them.
+          evidence_kind: test
+          evidence_url: https://github.com/nstranquist/docs-puller#measured-retrieval
+        - id: local-search
+          statement: The CLI can pull, index, and search a local documentation corpus with SQLite FTS5.
+          evidence_kind: documentation
+          evidence_url: https://github.com/nstranquist/docs-puller#five-minute-smoke
+    boundaries:
+        - Optional reranking and embeddings need separately configured model providers.
+        - Public source, releases, and local evaluation do not prove external adoption.
 assets:
     - path: portfolio/assets/search-results.png
       kind: screenshot
       alt: docs-puller web search showing ranked SQLite documentation results
       caption: A real local FTS5 search for sqlite across 47,924 ingested documents.
+      public: true
+      provenance: local-synthetic-fixture-capture
+      copyright_owner: Nico Stranquist
     - path: screenshots/landing.png
       kind: screenshot
       alt: docs-puller landing page with local corpus counts
       caption: Empty-state landing. Corpus counts only; no filesystem root.
+      public: true
+      provenance: local-synthetic-fixture-capture
+      copyright_owner: Nico Stranquist
     - path: assets/brand/docs-puller.svg
       kind: logo
       alt: docs-puller application icon

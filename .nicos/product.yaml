@@ -31,3 +31,4 @@ checks:
   - name: build
     command: [go, build, -o, /dev/null, .]
 description: Local-first documentation retrieval CLI — mirror docs corpora to Markdown, index with SQLite FTS5, search with optional embedding/LLM rerank, and measure quality with public evaluation suites.
+portfolio_manifest: portfolio/manifest.yaml
