@@ -14,7 +14,7 @@ import (
 
 var (
 	semverPattern    = regexp.MustCompile(`^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
-	goVersionPattern = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$`)
+	goVersionPattern = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?$`)
 	targetPattern    = regexp.MustCompile(`^[a-z0-9]+$`)
 	commitPattern    = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 )
@@ -103,7 +103,7 @@ func (m Manifest) Validate() error {
 		return fmt.Errorf("release manifest release_date %q is not YYYY-MM-DD: %w", m.ReleaseDate, err)
 	}
 	if !goVersionPattern.MatchString(m.GoVersion) {
-		return fmt.Errorf("release manifest go_version %q must be major.minor", m.GoVersion)
+		return fmt.Errorf("release manifest go_version %q must be major.minor or major.minor.patch", m.GoVersion)
 	}
 	if m.ContractVersion < 1 {
 		return fmt.Errorf("release manifest contract_version must be positive")

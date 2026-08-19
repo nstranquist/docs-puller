@@ -727,8 +727,12 @@ func verifyArtifactContract(output string, manifest releasecontract.Manifest, ar
 	return nil
 }
 
-func matchesGoVersion(actual, majorMinor string) bool {
-	return actual == "go"+majorMinor || strings.HasPrefix(actual, "go"+majorMinor+".")
+func matchesGoVersion(actual, required string) bool {
+	expected := "go" + required
+	if strings.Count(required, ".") >= 2 {
+		return actual == expected
+	}
+	return actual == expected || strings.HasPrefix(actual, expected+".")
 }
 
 func validCommit(value string) bool {

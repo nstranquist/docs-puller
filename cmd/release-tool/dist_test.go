@@ -12,6 +12,24 @@ import (
 	"github.com/nstranquist/docs-puller/internal/releasecontract"
 )
 
+func TestMatchesGoVersion(t *testing.T) {
+	tests := []struct {
+		actual   string
+		required string
+		want     bool
+	}{
+		{actual: "go1.26.6", required: "1.26", want: true},
+		{actual: "go1.26.6", required: "1.26.6", want: true},
+		{actual: "go1.26.5", required: "1.26.6", want: false},
+		{actual: "go1.27.0", required: "1.26", want: false},
+	}
+	for _, tt := range tests {
+		if got := matchesGoVersion(tt.actual, tt.required); got != tt.want {
+			t.Errorf("matchesGoVersion(%q, %q) = %v, want %v", tt.actual, tt.required, got, tt.want)
+		}
+	}
+}
+
 func TestBuildBinaryEmbedsVerifiableReleaseIdentity(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join("..", ".."))
 	output := filepath.Join(t.TempDir(), "docs-puller")

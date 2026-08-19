@@ -51,6 +51,17 @@ func TestParseAndRenderReleaseNames(t *testing.T) {
 	}
 }
 
+func TestParseAcceptsPatchLevelGoVersion(t *testing.T) {
+	body := strings.Replace(validManifestJSON(), `"go_version": "1.26"`, `"go_version": "1.26.6"`, 1)
+	manifest, err := Parse([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.GoVersion != "1.26.6" {
+		t.Fatalf("go_version = %q, want exact patch", manifest.GoVersion)
+	}
+}
+
 func TestBuildIdentityRoundTrip(t *testing.T) {
 	commit := strings.Repeat("a", 40)
 	identity := BuildIdentity("v0.6.0", commit)
@@ -79,6 +90,7 @@ func TestParseRejectsDriftProneManifestShapes(t *testing.T) {
 		"unsafe output":   strings.Replace(validManifestJSON(), `"checksums.txt"`, `"../checksums.txt"`, 1),
 		"unsafe consumer": strings.Replace(validManifestJSON(), `"nship-launch.yaml"`, `"../nship-launch.yaml"`, 1),
 		"bad date":        strings.Replace(validManifestJSON(), `"2026-08-18"`, `"2026-02-30"`, 1),
+		"bad go version":  strings.Replace(validManifestJSON(), `"go_version": "1.26"`, `"go_version": "1.26.x"`, 1),
 	}
 	for name, body := range tests {
 		t.Run(name, func(t *testing.T) {
