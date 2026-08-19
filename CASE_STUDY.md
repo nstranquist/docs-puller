@@ -82,7 +82,7 @@ does not silently weaken the server boundary.
 
 ### A release is a supply-chain artifact
 
-The v0.6.0 contract builds six macOS, Linux, and Windows archives. It also
+The v0.7.0 contract builds six macOS, Linux, and Windows archives. It also
 builds checksums, a CycloneDX SBOM, provenance, and a deterministic VS Code
 package. CI uses pinned action revisions and verifies the generated artifacts
 before it creates a GitHub release.
@@ -141,7 +141,7 @@ A new user can:
 ## Replay the public proof
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.6.0
+go install github.com/nstranquist/docs-puller@v0.7.0
 docs-puller demo --json
 
 corpus="$(mktemp -d)"
