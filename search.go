@@ -256,7 +256,7 @@ var sourceKeywords = map[string]map[string]bool{}
 // component as a separate entry only when distinctive ("claude", not "code").
 var sourceKeywordPairs = map[string][]string{
 	"microsoft-learn":   {"azure", "az"},
-	"postgresql":        {"postgresql", "postgres", "psql", "pg"},
+	"postgresql":        {"postgresql", "postgres", "psql", "pg", "jsonb"}, // JSONB operators are PostgreSQL-specific within the supported source set
 	"clickhouse":        {"clickhouse"},
 	"supabase":          {"supabase"},
 	"slack":             {"slack"},

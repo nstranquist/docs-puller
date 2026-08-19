@@ -58,4 +58,5 @@ queries:
   - q: select distinct on expression
     expect: [postgresql/docs/current/sql-select.md]
   - q: write ahead logging reduced disk writes
-    expect: [postgresql/docs/current/wal-intro.md]
+    expect: [postgresql/docs/current/wal-intro.md, sqlite/wal.md]
+    note: the query does not name a database and both pages directly explain write-ahead logging

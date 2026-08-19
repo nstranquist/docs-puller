@@ -1812,6 +1812,20 @@ func TestBlenderSourceKeywordRegistered(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLJSONBSourceKeywordRegistered(t *testing.T) {
+	srcs := sourcesFromQueryTokens(tokenizeForFTS("jsonb containment operators"))
+	if !srcs["postgresql"] {
+		t.Fatalf("jsonb query should source-boost PostgreSQL; got %+v", srcs)
+	}
+	titleQ, inferred := ftsBuildTitleQuery("jsonb containment operators", false)
+	if strings.Contains(titleQ, "jsonb") {
+		t.Fatalf("title query = %q; enforced JSONB source token should be stripped", titleQ)
+	}
+	if inferred != "postgresql" {
+		t.Fatalf("inferred source = %q, want postgresql", inferred)
+	}
+}
+
 func TestFTSSourceScopedVendorTokenDoesNotHideCanonicalPage(t *testing.T) {
 	out := t.TempDir()
 	src := filepath.Join(out, "blender")
