@@ -2,8 +2,8 @@
   "schema_version": 1,
   "component": "docs-puller",
   "summary": "Expose the public live demo in the README and typed Product Passport.",
-  "category": "Added",
-  "commit_type": "feat",
+  "category": "Fixed",
+  "commit_type": "fix",
   "bump": "patch",
   "breaking": false,
   "source": {
