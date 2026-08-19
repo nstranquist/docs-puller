@@ -1,0 +1,10 @@
+dist/
+.astro/
+.wrangler/
+.wrangler-dist/
+coverage/
+playwright-report/
+test-results/
+src/lib/api/generated.ts
+pnpm-lock.yaml
+

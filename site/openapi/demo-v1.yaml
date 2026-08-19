@@ -1,0 +1,518 @@
+openapi: 3.1.1
+info:
+  title: docs-puller public demo API
+  version: 1.0.0
+  summary: A bounded public view of the canonical docs-puller FTS5 engine.
+  description: >-
+    This API searches one reviewed public corpus. It does not expose local roots,
+    private sources, accounts, mutable state, or the token-gated origin.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: /
+    description: Same-origin public endpoint
+tags:
+  - name: Demo
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      tags: [Demo]
+      summary: Check Worker liveness without calling the origin.
+      responses:
+        "200":
+          description: The Worker is running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /readyz:
+    get:
+      operationId: getReadiness
+      tags: [Demo]
+      summary: Check the token-gated origin and corpus.
+      responses:
+        "200":
+          description: The Worker and origin are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/demo/meta:
+    get:
+      operationId: getDemoMetadata
+      tags: [Demo]
+      summary: Get the public engine, build, corpus, and limit identity.
+      responses:
+        "200":
+          description: Public demo metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/demo/sources:
+    get:
+      operationId: listDemoSources
+      tags: [Demo]
+      summary: List the closed set of reviewed public sources.
+      responses:
+        "200":
+          description: Reviewed source list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourcesResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/demo/search:
+    get:
+      operationId: searchDemo
+      tags: [Demo]
+      summary: Search the public sample with SQLite FTS5.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: A normalized Unicode query. Raw queries are not written to telemetry.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 160
+        - name: source
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SourceID"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 6
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            const: fts5
+            default: fts5
+      responses:
+        "200":
+          description: Bounded FTS5 results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+  /api/v1/demo/doc:
+    get:
+      operationId: getDemoDocument
+      tags: [Demo]
+      summary: Get one bounded reviewed document as plain Markdown.
+      parameters:
+        - name: source
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/SourceID"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 240
+            pattern: "^[A-Za-z0-9._/-]+\\.md$"
+      responses:
+        "200":
+          description: A reviewed Markdown document. Clients must render it as text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+components:
+  responses:
+    BadRequest:
+      description: The request did not match the closed public contract.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: The reviewed document does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: The bounded public request budget was exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadGateway:
+      description: The origin returned an invalid public response.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: The public demo is temporarily unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    GatewayTimeout:
+      description: The origin did not answer within four seconds.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    SourceID:
+      type: string
+      enum: [sqlite, go, postgresql]
+    Digest:
+      type: string
+      pattern: "^sha256:[a-f0-9]{64}$"
+      examples:
+        - sha256:0000000000000000000000000000000000000000000000000000000000000000
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, service, build_id]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        service:
+          type: string
+          const: docs-puller-demo
+        build_id:
+          type: string
+          minLength: 1
+          maxLength: 120
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, service, origin, corpus, checked_at]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        service:
+          type: string
+          const: docs-puller-demo
+        origin:
+          type: string
+          const: ready
+        corpus:
+          $ref: "#/components/schemas/CorpusIdentity"
+        checked_at:
+          type: string
+          format: date-time
+    EngineIdentity:
+      type: object
+      additionalProperties: false
+      required: [name, version, mode]
+      properties:
+        name:
+          type: string
+          const: docs-puller
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        mode:
+          type: string
+          const: fts5
+    CorpusIdentity:
+      type: object
+      additionalProperties: false
+      required:
+        [id, digest, index_digest, document_count, source_count, retrieved_at]
+      properties:
+        id:
+          type: string
+          const: public-sample-v1
+        digest:
+          $ref: "#/components/schemas/Digest"
+        index_digest:
+          $ref: "#/components/schemas/Digest"
+        document_count:
+          type: integer
+          const: 24
+        source_count:
+          type: integer
+          const: 3
+        retrieved_at:
+          type: string
+          format: date-time
+    MetaResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          ok,
+          schema_version,
+          service,
+          engine,
+          build_id,
+          commit,
+          deployed_at,
+          corpus,
+          limits,
+        ]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        schema_version:
+          type: integer
+          const: 1
+        service:
+          type: string
+          const: docs-puller-demo
+        engine:
+          $ref: "#/components/schemas/EngineIdentity"
+        build_id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        commit:
+          type: string
+          pattern: "^[a-f0-9]{7,64}$"
+        deployed_at:
+          type: string
+          format: date-time
+        corpus:
+          $ref: "#/components/schemas/CorpusIdentity"
+        limits:
+          type: object
+          additionalProperties: false
+          required: [query_characters, results, timeout_ms, response_bytes]
+          properties:
+            query_characters:
+              type: integer
+              const: 160
+            results:
+              type: integer
+              const: 10
+            timeout_ms:
+              type: integer
+              const: 4000
+            response_bytes:
+              type: integer
+              const: 65536
+    Source:
+      type: object
+      additionalProperties: false
+      required: [id, label, document_count, homepage, license]
+      properties:
+        id:
+          $ref: "#/components/schemas/SourceID"
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+        document_count:
+          type: integer
+          minimum: 1
+        homepage:
+          type: string
+          format: uri
+        license:
+          type: string
+          minLength: 1
+          maxLength: 120
+    SourcesResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, corpus, sources]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        corpus:
+          $ref: "#/components/schemas/CorpusIdentity"
+        sources:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/Source"
+    Snippet:
+      type: object
+      additionalProperties: false
+      required: [line, text]
+      properties:
+        line:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [title, source, path, url, score, snippets]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 240
+        source:
+          $ref: "#/components/schemas/SourceID"
+        path:
+          type: string
+          minLength: 1
+          maxLength: 240
+        url:
+          type: string
+          format: uri
+        score:
+          type: integer
+        snippets:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/Snippet"
+    SearchResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [ok, query, engine, mode, elapsed_ms, result_count, corpus, results]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        query:
+          type: string
+          minLength: 2
+          maxLength: 160
+        engine:
+          type: string
+          const: docs-puller
+        mode:
+          type: string
+          const: fts5
+        elapsed_ms:
+          type: integer
+          minimum: 0
+        result_count:
+          type: integer
+          minimum: 0
+          maximum: 10
+        corpus:
+          $ref: "#/components/schemas/CorpusIdentity"
+        results:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/SearchResult"
+    DocumentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [ok, source, path, title, url, content_type, content, bytes, corpus]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        source:
+          $ref: "#/components/schemas/SourceID"
+        path:
+          type: string
+          minLength: 1
+          maxLength: 240
+        title:
+          type: string
+          minLength: 1
+          maxLength: 240
+        url:
+          type: string
+          format: uri
+        content_type:
+          type: string
+          const: text/markdown
+        content:
+          type: string
+          maxLength: 60000
+        bytes:
+          type: integer
+          minimum: 0
+          maximum: 60000
+        corpus:
+          $ref: "#/components/schemas/CorpusIdentity"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - invalid_request
+                - not_found
+                - rate_limited
+                - origin_invalid
+                - origin_unavailable
+                - origin_timeout
+                - internal_error
+            message:
+              type: string
+              minLength: 1
+              maxLength: 240
+            request_id:
+              type: string
+              minLength: 1
+              maxLength: 120
+            retry_after_seconds:
+              type: integer
+              minimum: 1
+              maximum: 3600

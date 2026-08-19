@@ -1,0 +1,75 @@
+---
+import { SearchWorkbench } from "@/components/SearchWorkbench"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+---
+
+<BaseLayout
+  title="Live demo"
+  description="Search a reviewed 24-page public corpus with the real docs-puller Go and SQLite FTS5 engine. No account, cookie, browser token, or raw-query telemetry."
+>
+  <section class="relative overflow-hidden pt-16 pb-12 sm:pt-24 sm:pb-16">
+    <div class="page-grid pointer-events-none absolute inset-0 -z-10"></div>
+    <div class="section-wrap">
+      <div class="max-w-4xl">
+        <p class="eyebrow"><span class="signal-dot"></span> Public live demo</p>
+        <h1
+          class="font-heading mt-6 text-[clamp(2.8rem,8vw,6.2rem)] leading-[.92] font-semibold tracking-[-.06em]"
+        >
+          Ask the engine.<br /><span class="text-primary"
+            >Inspect the evidence.</span
+          >
+        </h1>
+        <p class="lede mt-7">
+          This is the real docs-puller search path: pure Go, SQLite FTS5, and a
+          reviewed public sample. It is not a browser mock or an AI answer
+          layer.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-wrap pb-8">
+    <SearchWorkbench client:load />
+  </section>
+
+  <section class="section-wrap mt-12">
+    <div
+      class="border-border/70 grid gap-6 border-y py-8 text-sm md:grid-cols-3"
+    >
+      <div>
+        <p
+          class="text-primary font-mono text-[0.65rem] font-bold tracking-[.1em] uppercase"
+        >
+          What runs
+        </p>
+        <p class="text-muted-foreground mt-3 leading-relaxed">
+          Cloudflare serves this interface and a bounded API. A dedicated Fly
+          origin runs the unmodified docs-puller server and one read-only FTS5
+          index.
+        </p>
+      </div>
+      <div>
+        <p
+          class="text-primary font-mono text-[0.65rem] font-bold tracking-[.1em] uppercase"
+        >
+          What is public
+        </p>
+        <p class="text-muted-foreground mt-3 leading-relaxed">
+          Only 24 pages from SQLite, Go, and PostgreSQL. Each page has a source
+          URL, license note, and content digest.
+        </p>
+      </div>
+      <div>
+        <p
+          class="text-primary font-mono text-[0.65rem] font-bold tracking-[.1em] uppercase"
+        >
+          What is measured
+        </p>
+        <p class="text-muted-foreground mt-3 leading-relaxed">
+          The baseline reports Hit@1, Hit@5, MRR, and engine latency.
+          Availability and requests are not presented as adoption.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["worker/**/*.ts", "src/lib/api/generated.ts"],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"],
+    "types": ["@cloudflare/workers-types"],
+    "paths": {}
+  }
+}

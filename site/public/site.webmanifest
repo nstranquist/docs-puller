@@ -1,0 +1,16 @@
+{
+  "name": "docs-puller live demo",
+  "short_name": "docs-puller",
+  "description": "Search a reviewed public documentation corpus with the real docs-puller Go and SQLite FTS5 engine.",
+  "start_url": "/demo/",
+  "display": "standalone",
+  "background_color": "#101827",
+  "theme_color": "#101827",
+  "icons": [
+    {
+      "src": "/brand.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

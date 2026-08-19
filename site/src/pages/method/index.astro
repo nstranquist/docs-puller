@@ -1,0 +1,366 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro"
+
+const metrics = [
+  ["Hit@1", "95.8%", "23 of 24 queries put a correct page first."],
+  [
+    "Hit@5",
+    "100%",
+    "Every measured query found a correct page in five results.",
+  ],
+  ["MRR", "0.979", "Correct pages appear close to the top across the fixture."],
+  ["p50", "<1 ms", "Measured engine time on the frozen local baseline."],
+]
+
+const sources = [
+  {
+    name: "SQLite",
+    pages: 8,
+    license: "Public domain documentation",
+    use: "FTS5, WAL, JSON, query planning",
+  },
+  {
+    name: "Go",
+    pages: 8,
+    license: "BSD-style documentation license",
+    use: "spec, memory model, modules, pipelines",
+  },
+  {
+    name: "PostgreSQL",
+    pages: 8,
+    license: "PostgreSQL documentation license",
+    use: "indexes, MVCC, JSONB, WAL",
+  },
+]
+---
+
+<BaseLayout
+  title="Method"
+  description="Audit the docs-puller public demo corpus, retrieval baseline, privacy boundary, architecture, and reproducible commands."
+>
+  <section class="relative overflow-hidden pt-16 pb-16 sm:pt-24 sm:pb-24">
+    <div class="page-grid pointer-events-none absolute inset-0 -z-10"></div>
+    <div class="section-wrap grid gap-10 lg:grid-cols-[1fr_18rem] lg:items-end">
+      <div>
+        <p class="eyebrow">Transparent by design</p>
+        <h1
+          class="font-heading mt-6 text-[clamp(3rem,8vw,6.5rem)] leading-[.91] font-semibold tracking-[-.062em]"
+        >
+          The method,<br /><span class="text-primary">not the mystique.</span>
+        </h1>
+        <p class="lede mt-7">
+          The public demo is small enough to audit and complete enough to prove
+          the full retrieval path.
+        </p>
+      </div>
+      <nav
+        class="border-border/70 bg-background/65 grid gap-1 rounded-xl border p-2 text-sm"
+        aria-label="Method sections"
+      >
+        <a
+          href="#architecture"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2"
+          >Architecture</a
+        >
+        <a
+          href="#corpus"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2"
+          >Corpus</a
+        >
+        <a
+          href="#baseline"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2"
+          >Baseline</a
+        >
+        <a
+          href="#privacy"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2"
+          >Privacy and limits</a
+        >
+        <a
+          href="#reproduce"
+          class="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2"
+          >Reproduce</a
+        >
+      </nav>
+    </div>
+  </section>
+
+  <section id="architecture" class="section-rule scroll-mt-24 py-20 sm:py-28">
+    <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
+      <div>
+        <p class="eyebrow">Architecture</p>
+        <h2 class="section-title mt-5">
+          One engine.<br />Two hard boundaries.
+        </h2>
+      </div>
+      <div>
+        <div
+          class="grid gap-3 font-mono text-xs sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center"
+        >
+          <div class="border-border bg-card rounded-xl border p-5">
+            <p class="text-primary">01 / BROWSER</p><p
+              class="mt-4 font-sans text-sm font-semibold"
+            >
+              Static Astro site
+            </p><p
+              class="text-muted-foreground mt-2 font-sans text-xs leading-relaxed"
+            >
+              No account, cookie, or origin secret.
+            </p>
+          </div>
+          <span class="text-muted-foreground hidden sm:block">→</span>
+          <div class="border-border bg-card rounded-xl border p-5">
+            <p class="text-primary">02 / EDGE</p><p
+              class="mt-4 font-sans text-sm font-semibold"
+            >
+              Cloudflare BFF
+            </p><p
+              class="text-muted-foreground mt-2 font-sans text-xs leading-relaxed"
+            >
+              Validates, limits, strips, and measures.
+            </p>
+          </div>
+          <span class="text-muted-foreground hidden sm:block">→</span>
+          <div
+            class="border-border rounded-xl border bg-[#101827] p-5 text-slate-100"
+          >
+            <p class="text-emerald-300">03 / ORIGIN</p><p
+              class="mt-4 font-sans text-sm font-semibold"
+            >
+              Go + SQLite FTS5
+            </p><p
+              class="mt-2 font-sans text-xs leading-relaxed text-slate-400"
+            >
+              Token-gated and read-only on Fly.
+            </p>
+          </div>
+        </div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-2">
+          <div class="bg-muted/55 rounded-xl p-5">
+            <h3 class="font-semibold">The browser can ask</h3><p
+              class="text-muted-foreground mt-2 text-sm leading-relaxed"
+            >
+              A bounded query, one reviewed source filter, and a result limit
+              from 1 to 10.
+            </p>
+          </div>
+          <div class="bg-muted/55 rounded-xl p-5">
+            <h3 class="font-semibold">The browser cannot reach</h3><p
+              class="text-muted-foreground mt-2 text-sm leading-relaxed"
+            >
+              The origin token, local roots, private corpora, arbitrary modes,
+              or mutable operations.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="corpus" class="section-rule scroll-mt-24 py-20 sm:py-28">
+    <div class="section-wrap">
+      <div class="max-w-3xl">
+        <p class="eyebrow">Corpus v1</p>
+        <h2 class="section-title mt-5">
+          24 public pages.<br />Every input named.
+        </h2>
+        <p class="text-muted-foreground mt-6 text-lg leading-relaxed">
+          The deployment accepts only the files in its signed manifest. A new
+          content digest requires review and a fresh eval.
+        </p>
+      </div>
+      <div
+        class="border-border/75 bg-card mt-12 overflow-hidden rounded-2xl border"
+      >
+        <div
+          class="border-border bg-muted/45 text-muted-foreground hidden grid-cols-[1fr_7rem_1.2fr_1.4fr] gap-5 border-b px-6 py-3 font-mono text-[0.64rem] font-semibold tracking-[.08em] uppercase sm:grid"
+        >
+          <span>Source</span><span>Pages</span><span>License note</span><span
+            >Coverage</span
+          >
+        </div>
+        {
+          sources.map((source) => (
+            <div class="border-border/70 grid gap-3 border-b px-5 py-5 last:border-0 sm:grid-cols-[1fr_7rem_1.2fr_1.4fr] sm:items-center sm:gap-5 sm:px-6">
+              <h3 class="font-semibold">{source.name}</h3>
+              <p class="text-primary font-mono text-sm">{source.pages}</p>
+              <p class="text-muted-foreground text-sm">{source.license}</p>
+              <p class="text-muted-foreground text-sm leading-relaxed">
+                {source.use}
+              </p>
+            </div>
+          ))
+        }
+      </div>
+      <p class="text-muted-foreground mt-4 text-xs leading-relaxed">
+        The source list is versioned at <a
+          href="https://github.com/nstranquist/docs-puller/blob/main/eval/sample-corpus/sources.md"
+          class="text-primary font-medium hover:underline"
+          >eval/sample-corpus/sources.md</a
+        >. Production also records each retrieved content digest and the final
+        index digest.
+      </p>
+    </div>
+  </section>
+
+  <section id="baseline" class="section-rule scroll-mt-24 py-20 sm:py-28">
+    <div class="section-wrap">
+      <div class="grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
+        <div>
+          <p class="eyebrow">Frozen baseline</p>
+          <h2 class="section-title mt-5">Claims with a replay button.</h2>
+          <p class="text-muted-foreground mt-6 leading-relaxed">
+            The public fixture contains 24 identifier-style and natural-language
+            queries. It uses BM25 only. No reranker or model call can improve
+            the score.
+          </p>
+        </div>
+        <div
+          class="border-border bg-border grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2"
+        >
+          {
+            metrics.map(([label, value, note]) => (
+              <div class="bg-card p-6 sm:p-8">
+                <p class="text-primary font-mono text-[0.65rem] font-bold tracking-[.08em] uppercase">
+                  {label}
+                </p>
+                <p class="mt-5 font-mono text-4xl font-semibold tracking-[-.06em]">
+                  {value}
+                </p>
+                <p class="text-muted-foreground mt-3 text-sm leading-relaxed">
+                  {note}
+                </p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+      <div class="mt-10 grid gap-4 sm:grid-cols-2">
+        <div class="border-primary/18 bg-primary/[.055] rounded-xl border p-5">
+          <p class="text-primary font-semibold">This proves</p><p
+            class="text-muted-foreground mt-2 text-sm leading-relaxed"
+          >
+            The exact engine and corpus can retrieve expected public pages at
+            the published floor.
+          </p>
+        </div>
+        <div class="border-border bg-muted/35 rounded-xl border p-5">
+          <p class="font-semibold">This does not prove</p><p
+            class="text-muted-foreground mt-2 text-sm leading-relaxed"
+          >
+            Human adoption, production usage, revenue, or performance on a
+            private corpus.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy" class="section-rule scroll-mt-24 py-20 sm:py-28">
+    <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
+      <div>
+        <p class="eyebrow">Privacy and limits</p>
+        <h2 class="section-title mt-5">Safe by a small surface.</h2>
+      </div>
+      <div class="grid gap-6 sm:grid-cols-2">
+        <div>
+          <h3 class="text-lg font-semibold tracking-[-.03em]">
+            No visitor state
+          </h3>
+          <ul
+            class="text-muted-foreground mt-4 space-y-3 text-sm leading-relaxed"
+          >
+            <li class="flex gap-3">
+              <span class="bg-primary mt-2 size-1 shrink-0 rounded-full"
+              ></span>No account or cookie.
+            </li>
+            <li class="flex gap-3">
+              <span class="bg-primary mt-2 size-1 shrink-0 rounded-full"
+              ></span>No browser bearer token.
+            </li>
+            <li class="flex gap-3">
+              <span class="bg-primary mt-2 size-1 shrink-0 rounded-full"
+              ></span>No raw query in application telemetry.
+            </li>
+            <li class="flex gap-3">
+              <span class="bg-primary mt-2 size-1 shrink-0 rounded-full"
+              ></span>No local or private corpus path.
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold tracking-[-.03em]">
+            Bounded requests
+          </h3>
+          <dl class="mt-4 grid grid-cols-[1fr_auto] gap-x-5 gap-y-3 text-sm">
+            <dt class="text-muted-foreground">Query</dt><dd class="font-mono">
+              2–160 chars
+            </dd>
+            <dt class="text-muted-foreground">Results</dt><dd class="font-mono">
+              1–10
+            </dd>
+            <dt class="text-muted-foreground">Origin timeout</dt><dd
+              class="font-mono"
+            >
+              4 s
+            </dd>
+            <dt class="text-muted-foreground">Response</dt><dd
+              class="font-mono"
+            >
+              64 KiB
+            </dd>
+            <dt class="text-muted-foreground">Search rate</dt><dd
+              class="font-mono"
+            >
+              30 / min
+            </dd>
+            <dt class="text-muted-foreground">Mode</dt><dd class="font-mono">
+              fts5 only
+            </dd>
+          </dl>
+        </div>
+        <div
+          class="border-border bg-muted/35 rounded-xl border p-5 sm:col-span-2"
+        >
+          <p class="text-muted-foreground text-sm leading-relaxed">
+            <strong class="text-foreground font-semibold"
+              >Rate enforcement:</strong
+            > Cloudflare uses the connecting address only to derive an ephemeral rate
+            bucket. The Worker does not write the address or its derived value to
+            logs or analytics.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="reproduce" class="section-rule scroll-mt-24 py-20 sm:py-28">
+    <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
+      <div>
+        <p class="eyebrow">Reproduce it</p>
+        <h2 class="section-title mt-5">No special access required.</h2>
+        <p class="text-muted-foreground mt-6 leading-relaxed">
+          Build the same public corpus, index it, and run the fixture with the
+          open CLI.
+        </p>
+      </div>
+      <div class="terminal-shell">
+        <div class="terminal-chrome">
+          <span>terminal</span><span>public sample replay</span>
+        </div>
+        <pre
+          class="overflow-x-auto p-5 font-mono text-[0.73rem] leading-7 text-slate-300 sm:p-7"><code><span class="text-emerald-400">$</span> git clone https://github.com/nstranquist/docs-puller
+<span class="text-emerald-400">$</span> cd docs-puller
+<span class="text-emerald-400">$</span> go build -tags sqlite_fts5 -o bin/docs-puller .
+<span class="text-emerald-400">$</span> corpus="$(mktemp -d)"
+<span class="text-emerald-400">$</span> bin/docs-puller pull \
+    --from eval/sample-corpus/sources.md --out "$corpus"
+<span class="text-emerald-400">$</span> bin/docs-puller reindex --out "$corpus"
+<span class="text-emerald-400">$</span> bin/docs-puller eval \
+    --fixture eval/sample-corpus/fixture.yaml \
+    --out "$corpus" --json</code></pre>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,44 @@
+name = "docs-puller-demo"
+main = "worker/index.ts"
+compatibility_date = "2026-08-18"
+workers_dev = true
+preview_urls = true
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/healthz", "/readyz"]
+
+[vars]
+PUBLIC_ORIGIN = "https://docs-puller-demo.darthbitcoin.workers.dev"
+SIDECAR_URL = "https://docs-puller-demo-origin.fly.dev"
+BUILD_ID = "development"
+BUILD_COMMIT = "0000000"
+DEPLOYED_AT = "2026-08-18T00:00:00.000Z"
+ENGINE_VERSION = "development"
+CORPUS_DIGEST = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+CORPUS_INDEX_DIGEST = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+CORPUS_RETRIEVED_AT = "2026-08-18T00:00:00.000Z"
+
+[[ratelimits]]
+name = "SEARCH_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[analytics_engine_datasets]]
+binding = "DEMO_ANALYTICS"
+dataset = "docs_puller_demo_events"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.05
+
+# Required secrets. Never put values in this file:
+#   wrangler secret put SIDECAR_TOKEN
+#   wrangler secret put RATE_KEY_SECRET
+

@@ -1,0 +1,193 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: "Geist Variable", system-ui, sans-serif;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(0.978 0.006 160);
+  --foreground: oklch(0.205 0.032 253);
+  --card: oklch(0.998 0.002 160);
+  --card-foreground: oklch(0.205 0.032 253);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.032 253);
+  --primary: oklch(0.55 0.145 158);
+  --primary-foreground: oklch(0.99 0.005 160);
+  --secondary: oklch(0.938 0.017 160);
+  --secondary-foreground: oklch(0.29 0.045 253);
+  --muted: oklch(0.944 0.008 160);
+  --muted-foreground: oklch(0.485 0.028 250);
+  --accent: oklch(0.91 0.086 176);
+  --accent-foreground: oklch(0.27 0.062 183);
+  --destructive: oklch(0.57 0.22 27);
+  --border: oklch(0.885 0.018 205);
+  --input: oklch(0.845 0.024 205);
+  --ring: oklch(0.55 0.145 158);
+  --radius: 0.72rem;
+  --grid-line: oklch(0.3 0.03 250 / 0.055);
+  --wash: oklch(0.87 0.09 163 / 0.18);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.16 0.03 255);
+  --foreground: oklch(0.96 0.008 175);
+  --card: oklch(0.195 0.031 254);
+  --card-foreground: oklch(0.96 0.008 175);
+  --popover: oklch(0.19 0.032 254);
+  --popover-foreground: oklch(0.96 0.008 175);
+  --primary: oklch(0.74 0.145 158);
+  --primary-foreground: oklch(0.15 0.04 245);
+  --secondary: oklch(0.245 0.033 252);
+  --secondary-foreground: oklch(0.94 0.01 175);
+  --muted: oklch(0.235 0.029 252);
+  --muted-foreground: oklch(0.72 0.025 235);
+  --accent: oklch(0.31 0.078 172);
+  --accent-foreground: oklch(0.9 0.095 167);
+  --destructive: oklch(0.69 0.19 25);
+  --border: oklch(1 0 0 / 0.12);
+  --input: oklch(1 0 0 / 0.18);
+  --ring: oklch(0.74 0.145 158);
+  --grid-line: oklch(1 0 0 / 0.045);
+  --wash: oklch(0.63 0.15 160 / 0.13);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply bg-background font-sans antialiased;
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen;
+    background-image:
+      radial-gradient(circle at 8% -10%, var(--wash), transparent 31rem),
+      radial-gradient(
+        circle at 92% 2%,
+        oklch(0.78 0.12 195 / 0.1),
+        transparent 27rem
+      );
+  }
+
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    color: var(--primary-foreground);
+    background: var(--primary);
+  }
+}
+
+@layer components {
+  .page-grid {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 72%);
+  }
+
+  .section-wrap {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12;
+  }
+
+  .section-rule {
+    @apply border-border/70 border-t;
+  }
+
+  .eyebrow {
+    @apply text-primary inline-flex items-center gap-2 font-mono text-[0.68rem] leading-none font-semibold tracking-[0.14em] uppercase;
+  }
+
+  .display-title {
+    @apply font-heading text-[clamp(2.75rem,8vw,6.75rem)] leading-[0.91] font-semibold tracking-[-0.062em];
+    text-wrap: balance;
+  }
+
+  .section-title {
+    @apply font-heading text-[clamp(2rem,5vw,4rem)] leading-[0.98] font-semibold tracking-[-0.048em];
+    text-wrap: balance;
+  }
+
+  .lede {
+    @apply text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl;
+  }
+
+  .signal-dot {
+    @apply bg-primary relative inline-flex size-2 rounded-full;
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary), transparent 86%);
+  }
+
+  .terminal-shell {
+    @apply overflow-hidden rounded-2xl border border-white/10 bg-[#101827] text-slate-100 shadow-[0_30px_90px_rgba(15,24,39,.22)];
+  }
+
+  .terminal-chrome {
+    @apply flex items-center justify-between border-b border-white/9 bg-white/4 px-4 py-3 font-mono text-[0.68rem] tracking-[0.09em] text-slate-400 uppercase;
+  }
+
+  .metric-number {
+    @apply text-foreground font-mono text-3xl font-semibold tracking-[-0.06em] sm:text-4xl;
+  }
+
+  .kbd {
+    @apply border-border bg-background text-muted-foreground inline-flex min-w-5 items-center justify-center rounded border px-1.5 py-0.5 font-mono text-[0.66rem] shadow-[0_1px_0_rgba(0,0,0,.1)];
+  }
+
+  .skip-link {
+    @apply bg-primary text-primary-foreground fixed top-3 left-3 z-[100] -translate-y-20 rounded-lg px-4 py-2 text-sm font-semibold shadow-xl transition-transform focus:translate-y-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

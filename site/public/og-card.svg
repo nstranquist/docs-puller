@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">docs-puller live demo</title>
+  <desc id="desc">Search documentation locally with Go and SQLite FTS5.</desc>
+  <defs>
+    <radialGradient id="g" cx="0" cy="0" r="1" gradientTransform="translate(972 84) rotate(145) scale(742 526)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#065F46"/>
+      <stop offset="1" stop-color="#101827"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#fff" stroke-opacity=".055"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="#101827"/>
+  <rect width="1200" height="630" rx="36" fill="url(#g)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#grid)"/>
+  <g transform="translate(72 68)">
+    <rect width="72" height="72" rx="16" fill="#0B1220"/>
+    <path d="M17 14h28l11 11v33H17Z" fill="none" stroke="#34D399" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M45 14v12h11M24 33h20M24 42h13" stroke="#2DD4BF" stroke-width="3.8" stroke-linecap="round"/>
+    <circle cx="46" cy="46" r="8" fill="#0B1220" stroke="#F8FAFC" stroke-width="3.5"/>
+    <path d="m52 52 7 7" stroke="#F8FAFC" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+  <text x="166" y="114" fill="#ECFDF5" font-family="Geist, Inter, sans-serif" font-size="34" font-weight="650">docs-puller</text>
+  <rect x="72" y="186" width="160" height="32" rx="16" fill="#34D399" fill-opacity=".13" stroke="#34D399" stroke-opacity=".32"/>
+  <circle cx="91" cy="202" r="5" fill="#34D399"/>
+  <text x="106" y="208" fill="#6EE7B7" font-family="ui-monospace, monospace" font-size="14" font-weight="700" letter-spacing="1.4">LIVE FTS5 DEMO</text>
+  <text x="72" y="315" fill="#F8FAFC" font-family="Geist, Inter, sans-serif" font-size="74" font-weight="680" letter-spacing="-4">Search the docs.</text>
+  <text x="72" y="393" fill="#F8FAFC" font-family="Geist, Inter, sans-serif" font-size="74" font-weight="680" letter-spacing="-4">Keep the context.</text>
+  <text x="76" y="468" fill="#94A3B8" font-family="Geist, Inter, sans-serif" font-size="26">Pure Go · SQLite FTS5 · local-first · Apache-2.0</text>
+  <g transform="translate(72 526)">
+    <rect width="1056" height="52" rx="13" fill="#0B1220" stroke="#fff" stroke-opacity=".1"/>
+    <text x="20" y="33" fill="#34D399" font-family="ui-monospace, monospace" font-size="17">$</text>
+    <text x="44" y="33" fill="#CBD5E1" font-family="ui-monospace, monospace" font-size="17">docs-puller search "fts5 external content tables" --json</text>
+  </g>
+</svg>
+

@@ -1,0 +1,159 @@
+---
+interface Props {
+  currentPath: string
+}
+
+const { currentPath } = Astro.props
+const links = [
+  { href: "/demo/", label: "Live demo" },
+  { href: "/method/", label: "Method" },
+  {
+    href: "https://github.com/nstranquist/docs-puller",
+    label: "GitHub",
+    external: true,
+  },
+]
+---
+
+<header
+  class="border-border/60 bg-background/78 sticky top-0 z-40 border-b backdrop-blur-xl"
+>
+  <div class="section-wrap flex h-16 items-center justify-between gap-5">
+    <a
+      href="/"
+      class="group flex items-center gap-2.5"
+      aria-label="docs-puller home"
+    >
+      <img
+        src="/brand.svg"
+        width="34"
+        height="34"
+        alt=""
+        class="rounded-[9px] shadow-sm"
+      />
+      <span
+        class="font-heading text-[0.96rem] font-semibold tracking-[-0.025em]"
+        >docs-puller</span
+      >
+      <span
+        class="border-primary/18 bg-primary/8 text-primary hidden rounded-full border px-2 py-0.5 font-mono text-[0.58rem] font-bold tracking-[0.09em] uppercase sm:inline-flex"
+        >OSS</span
+      >
+    </a>
+
+    <nav
+      class="hidden items-center gap-1 md:flex"
+      aria-label="Primary navigation"
+    >
+      {
+        links.map((link) => (
+          <a
+            href={link.href}
+            target={link.external ? "_blank" : undefined}
+            rel={link.external ? "noreferrer" : undefined}
+            aria-current={
+              !link.external && currentPath.startsWith(link.href)
+                ? "page"
+                : undefined
+            }
+            class="text-muted-foreground hover:bg-muted hover:text-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+          >
+            {link.label}
+            {link.external && (
+              <span class="sr-only"> (opens in a new tab)</span>
+            )}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-1.5">
+      <button
+        id="theme-toggle"
+        type="button"
+        class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/35 inline-flex size-9 items-center justify-center rounded-lg transition-colors focus-visible:ring-3 focus-visible:outline-none"
+        aria-label="Use dark theme"
+        aria-pressed="false"
+      >
+        <svg
+          class="size-4.5 dark:hidden"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4"></circle>
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"
+          ></path>
+        </svg>
+        <svg
+          class="hidden size-4.5 dark:block"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M20.2 15.3A8.5 8.5 0 0 1 8.7 3.8 8.5 8.5 0 1 0 20.2 15.3Z"
+          ></path>
+        </svg>
+      </button>
+      <a
+        href="/demo/"
+        class="bg-primary text-primary-foreground hover:bg-primary/88 inline-flex h-9 items-center rounded-lg px-3.5 text-sm font-semibold shadow-sm transition-colors"
+      >
+        Try it live
+      </a>
+      <details class="relative md:hidden">
+        <summary
+          class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-9 cursor-pointer list-none items-center justify-center rounded-lg"
+          aria-label="Open navigation"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            class="size-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg
+          >
+        </summary>
+        <nav
+          class="border-border bg-popover absolute top-11 right-0 grid min-w-44 gap-1 rounded-xl border p-2 shadow-xl"
+          aria-label="Mobile navigation"
+        >
+          {
+            links.map((link) => (
+              <a
+                href={link.href}
+                class="hover:bg-muted rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                {link.label}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>("#theme-toggle")
+
+  function setToggleState() {
+    if (!toggle) return
+    const dark = document.documentElement.classList.contains("dark")
+    toggle.ariaPressed = String(dark)
+    toggle.ariaLabel = dark ? "Use light theme" : "Use dark theme"
+  }
+
+  setToggleState()
+  toggle?.addEventListener("click", () => {
+    const dark = document.documentElement.classList.toggle("dark")
+    localStorage.setItem("docs-puller-theme", dark ? "dark" : "light")
+    setToggleState()
+  })
+</script>
