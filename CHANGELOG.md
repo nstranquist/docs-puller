@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Canonicalize demo source manifests so clean builds produce identical root filesystem archives.
+
 ## v0.7.3 — 2026-08-19
 
 ### Fixed

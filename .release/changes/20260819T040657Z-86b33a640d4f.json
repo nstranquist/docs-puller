@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Canonicalize demo source manifests so clean builds produce identical root filesystem archives.",
+  "category": "Fixed",
+  "commit_type": "fix",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}
