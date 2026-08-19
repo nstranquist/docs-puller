@@ -445,7 +445,7 @@ func TestRunScanRanksAndLoadsURLs(t *testing.T) {
 	if len(hits) != 1 {
 		t.Fatalf("hits = %+v, want one hit", hits)
 	}
-	if hits[0].Path != filepath.Join("docs", "guide.md") || hits[0].URL != "https://example.com/guide" {
+	if hits[0].Path != "docs/guide.md" || hits[0].URL != "https://example.com/guide" {
 		t.Fatalf("hit path/url = %q %q", hits[0].Path, hits[0].URL)
 	}
 	if hits[0].Score != 7 {
