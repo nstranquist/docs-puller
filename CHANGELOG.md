@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Publish GitHub releases from verified drafts and require release immutability before success.
+
 ## v0.7.5 — 2026-08-19
 
 ### Fixed
