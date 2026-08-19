@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Serve bounded document windows around matched lines.",
+  "category": "Added",
+  "commit_type": "feat",
+  "bump": "minor",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

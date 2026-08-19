@@ -6,6 +6,14 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Added
+
+- Serve bounded document windows around matched lines.
+
+### Fixed
+
+- The public demo previews matched excerpts without exceeding the Worker response limit.
+
 ## v0.6.0 — 2026-08-19
 
 ### Added
