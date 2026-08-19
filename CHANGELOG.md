@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.7.3 — 2026-08-19
+
 ### Fixed
 
 - Require the exact patched Go toolchain when the release manifest declares one.
