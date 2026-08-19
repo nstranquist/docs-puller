@@ -153,8 +153,12 @@ jobs:
           fi
           release_assets=(dist/"${RELEASE_TAG}"/* vscode-extension/*.vsix vscode-extension/vsix-checksums.txt)
           gh release create "$RELEASE_TAG" \
+            --draft \
             --verify-tag \
-            --latest \
             --title "docs-puller $RELEASE_TAG" \
             --notes-file "release/notes-${RELEASE_TAG}.md" \
             "${release_assets[@]}"
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json isDraft,isImmutable,tagName | \
+            jq -e --arg tag "$RELEASE_TAG" \
+              'select(.tagName == $tag and (.isDraft | not) and .isImmutable)'
