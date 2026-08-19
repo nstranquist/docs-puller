@@ -63,7 +63,7 @@ Use the same verified `deploy/demo/.build` directory as CI:
 
 ```sh
 flyctl deploy deploy/demo/.build \
-  --config deploy/demo/fly.toml \
+  --config "$(pwd)/deploy/demo/fly.toml" \
   --local-only \
   --image-label "$(git rev-parse --short=12 HEAD)" \
   --build-arg "SOURCE_DATE_EPOCH=$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
@@ -112,7 +112,7 @@ Redeploy the last verified image without rebuilding it:
 
 ```sh
 flyctl deploy --app docs-puller-demo-origin \
-  --config deploy/demo/fly.toml \
+  --config "$(pwd)/deploy/demo/fly.toml" \
   --image registry.fly.io/docs-puller-demo-origin:VERIFIED_LABEL
 ```
 

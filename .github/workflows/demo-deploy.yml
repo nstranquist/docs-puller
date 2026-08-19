@@ -141,7 +141,7 @@ jobs:
           source_date_epoch="$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
           image_label="git-${DEPLOY_COMMIT:0:12}"
           flyctl deploy deploy/demo/.build \
-            --config deploy/demo/fly.toml \
+            --config "${GITHUB_WORKSPACE}/deploy/demo/fly.toml" \
             --remote-only \
             --build-arg "SOURCE_DATE_EPOCH=${source_date_epoch}" \
             --image-label "$image_label" \
