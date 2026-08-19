@@ -7,7 +7,7 @@
   "version": "v0.7.2",
   "tag": "v0.7.2",
   "release_date": "2026-08-19",
-  "go_version": "1.26",
+  "go_version": "1.26.6",
   "contract_version": 1,
   "archive_template": "docs-puller_{semver}_{goos}_{goarch}.{ext}",
   "checksums_name": "checksums.txt",

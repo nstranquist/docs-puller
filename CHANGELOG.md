@@ -14,10 +14,31 @@ must name both the old and new behavior.
 
 ## v0.7.1 — 2026-08-19
 
+### Added
+
+- Added the public live-demo URL to the README and typed Product Passport.
+
 ### Fixed
 
-- Build release and demo binaries with Go 1.26.6 security fixes.
-- Normalize manifest and corpus paths across operating systems.
+- Corpus identifiers now use slash-separated paths on every operating system.
+  Manifests, scan results, FTS5 rows, source indexes, and HTTP responses no
+  longer expose Windows filesystem separators.
+- Read-only SQLite connections now use rooted Windows file URIs. Windows demo,
+  search, status, evaluation, and batch-search paths can open the FTS5 index.
+- Explicit `HOME` environments now work consistently on Windows, including
+  config initialization, profile matching, and state paths.
+- Windows now uses its native executable and directory-durability semantics.
+  POSIX-only test fixtures are skipped only where the fixture itself requires a
+  POSIX shell or executable mode bits.
+
+### Security and release engineering
+
+- The minimum and release-build Go toolchain is pinned to 1.26.6, which removes
+  the actionable standard-library findings reported against 1.26.5.
+- The release contract accepts an exact Go patch version and requires an exact
+  toolchain match when one is declared.
+- Windows runtime behavior is checked in the public operating-system matrix;
+  deterministic Linux demo binaries and the container remain reproducible.
 
 ## v0.7.0 — 2026-08-19
 

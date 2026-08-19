@@ -14,11 +14,12 @@ presentation:
 access:
     profile: go-cli
     primary_action:
-        kind: install
-        label: Install docs-puller
-        url: https://github.com/nstranquist/docs-puller#install
+        kind: try
+        label: Try the live demo
+        url: https://docs-puller-demo.darthbitcoin.workers.dev
     repository_url: https://github.com/nstranquist/docs-puller
     documentation_url: https://github.com/nstranquist/docs-puller#quick-start
+    demo_url: https://docs-puller-demo.darthbitcoin.workers.dev
     feedback_url: https://github.com/nstranquist/docs-puller/issues/new
     module: github.com/nstranquist/docs-puller
     binary: docs-puller
@@ -37,9 +38,13 @@ proof:
           statement: The public case study documents the architecture, measured results, release discipline, and claim boundaries.
           evidence_kind: documentation
           evidence_url: https://github.com/nstranquist/docs-puller/blob/main/CASE_STUDY.md
+        - id: public-live-demo
+          statement: The public demo searches the reviewed sample corpus through the same Go and SQLite FTS5 engine as the CLI.
+          evidence_kind: demo
+          evidence_url: https://docs-puller-demo.darthbitcoin.workers.dev
     boundaries:
         - Optional reranking and embeddings need separately configured model providers.
-        - Public source, releases, and local evaluation do not prove external adoption.
+        - Public source, releases, deployment health, and synthetic checks do not prove external adoption.
 assets:
     - path: portfolio/assets/search-results.png
       kind: screenshot

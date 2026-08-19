@@ -4,6 +4,17 @@
 
 `docs-puller` copies vendor, reference, and local project docs into Markdown, builds a local SQLite FTS5 index, and searches that index on your machine. Retrieval quality is measured with checked-in evaluations you can rerun.
 
+## Live Demo
+
+**[Try the public docs-puller demo](https://docs-puller-demo.darthbitcoin.workers.dev)**
+
+The demo needs no account and no API key. It searches a reviewed snapshot of
+24 public SQLite, Go, and PostgreSQL pages with the same Go and SQLite FTS5
+engine as the CLI. It does not use AI. A rate-limited Cloudflare boundary
+protects the bearer-authenticated origin and limits public document previews.
+Read the [method and claim boundaries](https://docs-puller-demo.darthbitcoin.workers.dev/method).
+Deployment health and synthetic checks do not prove external adoption.
+
 ## Quick Start
 
 Install the CLI, then run the built-in proof. The demo uses an isolated,

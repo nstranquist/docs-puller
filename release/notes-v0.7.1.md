@@ -1,12 +1,15 @@
 # docs-puller v0.7.1
 
-v0.7.1 is the security and portability rebuild for v0.7.0. It uses Go
-1.26.6 for CI, release assets, and the public demo after the container-image
-gate found eight fixed HIGH findings in binaries built with Go 1.26.5. The
-v0.7.0 prebuilt release was stopped before publication.
+v0.7.1 is the security and portability rebuild for v0.7.0. It makes the public
+live demo an explicit adopter entry point, repairs the Windows runtime path
+boundary, and pins release builds to Go 1.26.6. This is a compatible patch
+release after v0.7.0.
 
-This patch also normalizes manifest and corpus paths across operating systems.
-It does not change the public API.
+## Try it
+
+Open the [public live demo](https://docs-puller-demo.darthbitcoin.workers.dev).
+It needs no account and no API key. The demo searches a reviewed 24-page public
+sample with the same Go and SQLite FTS5 engine as the CLI. It does not use AI.
 
 ## Install
 
@@ -25,24 +28,28 @@ for archive and Windows instructions.
 
 ## Fixed
 
-- CI reads the exact Go 1.26.6 version from `go.mod`.
-- Release and demo binaries use the Go 1.26.6 standard library.
-- Logical document paths stay portable across macOS, Linux, and Windows.
-- The demo corpus builder avoids directory synchronization calls on Windows,
-  where directory handles do not support them.
-- The fail-closed image scan remains required before production deployment.
-- The repeated release fuzz smoke uses a fixed execution budget. This avoids a
-  shutdown deadline race while the daily fuzz jobs keep their two-minute runs.
+- Manifests, APIs, source indexes, scan results, and FTS5 rows use stable `/`
+  separators on every operating system.
+- Windows read-only SQLite connections use a rooted local file URI.
+- Explicit `HOME` environments work for config, profiles, and state paths on
+  Windows.
+- Windows uses native executable-mode and directory-sync behavior. Only tests
+  whose fixtures require POSIX shell semantics are skipped on Windows.
 
-## Included from v0.7.0
+## Security and release engineering
 
-- `GET /api/doc` accepts optional `max_bytes` and `line` values.
-- The public demo previews a bounded window around the matched line.
-- The version contract reports `serve.document-window.v1`.
+- `go.mod` and the release manifest pin Go 1.26.6.
+- An exact patch in the release manifest now requires the exact Go toolchain.
+- The release workflow builds six deterministic CLI archives, verifies
+  checksums, produces a CycloneDX SBOM and provenance, and attests artifacts
+  before publication.
+- The public demo workflow builds deterministic Linux binaries and container
+  images, runs browser journeys, scans HIGH and CRITICAL vulnerabilities, and
+  records an SBOM.
 
 ## Evidence boundary
 
-Release scans and public synthetic smoke checks prove build and deployment
-health. They do not prove external adoption. See the
+The live URL, deployment readback, and synthetic smoke prove availability and
+the tested request path. They do not prove external adoption. See the
 [changelog](https://github.com/nstranquist/docs-puller/blob/v0.7.1/CHANGELOG.md)
 for the complete change list.
