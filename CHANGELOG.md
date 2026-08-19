@@ -6,6 +6,11 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Build release and demo binaries with Go 1.26.6 security fixes.
+- Normalize manifest and corpus paths across operating systems.
+
 ## v0.7.0 — 2026-08-19
 
 ### Added
