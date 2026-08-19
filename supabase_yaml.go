@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -153,7 +154,7 @@ func pullSupabaseYAML(u *url.URL, o pullOpts, now string) (result, bool, error) 
 			return result{}, false, nil
 		}
 		md := renderCommandMD(spec, cmd)
-		rel := filepath.Join("reference", "cli", name+".md")
+		rel := pathpkg.Join("reference", "cli", name+".md")
 		return writeYAMLResult(u, rel, md, now, o)
 	}
 
@@ -180,7 +181,7 @@ func writeYAMLResult(u *url.URL, rel string, md []byte, now string, o pullOpts) 
 	sum := sha256.Sum256(md)
 	return result{
 		URL: u.String(), Source: "supabase",
-		Path: filepath.Join("supabase", rel), Mode: "yaml",
+		Path: pathpkg.Join("supabase", rel), Mode: "yaml",
 		SHA256: hex.EncodeToString(sum[:]), FetchedAt: now,
 	}, true, nil
 }

@@ -3,6 +3,7 @@ package searchruntime
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,6 +25,9 @@ func writeNdevStub(t *testing.T, returns map[string]string) string {
 }
 
 func TestSecretViaNdev(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test fixture is a POSIX shell script")
+	}
 	dir := writeNdevStub(t, map[string]string{"MY_KEY": "sk-keychain"})
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	if got := SecretViaNdev("MY_KEY"); got != "sk-keychain" {
@@ -47,6 +51,9 @@ func TestResolveEmbeddingAPIKey_EnvWins(t *testing.T) {
 }
 
 func TestResolveEmbeddingAPIKey_SecretsFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test fixture is a POSIX shell script")
+	}
 	dir := writeNdevStub(t, map[string]string{DefaultEmbeddingAPIKeyEnv: "sk-keychain"})
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv(DefaultEmbeddingAPIKeyEnv, "") // empty env → keychain fallback

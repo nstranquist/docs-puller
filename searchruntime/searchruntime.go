@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -4027,7 +4028,8 @@ func scanSource(input scanSourceInput) ([]Hit, int) {
 		if err != nil {
 			return nil
 		}
-		hit.Path = filepath.Join(input.Source, rel)
+		rel = filepath.ToSlash(rel)
+		hit.Path = pathpkg.Join(input.Source, rel)
 		hit.URL = urlByPath[rel]
 		hits = append(hits, hit)
 		return nil

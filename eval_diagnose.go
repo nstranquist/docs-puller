@@ -57,7 +57,7 @@ type evalDiagnoseOpts struct {
 
 func cmdEvalDiagnose(args []string) {
 	o := evalDiagnoseOpts{minDelta: 1, maxItems: 50}
-	home, _ := os.UserHomeDir()
+	home, _ := userHomeDir()
 	if home != "" {
 		o.docsRoot = filepath.Join(home, "code", "docs")
 	}

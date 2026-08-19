@@ -598,7 +598,7 @@ var phraseSynonyms = map[string]string{
 
 func cmdSearch(args []string) {
 	o := searchOpts{limit: 10}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err == nil {
 		o.out = filepath.Join(home, "code", "docs")
 	}

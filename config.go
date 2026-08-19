@@ -132,7 +132,7 @@ func cmdConfigInit(args []string) {
 func configFilePath() (string, error) {
 	if v := strings.TrimSpace(os.Getenv("DOCS_PULLER_CONFIG")); v != "" {
 		if strings.HasPrefix(v, "~") {
-			home, err := os.UserHomeDir()
+			home, err := userHomeDir()
 			if err != nil {
 				return "", err
 			}

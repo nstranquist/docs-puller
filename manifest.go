@@ -54,6 +54,7 @@ func loadOrMigrateManifest(srcDir string) (manifest, error) {
 		if m.Version == 0 {
 			m.Version = manifestVersion
 		}
+		normalizeManifestPaths(&m)
 		return m, nil
 	}
 	if !os.IsNotExist(err) {
@@ -79,6 +80,7 @@ func loadOrMigrateManifest(srcDir string) (manifest, error) {
 			continue
 		}
 		if r.URL != "" {
+			r.Path = canonicalLogicalPath(r.Path)
 			m.Entries[r.URL] = r
 		}
 	}
@@ -95,6 +97,7 @@ func loadOrMigrateManifest(srcDir string) (manifest, error) {
 // file in the same directory + os.Rename. The same-dir temp ensures rename
 // is atomic on POSIX (no cross-filesystem fallback to copy+unlink).
 func writeManifestAtomic(srcDir string, m manifest) error {
+	normalizeManifestPaths(&m)
 	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		return err
 	}
@@ -122,6 +125,16 @@ func writeManifestAtomic(srcDir string, m manifest) error {
 	return nil
 }
 
+func normalizeManifestPaths(m *manifest) {
+	if m == nil {
+		return
+	}
+	for url, entry := range m.Entries {
+		entry.Path = canonicalLogicalPath(entry.Path)
+		m.Entries[url] = entry
+	}
+}
+
 // dedupeManifestPaths removes entries whose Path is claimed by another URL
 // with a newer fetch (ties break to the lexicographically smaller URL).
 // Two URLs can converge on one on-disk file when a page is pulled under
@@ -130,6 +143,7 @@ func writeManifestAtomic(srcDir string, m manifest) error {
 // corpus and forces every reader to re-resolve the collision. Returns the
 // number of entries removed.
 func dedupeManifestPaths(m *manifest) int {
+	normalizeManifestPaths(m)
 	winnerByPath := map[string]string{} // path → winning URL
 	for url, r := range m.Entries {
 		if r.Path == "" {

@@ -223,13 +223,19 @@ func TestDocAPIHandler(t *testing.T) {
 	})
 
 	t.Run("rejects path traversal", func(t *testing.T) {
-		for _, bad := range []string{"../../../etc/passwd", "react/../../etc/passwd", "/etc/passwd"} {
+		for _, bad := range []string{"../../../etc/passwd", "react/../../etc/passwd", "/etc/passwd", `C:%5CWindows%5Cwin.ini`} {
 			req := httptest.NewRequest(http.MethodGet, "/api/doc?source=react&path="+bad, nil)
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
 			if rec.Code != http.StatusBadRequest {
 				t.Errorf("path %q: status = %d, want 400", bad, rec.Code)
 			}
+		}
+		req := httptest.NewRequest(http.MethodGet, "/api/doc?source=C%3A&path=guide.md", nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("drive source status = %d, want 400", rec.Code)
 		}
 	})
 

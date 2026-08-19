@@ -54,6 +54,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -323,7 +324,7 @@ type pullOpts struct {
 func defaultOpts() pullOpts {
 	out := os.Getenv("DOCS_PULLER_OUT")
 	if out == "" {
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err != nil {
 			// On a system without a resolvable HOME we'd produce paths like
 			// "/code/docs" which is a footgun. Fail loudly so the user supplies
@@ -1009,7 +1010,7 @@ func processURL(raw string, o pullOpts, now string) result {
 	}
 	sum := sha256.Sum256(data)
 	r := result{
-		URL: raw, Source: source, Path: filepath.Join(source, rel),
+		URL: raw, Source: source, Path: pathpkg.Join(source, rel),
 		Mode: mode, SHA256: hex.EncodeToString(sum[:]), FetchedAt: now, Unchanged: unchanged,
 	}
 	if mode == "http" && len(strings.TrimSpace(string(data))) < thinContentThreshold {
@@ -1053,7 +1054,7 @@ func pullSupabaseGuide(u *url.URL, o pullOpts, now string) (result, error) {
 	}
 	return result{
 		URL: u.String(), Source: "supabase",
-		Path: filepath.Join("supabase", outRel), Mode: "source",
+		Path: pathpkg.Join("supabase", outRel), Mode: "source",
 		SHA256: hex.EncodeToString(sum[:]), FetchedAt: now,
 	}, nil
 }
@@ -1383,10 +1384,11 @@ func deletePrunedDocPaths(outRoot string, relPaths []string) error {
 	}
 	paths := make([]string, 0, len(relPaths))
 	for _, rel := range relPaths {
-		clean := filepath.Clean(filepath.FromSlash(rel))
-		if rel == "" || filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		logical, ok := cleanLogicalRelativePath(rel)
+		if !ok {
 			return fmt.Errorf("refusing to delete unsafe pruned path %q", rel)
 		}
+		clean := filepath.FromSlash(logical)
 		path := filepath.Join(root, clean)
 		within, err := filepath.Rel(root, path)
 		if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {

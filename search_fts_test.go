@@ -3,12 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestSQLiteFileURIWindowsDriveIsRooted(t *testing.T) {
+	got := sqliteFileURI("C:/Users/example/docs/search.db", url.Values{"mode": []string{"ro"}})
+	want := "file:///C:/Users/example/docs/search.db?mode=ro"
+	if got != want {
+		t.Fatalf("sqliteFileURI = %q, want %q", got, want)
+	}
+}
 
 func TestFTSBuildQuery(t *testing.T) {
 	cases := map[string]string{

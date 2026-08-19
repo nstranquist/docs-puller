@@ -12,7 +12,7 @@ func StateDir() (string, error) {
 	if v := os.Getenv("DOCS_PULLER_HOME"); v != "" {
 		return v, nil
 	}
-	home, err := os.UserHomeDir()
+	home, err := UserHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -23,6 +23,16 @@ func StateDir() (string, error) {
 		return filepath.Join(xdg, "docs-puller"), nil
 	}
 	return filepath.Join(home, ".docs-puller"), nil
+}
+
+// UserHomeDir honors HOME on every platform before using the operating-system
+// account directory. This keeps explicit CLI environments portable while
+// retaining the native Windows USERPROFILE fallback when HOME is unset.
+func UserHomeDir() (string, error) {
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+	return os.UserHomeDir()
 }
 
 // EvalRunRoot is where `eval --record-run` writes stable artifacts.

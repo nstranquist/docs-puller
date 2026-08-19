@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -548,7 +549,7 @@ func seedPinnedSourceWithFetcher(out string, pin docsPin, fetch pinnedPageFetche
 		r := result{
 			URL:       page.page.URL,
 			Source:    pin.SourceID,
-			Path:      filepath.Join(pin.SourceID, page.rel),
+			Path:      pathpkg.Join(pin.SourceID, page.rel),
 			Mode:      "pin-crawl",
 			SHA256:    page.sum,
 			FetchedAt: now,
@@ -682,13 +683,12 @@ func pinnedCrawlPages(pin docsPin) ([]pinnedCrawlPage, error) {
 }
 
 func cleanPinnedPagePath(path string) (string, error) {
-	path = filepath.ToSlash(strings.TrimSpace(path))
-	path = strings.TrimPrefix(path, "/")
+	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", fmt.Errorf("empty pinned page path")
 	}
-	clean := filepath.Clean(filepath.FromSlash(path))
-	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) || clean == ".." {
+	clean, ok := cleanLogicalRelativePath(path)
+	if !ok {
 		return "", fmt.Errorf("pinned page path escapes source root: %q", path)
 	}
 	if !strings.HasSuffix(clean, ".md") {

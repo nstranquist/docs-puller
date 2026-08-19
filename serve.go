@@ -199,14 +199,18 @@ func docAPIHandler(defaults pullOpts) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "line requires max_bytes"})
 			return
 		}
-		rel := strings.TrimPrefix(rawPath, source+"/")
-		clean := filepath.Clean(rel)
-		if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+		if source == "." || source == ".." || hasWindowsDrivePrefix(source) || strings.ContainsAny(source, `/\`) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid path"})
+			return
+		}
+		rel := strings.TrimPrefix(strings.ReplaceAll(rawPath, `\`, "/"), source+"/")
+		clean, ok := cleanLogicalRelativePath(rel)
+		if !ok {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid path"})
 			return
 		}
 		srcDir := filepath.Join(defaults.out, source)
-		full := filepath.Join(srcDir, clean)
+		full := filepath.Join(srcDir, filepath.FromSlash(clean))
 		if relCheck, err := filepath.Rel(srcDir, full); err != nil || strings.HasPrefix(relCheck, "..") {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid path"})
 			return

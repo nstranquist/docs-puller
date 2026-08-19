@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -70,6 +71,9 @@ func TestVerifyPDFProviderRejectsChecksumMismatch(t *testing.T) {
 }
 
 func TestVerifyPDFProviderRejectsNonExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX executable mode bits")
+	}
 	dir := t.TempDir()
 	detect := filepath.Join(dir, "detect-pdf")
 	convert := filepath.Join(dir, "pdf2md")

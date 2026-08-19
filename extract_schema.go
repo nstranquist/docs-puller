@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -387,7 +388,7 @@ func extractSQLSchemaInto(walkRoot, source string, o pullOpts, excludes []string
 			return nil
 		}
 		md := renderSQLMigrationMarkdown(rel, raw)
-		outRel := filepath.Join(outPrefix, "migrations", strings.TrimSuffix(rel, ".sql")+".md")
+		outRel := pathpkg.Join(outPrefix, "migrations", strings.TrimSuffix(filepath.ToSlash(rel), ".sql")+".md")
 		sum := sha256.Sum256(md)
 		docs = append(docs, sqlDoc{
 			rel:     outRel,
@@ -411,7 +412,7 @@ func extractSQLSchemaInto(walkRoot, source string, o pullOpts, excludes []string
 	} else {
 		for q, st := range tableStates {
 			body := renderTableMarkdown(st)
-			outRel := filepath.Join(outPrefix, "tables", sanitizeTableFilename(q)+".md")
+			outRel := pathpkg.Join(outPrefix, "tables", sanitizeTableFilename(q)+".md")
 			sum := sha256.Sum256(body)
 			// Synthetic URL: the file:// of the latest migration that
 			// touched this table is what a reader would want to click,
@@ -436,7 +437,7 @@ func extractSQLSchemaInto(walkRoot, source string, o pullOpts, excludes []string
 		results = append(results, result{
 			URL:       doc.url,
 			Source:    source,
-			Path:      filepath.Join(source, doc.rel),
+			Path:      pathpkg.Join(source, doc.rel),
 			Mode:      "extract:sql-schema",
 			SHA256:    doc.sha,
 			FetchedAt: doc.fetched,
@@ -451,13 +452,13 @@ func extractSQLSchemaInto(walkRoot, source string, o pullOpts, excludes []string
 			if err := ensureSourcePathInsideOut(o.out, replaceDir); err != nil {
 				return err
 			}
-			changedPaths = append(changedPaths, sourceMarkdownPaths(replaceDir, filepath.ToSlash(filepath.Join(source, outPrefix)))...)
+			changedPaths = append(changedPaths, sourceMarkdownPaths(replaceDir, pathpkg.Join(source, outPrefix))...)
 			if err := os.RemoveAll(replaceDir); err != nil {
 				return err
 			}
 		}
 		for _, doc := range docs {
-			outPath := filepath.Join(srcOut, doc.rel)
+			outPath := filepath.Join(srcOut, filepath.FromSlash(doc.rel))
 			if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 				return err
 			}
@@ -473,7 +474,7 @@ func extractSQLSchemaInto(walkRoot, source string, o pullOpts, excludes []string
 			if err != nil {
 				return searchruntime.ManifestLoadSourceError(source, err)
 			}
-			pruneManifestPathPrefix(&mf, filepath.ToSlash(filepath.Join(source, outPrefix))+"/")
+			pruneManifestPathPrefix(&mf, pathpkg.Join(source, outPrefix)+"/")
 			mergeIntoManifest(&mf, results)
 			if err := writeManifestAtomic(srcOut, mf); err != nil {
 				return searchruntime.ManifestWriteSourceError(source, err)

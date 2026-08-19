@@ -175,6 +175,7 @@ func (p *Profile) Match(source, relPath string) (in bool, sub bool) {
 	if !ok {
 		return false, false
 	}
+	relPath = canonicalLogicalPath(relPath)
 	for _, rx := range globs {
 		if rx.MatchString(relPath) {
 			return true, true

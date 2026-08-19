@@ -182,3 +182,26 @@ func TestWriteManifestAtomicNoTempDebris(t *testing.T) {
 		}
 	}
 }
+
+func TestManifestCanonicalizesLogicalPaths(t *testing.T) {
+	srcDir := filepath.Join(t.TempDir(), "src")
+	m := newManifest()
+	m.Entries["https://example.com/guide"] = result{
+		URL: "https://example.com/guide", Source: "src", Path: `src\guides\start.md`,
+	}
+	if err := writeManifestAtomic(srcDir, m); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := loadOrMigrateManifest(srcDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.Entries["https://example.com/guide"].Path; got != "src/guides/start.md" {
+		t.Fatalf("manifest path = %q, want slash-separated logical path", got)
+	}
+	urlByPath, _ := loadManifestMaps(srcDir, "src")
+	if got := urlByPath["guides/start.md"]; got != "https://example.com/guide" {
+		t.Fatalf("URL lookup = %q, want canonical manifest mapping", got)
+	}
+}

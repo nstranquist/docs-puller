@@ -573,8 +573,8 @@ func TestWriteEvalRunArtifactsForRecordWrapsError(t *testing.T) {
 	if errors.Unwrap(err) == nil {
 		t.Fatalf("writeEvalRunArtifactsForRecord err does not wrap cause: %v", err)
 	}
-	if !strings.Contains(err.Error(), "not a directory") {
-		t.Fatalf("writeEvalRunArtifactsForRecord err lost filesystem cause: %v", err)
+	if !strings.Contains(err.Error(), filepath.Base(rootFile)) {
+		t.Fatalf("writeEvalRunArtifactsForRecord err lost failing path: %v", err)
 	}
 }
 

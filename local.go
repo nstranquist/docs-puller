@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -124,9 +125,9 @@ type localBatchSummary struct {
 // normalized to "/") should be skipped given the user-supplied patterns.
 // Pattern semantics:
 //   - "name"        — exact match against any path segment (skip dirs/files named "name")
-//   - "foo/bar"     — filepath.Match against full rel path
+//   - "foo/bar"     — path.Match against full rel path
 //   - "foo/**"      — recursive: rel == "foo" or rel starts with "foo/"
-//   - "*.ext"       — filepath.Match against the basename
+//   - "*.ext"       — path.Match against the basename
 //
 // Designed to be obvious to reason about; avoids pulling in a full glob lib.
 func excludeMatch(rel string, patterns []string) bool {
@@ -134,7 +135,7 @@ func excludeMatch(rel string, patterns []string) bool {
 		return false
 	}
 	rel = filepath.ToSlash(rel)
-	base := filepath.Base(rel)
+	base := pathpkg.Base(rel)
 	segs := strings.Split(rel, "/")
 	for _, pat := range patterns {
 		pat = filepath.ToSlash(pat)
@@ -157,13 +158,13 @@ func excludeMatch(rel string, patterns []string) bool {
 		}
 		// Glob without slashes — match against basename.
 		if !strings.Contains(pat, "/") {
-			if ok, _ := filepath.Match(pat, base); ok {
+			if ok, _ := pathpkg.Match(pat, base); ok {
 				return true
 			}
 			continue
 		}
 		// Glob with slashes — match against full rel.
-		if ok, _ := filepath.Match(pat, rel); ok {
+		if ok, _ := pathpkg.Match(pat, rel); ok {
 			return true
 		}
 	}
@@ -446,8 +447,7 @@ func validateGitSubdir(subdir string) error {
 	if subdir == "" {
 		return nil
 	}
-	clean := filepath.Clean(filepath.FromSlash(subdir))
-	if filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	if _, ok := cleanLogicalRelativePath(subdir); !ok {
 		return fmt.Errorf("--subdir must be a relative path within the repository, got %q", subdir)
 	}
 	return nil
@@ -769,8 +769,8 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 
 		// Normalize markdown-family files on the way out so search treats them
 		// uniformly and origin URLs resolved by the agent flow always end .md.
-		outRel := markdownOutputRel(rel)
-		outPath := filepath.Join(srcOut, outRel)
+		outRel := filepath.ToSlash(markdownOutputRel(rel))
+		outPath := filepath.Join(srcOut, filepath.FromSlash(outRel))
 		outDir := filepath.Dir(outPath)
 		if _, ok := createdDirs[outDir]; !ok {
 			if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -791,7 +791,8 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		sha := hex.EncodeToString(sum[:])
 		url := urlFor(rel)
 		changed := true
-		if prior, ok := priorByURL[url]; ok && prior.Path == filepath.Join(source, outRel) && prior.SHA256 == sha {
+		logicalPath := pathpkg.Join(source, outRel)
+		if prior, ok := priorByURL[url]; ok && prior.Path == logicalPath && prior.SHA256 == sha {
 			if info, err := os.Stat(outPath); err == nil && info.Size() == int64(len(data)) {
 				changed = false
 			}
@@ -808,7 +809,7 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		r := result{
 			URL:       url,
 			Source:    source,
-			Path:      filepath.Join(source, outRel),
+			Path:      logicalPath,
 			Mode:      mode,
 			SHA256:    sha,
 			FetchedAt: now,
@@ -858,6 +859,7 @@ func readManifestEntriesNoMigrate(srcDir string) map[string]result {
 	if err := json.Unmarshal(data, &m); err != nil || m.Entries == nil {
 		return map[string]result{}
 	}
+	normalizeManifestPaths(&m)
 	return m.Entries
 }
 

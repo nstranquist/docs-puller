@@ -150,10 +150,10 @@ func ensureSourcePathInsideOut(out, srcDir string) error {
 }
 
 func cleanCrawlRel(rel string) (string, error) {
-	rel = filepath.ToSlash(filepath.Clean(rel))
-	rel = strings.TrimPrefix(rel, "/")
-	if rel == "." || rel == "" || strings.HasPrefix(rel, "../") || strings.Contains(rel, "/../") {
-		return "", fmt.Errorf("invalid generated doc path %q", rel)
+	raw := rel
+	rel, ok := cleanLogicalRelativePath(raw)
+	if !ok {
+		return "", fmt.Errorf("invalid generated doc path %q", raw)
 	}
 	if strings.HasSuffix(strings.ToLower(rel), ".mdx") {
 		rel = strings.TrimSuffix(rel, rel[len(rel)-4:]) + ".md"

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -249,7 +250,7 @@ func hashExecutable(path string) (string, string, error) {
 	if !info.Mode().IsRegular() {
 		return resolved, "", fmt.Errorf("executable is not a regular file")
 	}
-	if info.Mode().Perm()&0o111 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
 		return resolved, "", fmt.Errorf("executable is not executable")
 	}
 	f, err := os.Open(resolved)

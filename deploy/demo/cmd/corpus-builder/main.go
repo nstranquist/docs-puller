@@ -19,6 +19,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -1052,6 +1053,12 @@ func writeJSONAtomic(path string, value any, mode fs.FileMode) (returnErr error)
 }
 
 func syncDirectory(path string) (returnErr error) {
+	if runtime.GOOS == "windows" {
+		// Windows does not support fsync on directory handles. The temporary
+		// file itself is synced before rename, which is the strongest portable
+		// durability guarantee available on that platform.
+		return nil
+	}
 	directory, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open parent directory %s: %w", path, err)

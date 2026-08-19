@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -206,7 +207,14 @@ func openFTSIndexMode(out string, readOnly bool, readQuery url.Values) (*ftsInde
 }
 
 func sqliteFileURI(path string, query url.Values) string {
-	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	slashPath := filepath.ToSlash(path)
+	// A Windows drive path must be rooted in a file URI. Without the leading
+	// slash, net/url emits file:C:/..., which SQLite parses as an authority
+	// named C instead of the local C: drive.
+	if hasWindowsDrivePrefix(slashPath) {
+		slashPath = "/" + slashPath
+	}
+	u := url.URL{Scheme: "file", Path: slashPath}
 	u.RawQuery = query.Encode()
 	return u.String()
 }
@@ -367,6 +375,7 @@ func (f *ftsIndex) missingPaths(paths []string) ([]string, error) {
 	ctx := context.Background()
 	var missing []string
 	for _, relPath := range uniqueStrings(paths) {
+		relPath = canonicalLogicalPath(relPath)
 		if _, _, ok := splitFTSPath(relPath); !ok {
 			continue
 		}
@@ -441,7 +450,7 @@ func (f *ftsIndex) replaceSources(out string, sources []string) error {
 			if err != nil {
 				return err
 			}
-			return inserter.insert(filepath.Join(src, rel), "replace-source")
+			return inserter.insert(pathpkg.Join(src, filepath.ToSlash(rel)), "replace-source")
 		})
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
@@ -540,8 +549,8 @@ func (f *ftsIndex) upsertPaths(out string, paths []string) error {
 	}
 
 	for _, relPath := range paths {
-		i := strings.IndexByte(relPath, '/')
-		if i < 0 {
+		relPath = canonicalLogicalPath(relPath)
+		if _, _, ok := splitFTSPath(relPath); !ok {
 			continue
 		}
 
@@ -566,6 +575,7 @@ func (f *ftsIndex) upsertMemoryDocs(paths []string, docs []ftsMemoryDoc) error {
 	docByPath := map[string]ftsMemoryDoc{}
 	for _, doc := range docs {
 		if doc.Path != "" {
+			doc.Path = canonicalLogicalPath(doc.Path)
 			docByPath[doc.Path] = doc
 		}
 	}
@@ -583,6 +593,7 @@ func (f *ftsIndex) upsertMemoryDocs(paths []string, docs []ftsMemoryDoc) error {
 		q:   q,
 	}
 	for _, relPath := range paths {
+		relPath = canonicalLogicalPath(relPath)
 		if _, _, ok := splitFTSPath(relPath); !ok {
 			continue
 		}
@@ -621,6 +632,7 @@ type ftsPathInserter struct {
 }
 
 func (w *ftsPathInserter) insert(relPath, op string) error {
+	relPath = canonicalLogicalPath(relPath)
 	src, rel, ok := splitFTSPath(relPath)
 	if !ok {
 		return nil
@@ -631,7 +643,7 @@ func (w *ftsPathInserter) insert(relPath, op string) error {
 		w.manifests[src] = metaByPath
 	}
 
-	absPath := filepath.Join(w.out, relPath)
+	absPath := filepath.Join(w.out, filepath.FromSlash(relPath))
 	data, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil
@@ -646,6 +658,7 @@ type ftsMemoryInserter struct {
 }
 
 func (w *ftsMemoryInserter) insert(doc ftsMemoryDoc, op string) error {
+	doc.Path = canonicalLogicalPath(doc.Path)
 	absPath := doc.AbsPath
 	if absPath == "" {
 		absPath = doc.Path
@@ -664,6 +677,7 @@ type ftsDocInsertPayload struct {
 }
 
 func makeFTSDocInsertPayload(relPath, absPath string, data []byte, meta ftsDocMeta) (ftsDocInsertPayload, bool) {
+	relPath = canonicalLogicalPath(relPath)
 	src, rel, ok := splitFTSPath(relPath)
 	if !ok {
 		return ftsDocInsertPayload{}, false
@@ -716,7 +730,7 @@ func insertFTSDoc(ctx context.Context, q *ftsdb.Queries, relPath, absPath string
 	if err != nil {
 		return err
 	}
-	if err := q.InsertPath(ctx, ftsdb.InsertPathParams{Path: relPath, Rowid: newRowID}); err != nil {
+	if err := q.InsertPath(ctx, ftsdb.InsertPathParams{Path: payload.relPath, Rowid: newRowID}); err != nil {
 		return err
 	}
 	return nil
@@ -744,7 +758,7 @@ func insertFTSDocWithRowID(ctx context.Context, q *ftsdb.Queries, rowID int64, r
 }
 
 func splitFTSPath(relPath string) (string, string, bool) {
-	relPath = filepath.ToSlash(relPath)
+	relPath = canonicalLogicalPath(filepath.ToSlash(relPath))
 	i := strings.IndexByte(relPath, '/')
 	if i < 0 {
 		return "", "", false
@@ -797,8 +811,9 @@ func (f *ftsIndex) rebuild(out string) error {
 				return nil
 			}
 			rel, _ := filepath.Rel(srcDir, p)
+			rel = filepath.ToSlash(rel)
 			meta := metaByPath[rel]
-			relPath := filepath.Join(src, rel)
+			relPath := pathpkg.Join(src, rel)
 			inserted, err := insertFTSDocWithRowID(ctx, q, nextRowID, relPath, p, data, meta, "insert")
 			if err != nil {
 				return err
@@ -875,7 +890,7 @@ func loadFTSDocMeta(srcDir, srcName string) map[string]ftsDocMeta {
 	}
 	prefix := srcName + "/"
 	for _, r := range m.Entries {
-		rel := strings.TrimPrefix(r.Path, prefix)
+		rel := strings.TrimPrefix(canonicalLogicalPath(r.Path), prefix)
 		if rel == "" || rel == r.Path {
 			continue
 		}

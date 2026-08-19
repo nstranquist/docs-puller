@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -50,6 +51,9 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestExecAdapterInvokesBinary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test fixture is a POSIX shell script")
+	}
 	bin := writeFakeBinary(t, `#!/bin/sh
 echo "$@" > "$ARGS_FILE"
 cat <<JSON
@@ -84,6 +88,9 @@ func TestExecAdapterRequiresQuery(t *testing.T) {
 }
 
 func TestExecAdapterSurfacesBinaryFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test fixture is a POSIX shell script")
+	}
 	bin := writeFakeBinary(t, `#!/bin/sh
 echo "boom" >&2
 exit 3

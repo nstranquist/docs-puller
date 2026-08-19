@@ -287,7 +287,7 @@ go build -tags sqlite_fts5 -o bin/docs-puller .
 // sanitizeHomePath strips the user's home directory prefix to a `~` so the
 // PUBLIC leaderboard never leaks an absolute home path.
 func sanitizeHomePath(p string) string {
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := userHomeDir(); err == nil && home != "" {
 		if p == home {
 			return "~"
 		}

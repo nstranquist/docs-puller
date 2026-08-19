@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -114,7 +115,7 @@ func processArticle(raw, nameOverride string, o pullOpts, now string) result {
 	if slug == "" {
 		slug = "index"
 	}
-	rel := filepath.Join(host, slug+".md")
+	rel := pathpkg.Join(host, slug+".md")
 
 	data, mode, ferr := fetchArticle(u)
 	if ferr != nil {
@@ -131,7 +132,7 @@ func processArticle(raw, nameOverride string, o pullOpts, now string) result {
 	sum := sha256.Sum256(data)
 	r := result{
 		URL: raw, Source: articleSource,
-		Path: filepath.Join(articleSource, rel), Mode: mode,
+		Path: pathpkg.Join(articleSource, rel), Mode: mode,
 		SHA256: hex.EncodeToString(sum[:]), FetchedAt: now,
 	}
 	if mode != "reddit-json" && len(strings.TrimSpace(string(data))) < thinContentThreshold {

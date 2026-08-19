@@ -3968,7 +3968,7 @@ func TestNewHybridTitleLoader(t *testing.T) {
 	if loader == nil {
 		t.Fatalf("loader is nil")
 	}
-	if got := loader("docs/guide.md"); got != "title:docs-out/docs/guide.md" {
+	if got, want := loader("docs/guide.md"), "title:"+filepath.Join("docs-out", "docs", "guide.md"); got != want {
 		t.Fatalf("title = %q, want joined path title", got)
 	}
 	if got := NewHybridTitleLoader("docs-out", nil); got != nil {

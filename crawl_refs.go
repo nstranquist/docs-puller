@@ -48,7 +48,7 @@ type refsCase struct {
 
 func defaultRefsCrawlOpts() refsCrawlOpts {
 	o := defaultOpts()
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "crawl-refs: cannot resolve home dir: %v\n", err)
 		os.Exit(2)

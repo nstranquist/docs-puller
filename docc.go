@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1284,7 +1285,7 @@ func runDocC(rootURL, filter, nameOverride string, maxNodes int, followSeeAlso, 
 		sum := sha256.Sum256(c.markdown)
 		r := result{
 			URL: c.pageURL, Source: source,
-			Path:      filepath.Join(source, c.relPath),
+			Path:      pathpkg.Join(source, filepath.ToSlash(c.relPath)),
 			Mode:      "docc",
 			SHA256:    hex.EncodeToString(sum[:]),
 			FetchedAt: now,

@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/url"
-	"path/filepath"
+	pathpkg "path"
 	"strings"
 )
 
@@ -211,7 +211,7 @@ func routeGithubReadme(u *url.URL) (string, string, bool) {
 	if len(parts) < 2 {
 		return "", "", false
 	}
-	return "github", filepath.Join(parts[0], parts[1], "README.md"), true
+	return "github", pathpkg.Join(parts[0], parts[1], "README.md"), true
 }
 
 func routePostgresql(u *url.URL) (string, string, bool) {

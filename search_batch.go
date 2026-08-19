@@ -37,7 +37,7 @@ type searchBatchResponse struct {
 
 func cmdSearchBatch(args []string) {
 	o := searchOpts{limit: 10, noSnippets: true, noProfile: true, ftsOnly: true}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err == nil {
 		o.out = filepath.Join(home, "code", "docs")
 	}

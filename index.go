@@ -242,6 +242,7 @@ func collectEntries(srcDir, srcName string) ([]indexEntry, string, error) {
 		if err != nil {
 			return err
 		}
+		rel = filepath.ToSlash(rel)
 		info, ierr := d.Info()
 		if ierr != nil {
 			return ierr

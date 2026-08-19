@@ -226,7 +226,7 @@ func expandHome(path string) (string, error) {
 		return "", nil
 	}
 	if path[0] == '~' {
-		home, err := os.UserHomeDir()
+		home, err := apppaths.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
