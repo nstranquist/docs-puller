@@ -1,9 +1,10 @@
-# Sample corpus — fully reproducible retrieval eval
+# Sample corpus — replayable live-page retrieval eval
 
-Anyone can reproduce these numbers with no API key. The corpus is built from
-24 pinned public documentation pages (`sources.md` — SQLite, Go, PostgreSQL;
-chosen for years-stable URLs), and `fixture.yaml` scores 24 mixed
-identifier-style and natural-language queries against it with BM25 only.
+Anyone can replay this workflow with no API key. The corpus is built from a
+fixed list of 24 public documentation URLs (`sources.md` — SQLite, Go, and
+PostgreSQL). `fixture.yaml` scores 24 mixed identifier-style and
+natural-language queries against it with BM25 only. The pages are live, so a
+later replay can differ from the dated baseline.
 
 ## Reproduce
 
@@ -21,7 +22,7 @@ docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --for
 docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --leaderboard-out leaderboard.html
 ```
 
-## Frozen baseline
+## Frozen dated baseline
 
 `baseline-2026-07-03.json` (BM25-only, no rerank):
 
@@ -41,7 +42,7 @@ docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus" \
 ```
 
 Content drift on the upstream pages can move rankings slightly over time; the
-pinned URL set keeps paths stable, and the baseline is dated so drift is
+fixed URL set keeps paths stable, and the baseline is dated so drift is
 measurable rather than mysterious.
 
 ## Notes

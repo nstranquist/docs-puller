@@ -94,7 +94,7 @@ used zero model tokens.
 
 | Evaluation | Queries | Hit@1 | Hit@5 | MRR | Evidence boundary |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the pinned public corpus. |
+| Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the live public-page list; upstream content can drift. |
 | Full fixture suite | 459 | 71.5% | 93.5% | 0.810 | Operator-measured on the maintainer's local mirror. |
 | Final frozen holdout | 35 | 45.7% | 94.3% | 0.674 | Fixture is public; exact corpus mirror is not. |
 | Tuned main regression set | 151 | 84.1% | 100% | 0.900 | Operator-measured regression gate. |
@@ -115,7 +115,7 @@ A new user can:
 1. Install one tagged Go module or a checksummed release archive.
 2. Run `docs-puller demo --json` without a network call or API key.
 3. Follow the first-hour guide to create and search a real corpus.
-4. Reproduce the 24-query public benchmark.
+4. Replay the 24-query public benchmark.
 5. Inspect the architecture, security, troubleshooting, and uninstall guides.
 6. Report a problem through a structured GitHub issue template.
 
@@ -130,15 +130,15 @@ A new user can:
 
 ## Claim boundaries
 
-- The public sample is reproducible. The larger local-mirror scores are
-  operator measurements.
+- The public sample workflow is replayable. Its live upstream pages can change.
+  The larger local-mirror scores are operator measurements.
 - Optional AI reranking needs a separately configured provider.
 - A GitHub release and launch post do not prove external adoption.
 - Local dogfood telemetry does not count as an external user.
 - The hosted Team design is proprietary and is outside this open-core case
   study.
 
-## Reproduce the public proof
+## Replay the public proof
 
 ```sh
 go install github.com/nstranquist/docs-puller@v0.6.0

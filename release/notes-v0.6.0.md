@@ -40,14 +40,15 @@ and used zero model tokens.
 
 | Evaluation | Queries | Hit@1 | Hit@5 | MRR |
 | --- | ---: | ---: | ---: | ---: |
-| Public pinned sample | 24 | 95.8% | 100% | 0.979 |
+| Public live-page sample | 24 | 95.8% | 100% | 0.979 |
 | Full maintainer fixture suite | 459 | 71.5% | 93.5% | 0.810 |
 | Final frozen holdout | 35 | 45.7% | 94.3% | 0.674 |
 | Tuned main regression set | 151 | 84.1% | 100% | 0.900 |
 
-The public sample is reproducible from the release checkout. The larger results
-use the maintainer's local corpus mirror and are operator measurements. The
-final holdout was frozen before its first scored run. See
+The public sample workflow is replayable from the release checkout. Its live
+upstream pages can change. The larger results use the maintainer's local corpus
+mirror and are operator measurements. The final holdout was frozen before its
+first scored run. See
 [Measured Retrieval](https://github.com/nstranquist/docs-puller/blob/v0.6.0/README.md#measured-retrieval)
 for the replay commands and complete claim boundary.
 

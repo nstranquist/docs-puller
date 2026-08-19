@@ -8,7 +8,7 @@ presentation:
     language: Go
     lane: Retrieval and developer tooling
     metric:
-        label: public BM25 sample
+        label: public live-page BM25 sample
         value: 95.8% Hit@1 · 100% Hit@5
         evidence_url: https://github.com/nstranquist/docs-puller#measured-retrieval
 access:

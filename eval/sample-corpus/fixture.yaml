@@ -1,5 +1,5 @@
-# docs-puller sample-corpus fixture — 24 queries over the 24 pinned public
-# pages in sources.md. Fully reproducible: build the corpus with
+# docs-puller sample-corpus fixture — 24 queries over the fixed list of 24 live
+# public pages in sources.md. Replay the workflow with
 #   docs-puller pull --from eval/sample-corpus/sources.md --out <dir>
 #   docs-puller reindex --out <dir>
 # then score with

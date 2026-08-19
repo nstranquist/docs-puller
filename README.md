@@ -46,23 +46,25 @@ for the problem, architecture, measured results, and claim boundaries.
 ## Measured Retrieval
 
 Retrieval quality is measured and checked in. Each result includes its query
-count, mode, and measurement date. The public sample can be reproduced exactly.
-The larger results need the maintainer's local corpus mirror.
+count, mode, and measurement date. The public sample workflow can be replayed
+without an API key. Its source pages are live, so upstream edits can change the
+score. The larger results need the maintainer's local corpus mirror.
 
-| Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Reproducible by you |
+| Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Replay boundary |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
-| Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Fixture yes; exact corpus no |
-| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-18 | Fixture yes; exact corpus no |
-| Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-07-03 | Yes — pinned public pages |
+| Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
+| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-18 | Public fixture; local corpus |
+| Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-18 | Live public pages |
 
 The right-hand column is the claim boundary. Treat results on the local mirror
 as maintainer measurements until you rebuild an equivalent corpus. The final
 holdout was frozen before its first scored run. Earlier holdouts were promoted
 to tuning data and are not presented as independent results.
 
-The sample corpus is the honest floor: 24 pinned public pages (SQLite, Go,
-PostgreSQL) that anyone can reproduce end-to-end in a few minutes with no API
-key and no account. It demonstrates the pipeline, not the ceiling.
+The sample corpus is the honest floor: a fixed list of 24 public page URLs
+(SQLite, Go, and PostgreSQL) that anyone can replay end-to-end in a few minutes
+with no API key and no account. It demonstrates the pipeline, not the ceiling.
+The dated baseline makes upstream content drift visible.
 
 ```sh
 corpus="$(mktemp -d)"
@@ -426,10 +428,11 @@ docs-puller eval --check-fixture
 docs-puller eval-suite --json
 ```
 
-A **fully reproducible baseline** ships in [`eval/sample-corpus/`](eval/sample-corpus/):
-24 pinned public doc pages (SQLite, Go, PostgreSQL) + 24 queries + a frozen
-BM25-only baseline (**Hit@1 95.8% / Hit@5 100% / MRR 0.979**) that anyone can
-replay with no API key:
+A **replayable live-page baseline** ships in
+[`eval/sample-corpus/`](eval/sample-corpus/): a fixed list of 24 public doc URLs
+(SQLite, Go, and PostgreSQL), 24 queries, and a dated BM25-only baseline
+(**Hit@1 95.8% / Hit@5 100% / MRR 0.979**). Anyone can run the workflow with no
+API key. Upstream page edits can change a later score.
 
 ```sh
 corpus="$(mktemp -d)"

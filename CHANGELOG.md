@@ -178,7 +178,7 @@ No user-facing changes yet.
 - `npm ci --prefix vscode-extension && npm run compile --prefix vscode-extension`
 - `docs-puller eval --fixture eval/blender.yaml --check-fixture`
 - `docs-puller eval --fixture eval/blender.yaml --profile blender-workspace --strict --record-run`
-- Reproducible 24-query sample replay: Hit@1 95.8%, Hit@5 100%, MRR 0.979.
+- Replayable 24-query live-page sample: Hit@1 95.8%, Hit@5 100%, MRR 0.979.
 - Live authoritative pull from `projects.blender.org/blender/blender-manual.git`
   at `blender-v5.1-release`: 2,222 pages ingested and FTS5 corpus status green.
 

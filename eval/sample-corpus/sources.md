@@ -1,4 +1,4 @@
-# docs-puller sample corpus — pinned public doc pages
+# docs-puller sample corpus — fixed public-page URL list
 
 Build this corpus yourself with `docs-puller pull --from` (no docs are
 redistributed in this repository). Pages are chosen for URL stability:

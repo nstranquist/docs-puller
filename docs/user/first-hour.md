@@ -30,10 +30,10 @@ docs-puller search "method sets pointer receiver" --out "$corpus" --source go --
 Each pull updates the FTS5 index. Run `reindex` after you edit or remove corpus
 files outside docs-puller.
 
-## Reproduce the public benchmark
+## Replay the public benchmark
 
-The repository contains 24 pinned public pages, 24 queries, and a dated
-baseline. Use a v0.6.0 checkout so the fixture and binary agree:
+The repository contains a fixed list of 24 live public-page URLs, 24 queries,
+and a dated baseline. Use a v0.6.0 checkout so the fixture and binary agree:
 
 ```sh
 git clone --depth 1 --branch v0.6.0 \
