@@ -1151,7 +1151,19 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 				if source != "" && sourceFilter != "" {
 					bodyRelaxedQ := strings.Replace(relaxedQ, "{title path_tokens}", "{title path_tokens body}", 1)
 					scopedBodyQ := ftsScopeRelaxedQuery(bodyRelaxedQ, sourceFilter)
-					if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, includeSnippets); err != nil {
+					// Some documentation sites expose short variant selectors instead
+					// of the article body at the canonical URL. They are useful surface
+					// candidates, but their repeated boilerplate is weak semantic body
+					// evidence and must not receive the reciprocal-rank fusion boost.
+					// Keep them in the title, path, strict-body, and relaxed-surface
+					// tiers; exclude them only from this semantic body pass.
+					const relaxedBodySQL = `SELECT path, source, title, url, body, bm25(docs, 5, 3, 1) AS rank
+					                        FROM docs WHERE docs MATCH ?
+					                        AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
+					const relaxedBodySQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 1) AS rank
+					                              FROM docs WHERE docs MATCH ?
+					                              AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
+					if err := f.runTier(candByPath, relaxedBodySQL, relaxedBodySQLNoBody, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, includeSnippets); err != nil {
 						return nil, err
 					}
 				}

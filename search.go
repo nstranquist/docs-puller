@@ -503,6 +503,7 @@ var naturalLanguageCanonicalQueries = []naturalLanguageCanonicalQuery{
 	{all: []string{"slack", "rate", "limits"}, oneOf: []string{"429", "responses"}, rewrite: []string{"slack", "rate", "limits"}},
 	{all: []string{"stripe", "subscription", "billing"}, oneOf: []string{"create", "recurring"}, rewrite: []string{"stripe", "subscriptions"}},
 	{all: []string{"stripe", "account", "platform"}, oneOf: []string{"connect", "own", "users"}, rewrite: []string{"stripe", "connect"}},
+	{all: []string{"stripe", "charge"}, oneOf: []string{"notification", "notifications"}, rewrite: []string{"stripe", "webhooks", "events"}},
 	{all: []string{"redis", "message", "queue", "streams"}, rewrite: []string{"redis", "streams"}},
 	{all: []string{"playwright", "assert", "visible", "test"}, rewrite: []string{"playwright", "assertions"}},
 	{all: []string{"bun", "tsx", "file"}, oneOf: []string{"started", "writing"}, rewrite: []string{"bun", "typescript"}},

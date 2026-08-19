@@ -187,6 +187,70 @@ func TestFTSRelaxedBodyTierRecoversConceptNamedAPI(t *testing.T) {
 	}
 }
 
+func TestFTSRelaxedBodyTierDoesNotPromoteVariantIndexStub(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "stripe")
+	writeFTSDoc(t, src, "payments/setup-intents.md", `# The Setup Intents API
+
+Learn about saving payment methods for future payments. Collect payment method
+details now without creating a charge, then use the saved credentials for a
+future payment. Setup Intents track the payment setup lifecycle and required
+authentication.
+`)
+	variantIndex := `# Set up future payments
+
+Learn how to save payment details in a Checkout session and charge customers later.
+
+## Index
+
+This article has multiple variants. Fetch one of the following URLs to view specific content for your use case:
+
+- Full hosted page
+- Full embedded page
+`
+	writeFTSDoc(t, src, "payments/checkout/save-and-reuse.md", variantIndex)
+	writeFTSDoc(t, src, "payments/checkout/save-during-payment.md", strings.ReplaceAll(
+		variantIndex, "Set up future payments", "Save payment details during payment"))
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := idx.searchWithOptions(
+		"save payment details now for a future Stripe charge",
+		"stripe", 3, false, nil, false, false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || !strings.HasSuffix(hits[0].Path, "payments/setup-intents.md") {
+		t.Fatalf("variant-index hits = %+v, want substantive Setup Intents guide first", hits)
+	}
+
+	hits, err = idx.searchWithOptions(
+		"set up future payments with Stripe Checkout",
+		"stripe", 3, false, nil, false, false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundVariant := false
+	for _, hit := range hits {
+		if strings.HasSuffix(hit.Path, "payments/checkout/save-and-reuse.md") {
+			foundVariant = true
+			break
+		}
+	}
+	if !foundVariant {
+		t.Fatalf("checkout-specific hits = %+v, want matching variant index retained in the result window", hits)
+	}
+}
+
 func TestFTSBuildTitleQueryDropsStopWordsBeforeSourceStrip(t *testing.T) {
 	got, src := ftsBuildTitleQuery("how do I upload files to Supabase storage", false)
 	if src != "supabase" {
@@ -284,6 +348,7 @@ func TestFTSBuildQueryRewritesWeakLibrarySearchMisses(t *testing.T) {
 		{"what are slack's API rate limits and how do I handle 429 responses", `"slack" "rate" "limits"`},
 		{"how do I create recurring subscription billing in stripe", `"stripe" "subscriptions"`},
 		{"how do I let users connect their own stripe account to my platform", `"stripe" "connect"`},
+		{"how do I receive notifications when a charge succeeds in stripe", `"stripe" "webhooks" "events"`},
 		{"how do I build a message queue using redis streams", `"redis" "streams"`},
 		{"how do I assert that something is visible in a playwright test", `"playwright" "assertions"`},
 		{"how do I get started writing a tsx file with bun", `"bun" AND ("typescript" OR "ts")`},
