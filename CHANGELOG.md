@@ -6,6 +6,11 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Require the exact patched Go toolchain when the release manifest declares one.
+- Expose the public live demo in the README and typed Product Passport.
+
 ## v0.7.2 — 2026-08-19
 
 ### Fixed
@@ -13,10 +18,6 @@ must name both the old and new behavior.
 - Keep the portable logical-path assertion platform independent in Windows CI.
 
 ## v0.7.1 — 2026-08-19
-
-### Added
-
-- Added the public live-demo URL to the README and typed Product Passport.
 
 ### Fixed
 
@@ -35,8 +36,6 @@ must name both the old and new behavior.
 
 - The minimum and release-build Go toolchain is pinned to 1.26.6, which removes
   the actionable standard-library findings reported against 1.26.5.
-- The release contract accepts an exact Go patch version and requires an exact
-  toolchain match when one is declared.
 - Windows runtime behavior is checked in the public operating-system matrix;
   deterministic Linux demo binaries and the container remain reproducible.
 
