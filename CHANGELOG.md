@@ -24,6 +24,7 @@ must name both the old and new behavior.
 - Build the public demo from reviewed snapshot bytes and report live upstream drift without changing production.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
+- Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.
 
 ## v0.7.6 — 2026-08-19
 

@@ -382,6 +382,46 @@ func sourcesFromQueryTokens(tokens []string) map[string]bool {
 	return out
 }
 
+// leadingSourceIntent returns an unambiguous source named at the start of the
+// meaningful query. Leading intent is stronger than a source keyword elsewhere
+// in a question: "supabase edge functions" names the documentation product,
+// while "rows in postgres" can still be asking about another product's guide.
+//
+// Multi-token product names take precedence over their component tokens. This
+// makes "vercel ai sdk" resolve to ai-sdk instead of becoming ambiguous with
+// the separate vercel source. A shared keyword such as "claude" remains
+// ambiguous and therefore does not create a ranking invariant.
+func leadingSourceIntent(tokens []string) (string, bool) {
+	if len(tokens) == 0 {
+		return "", false
+	}
+
+	phraseSources := map[string]bool{}
+	for src, phrases := range sourceKeywordPhrases {
+		for _, phrase := range phrases {
+			if tokenPhraseAt(tokens, 0, phrase) {
+				phraseSources[src] = true
+				break
+			}
+		}
+	}
+	if len(phraseSources) > 0 {
+		return onlySource(phraseSources)
+	}
+
+	return onlySource(sourceKeywords[tokens[0]])
+}
+
+func onlySource(sources map[string]bool) (string, bool) {
+	if len(sources) != 1 {
+		return "", false
+	}
+	for source := range sources {
+		return source, true
+	}
+	return "", false
+}
+
 func stripSourceIntentTokens(tokens []string) ([]string, map[string]bool) {
 	matchedSources := map[string]bool{}
 	stripIndexes := map[int]bool{}

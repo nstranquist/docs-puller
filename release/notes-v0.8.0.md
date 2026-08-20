@@ -47,6 +47,9 @@ for archive and Windows instructions.
   time to retain traces and video on a busy host.
 - Release synchronization treats source-repository launch proof as
   version-independent. Versioned install contracts still require exact tags.
+- Queries that start with one clear source name keep that source's canonical
+  docs ahead of duplicate workspace pages. Cross-source results remain
+  available after the named source.
 
 ## Measured evidence
 

@@ -1054,6 +1054,10 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if q == "" {
 		return nil, nil
 	}
+	strongSource, hasStrongSource := leadingSourceIntent(ftsScoringTokens(query, exact))
+	if source != "" || exact {
+		hasStrongSource = false
+	}
 
 	// Over-fetch so the in-Go re-rank has candidates to reorder.
 	sqlLimit := limit*5 + 10
@@ -1131,6 +1135,19 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	                       FROM docs WHERE docs MATCH ?`
 	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, false, includeSnippets); err != nil {
 		return nil, err
+	}
+	// The global body tier can fill its bounded candidate window with duplicate
+	// off-source pages before a named source's canonical page reaches Go. Add a
+	// source-scoped pass for leading, unambiguous product intent so the later
+	// ranking invariant always has intended-source candidates to compare. This
+	// supplements the global pass; it does not remove cross-source discovery.
+	if hasStrongSource {
+		scopedBodyQ := ftsBuildSourceScopedQuery(query, false, strongSource)
+		if scopedBodyQ != "" {
+			if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, scopedBodyQ, strongSource, sqlLimit, false, false, false, false, includeSnippets); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// 3. Relaxed natural-language tier. Strict implicit-AND remains the
@@ -1417,6 +1434,42 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	for _, c := range cands {
 		if c.exactTitle {
 			c.hit.Score += maxScore + searchTitleExactBoost
+		}
+	}
+	// A leading, unambiguous product name is a ranking invariant. The body
+	// tier intentionally remains global so cross-source material is still
+	// discoverable, but an arbitrary number of duplicated workspace pages
+	// must not crowd the named product's canonical docs out of the requested
+	// result window. Lift the complete intended-source group just above the
+	// strongest off-source candidate. Computing the minimum/maximum gap keeps
+	// the public descending-score contract and preserves order within each
+	// group. Explicit --source already filters, and exact search retains its
+	// exact-title semantics.
+	if hasStrongSource {
+		minIntended := 0
+		maxOther := 0
+		hasIntended := false
+		hasOther := false
+		for _, c := range cands {
+			if c.hit.Source == strongSource {
+				if !hasIntended || c.hit.Score < minIntended {
+					minIntended = c.hit.Score
+				}
+				hasIntended = true
+				continue
+			}
+			if !hasOther || c.hit.Score > maxOther {
+				maxOther = c.hit.Score
+			}
+			hasOther = true
+		}
+		if hasIntended && hasOther && minIntended <= maxOther {
+			lift := maxOther - minIntended + 1
+			for _, c := range cands {
+				if c.hit.Source == strongSource {
+					c.hit.Score += lift
+				}
+			}
 		}
 	}
 	// Re-sort by adjusted score so the title bonus actually moves results.

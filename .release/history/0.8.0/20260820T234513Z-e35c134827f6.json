@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.",
+  "category": "Fixed",
+  "commit_type": "fix",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

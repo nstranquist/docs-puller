@@ -1014,13 +1014,11 @@ func TestFTSSourceScopedExactTitleBeatsHighBM25(t *testing.T) {
 }
 
 // TestFTSShortCanonicalTitleWinsOverLongVendorRedundant covers the Phase A1
-// regression: a query like "supabase edge functions" should rank the
-// canonical short-titled doc ("Edge Functions") above an off-canonical doc
-// whose long title redundantly contains the vendor name ("Consuming
-// Supabase Queue Messages with Edge Functions"). The fix: skip the
-// per-token title boost for source-keyword tokens whose source matches the
-// candidate's source, since the source-keyword boost (+30) already credited
-// that match.
+// regression and its corpus-growth recurrence: a query like "supabase edge
+// functions" should rank the canonical short-titled doc ("Edge Functions")
+// above both a longer same-source page and duplicated off-source workspace
+// pages. The leading product name is an unambiguous source intent, so corpus
+// growth cannot crowd that source out of the result window.
 func TestFTSShortCanonicalTitleWinsOverLongVendorRedundant(t *testing.T) {
 	out := t.TempDir()
 	src := filepath.Join(out, "supabase")
@@ -1030,6 +1028,14 @@ func TestFTSShortCanonicalTitleWinsOverLongVendorRedundant(t *testing.T) {
 	// Off-canonical long title — title literally contains "supabase".
 	writeFTSDoc(t, src, "guides/queues/consuming.md",
 		"---\ntitle: 'Consuming Supabase Queue Messages with Edge Functions'\n---\n\nQueue consumers using Edge Functions. Supabase queues can be consumed via edge functions.\n")
+	// Five exact-title duplicates from other sources model generated workspace
+	// docs. Before the ranking invariant, they could occupy every top-5 slot.
+	for i := 0; i < 5; i++ {
+		noiseSrc := filepath.Join(out, fmt.Sprintf("workspace-%d", i))
+		writeFTSDoc(t, noiseSrc, "features/supabase-edge-functions.md",
+			"---\ntitle: 'Supabase Edge Functions'\n---\n\n"+
+				strings.Repeat("Supabase edge functions deployment runtime. ", 25))
+	}
 
 	idx, _ := openFTSIndex(out)
 	defer idx.close()
@@ -1041,12 +1047,55 @@ func TestFTSShortCanonicalTitleWinsOverLongVendorRedundant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) < 2 {
-		t.Fatalf("got %d hits, want 2", len(hits))
+	if len(hits) != 5 {
+		t.Fatalf("got %d hits, want 5", len(hits))
 	}
 	if !strings.HasSuffix(hits[0].Path, "functions.md") {
 		t.Errorf("rank 0 = %q (score %d) vs %q (score %d) — canonical short-title doc should win",
 			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
+	}
+	seenOther := false
+	for i, hit := range hits {
+		if hit.Source != "supabase" {
+			seenOther = true
+			continue
+		}
+		if seenOther {
+			t.Fatalf("rank %d = %q from intended source after an off-source duplicate", i, hit.Path)
+		}
+	}
+}
+
+func TestFTSLeadingSourceIntentSurvivesCandidatePoolCrowding(t *testing.T) {
+	out := t.TempDir()
+	writeFTSDoc(t, filepath.Join(out, "supabase"), "guides/runtime.md",
+		"---\ntitle: 'Runtime guide'\n---\n\nEdge functions run close to users.\n")
+
+	// The global body query fetches limit*5+10 candidates. Exceed that window
+	// with exact-title duplicates, and make the intended-source page qualify
+	// only through its body. The source-scoped body pass must still recover it.
+	for i := 0; i < 60; i++ {
+		noiseSrc := filepath.Join(out, fmt.Sprintf("workspace-%02d", i))
+		writeFTSDoc(t, noiseSrc, "generated/supabase-edge-functions.md",
+			"---\ntitle: 'Supabase Edge Functions'\n---\n\n"+
+				strings.Repeat("Supabase edge functions deployment runtime. ", 40))
+	}
+
+	idx, _ := openFTSIndex(out)
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := idx.search("supabase edge functions", "", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 5 {
+		t.Fatalf("got %d hits, want 5", len(hits))
+	}
+	if hits[0].Path != "supabase/guides/runtime.md" {
+		t.Fatalf("rank 0 = %q from %q, want intended-source body candidate", hits[0].Path, hits[0].Source)
 	}
 }
 

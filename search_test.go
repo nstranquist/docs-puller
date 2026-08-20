@@ -552,6 +552,32 @@ func TestNaturalLanguageSourceKeywords(t *testing.T) {
 	}
 }
 
+func TestLeadingSourceIntent(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  string
+		source string
+		ok     bool
+	}{
+		{name: "single product", query: "supabase edge functions", source: "supabase", ok: true},
+		{name: "natural language prefix removed", query: "how do I use Supabase Edge Functions", source: "supabase", ok: true},
+		{name: "multi-token product", query: "react native flatlist", source: "react-native", ok: true},
+		{name: "long phrase beats component", query: "vercel ai sdk stream text", source: "ai-sdk", ok: true},
+		{name: "incidental trailing product", query: "rows in postgres", ok: false},
+		{name: "ambiguous product", query: "claude tools", ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := ftsScoringTokens(tt.query, false)
+			got, ok := leadingSourceIntent(tokens)
+			if got != tt.source || ok != tt.ok {
+				t.Fatalf("leadingSourceIntent(%q) = (%q, %v), want (%q, %v); tokens=%v",
+					tt.query, got, ok, tt.source, tt.ok, tokens)
+			}
+		})
+	}
+}
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
