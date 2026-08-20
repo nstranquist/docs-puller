@@ -119,6 +119,29 @@ func TestTrackedCorpusLockIsSelfConsistent(t *testing.T) {
 	}
 }
 
+func TestTrackedSnapshotMatchesReviewedLock(t *testing.T) {
+	t.Parallel()
+
+	snapshotRoot := filepath.Join("..", "..", "snapshot")
+	if err := validateCorpusTree(snapshotRoot); err != nil {
+		t.Fatalf("validate tracked snapshot tree: %v", err)
+	}
+	current, err := buildLock(snapshotRoot, filepath.Join("..", "..", "..", "..", "eval", "sample-corpus", "sources.md"))
+	if err != nil {
+		t.Fatalf("build tracked snapshot lock: %v", err)
+	}
+	if err := validateExactCorpusFiles(snapshotRoot, current.Documents); err != nil {
+		t.Fatalf("validate tracked snapshot files: %v", err)
+	}
+	reviewed, err := readLock(filepath.Join("..", "..", "corpus.lock.json"))
+	if err != nil {
+		t.Fatalf("read reviewed corpus lock: %v", err)
+	}
+	if err := verifyLock(reviewed, current); err != nil {
+		t.Fatalf("verify tracked snapshot against reviewed lock: %v", err)
+	}
+}
+
 func TestDecodeJSONFileIsStrict(t *testing.T) {
 	t.Parallel()
 

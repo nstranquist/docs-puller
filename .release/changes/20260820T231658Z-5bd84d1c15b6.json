@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Refresh the reviewed 24-page sample to the Go 1.27 language specification without changing its source or document counts.",
+  "category": "Changed",
+  "commit_type": "refactor",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

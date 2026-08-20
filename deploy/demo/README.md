@@ -27,6 +27,8 @@ not weaken the open-core boundary in [`OPEN-CORE.md`](../../OPEN-CORE.md).
 
 - `corpus.lock.json` records every reviewed public URL, source license, byte
   count, and SHA-256 digest.
+- `snapshot/` contains the exact reviewed document bytes and source manifests
+  used by production.
 - `cmd/corpus-builder` verifies the lock, checkpoints SQLite, and creates the
   only allowed container build context.
 - `Dockerfile` uses a digest-pinned distroless non-root base image.
@@ -59,25 +61,22 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 cmp /tmp/docs-puller-demo-linux-amd64-a /tmp/docs-puller-demo-linux-amd64-b
 ```
 
-Pull the fixed public sample, reindex it, and run the published eval floor:
+Prove the reviewed production snapshot offline:
 
 ```sh
-go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false \
-  -o /tmp/docs-puller-demo-host .
-/tmp/docs-puller-demo-host pull \
-  --from eval/sample-corpus/sources.md --out /tmp/docs-puller-public-demo
-/tmp/docs-puller-demo-host reindex --out /tmp/docs-puller-public-demo
-DOCS_PULLER_QUERY_LOG=0 /tmp/docs-puller-demo-host eval \
-  --fixture eval/sample-corpus/fixture.yaml \
-  --out /tmp/docs-puller-public-demo \
-  --min-hit-at-1 0.90 --min-hit-at-5 1.0 --min-mrr 0.95 --max-p99-ms 250
+make verify-public-snapshot
 ```
+
+This target copies the snapshot twice. It creates a new index in each copy,
+requires equal index bytes, verifies the content lock, and enforces the
+published retrieval floor. Run `make verify-public-sample` separately when you
+need a live upstream drift check.
 
 Verify and stage only the reviewed corpus:
 
 ```sh
 go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
-  --corpus /tmp/docs-puller-public-demo \
+  --corpus /tmp/docs-puller-reviewed-snapshot \
   --binary /tmp/docs-puller-demo-linux-amd64-a \
   --build-context deploy/demo/.build
 ```

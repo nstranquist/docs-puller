@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "entries": {
+    "https://www.postgresql.org/docs/current/ddl-partitioning.html": {
+      "url": "https://www.postgresql.org/docs/current/ddl-partitioning.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/ddl-partitioning.md",
+      "mode": "http",
+      "sha256": "9bfad8bf9d7717ce0e2f41610dc76a2662941e17b1be1aa37e67f159086d9b03",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/functions-json.html": {
+      "url": "https://www.postgresql.org/docs/current/functions-json.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/functions-json.md",
+      "mode": "http",
+      "sha256": "d8fb69660674c046c04247d7c2fd1a5d232a7ad1757deebe2ce30057eb105e94",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/indexes-partial.html": {
+      "url": "https://www.postgresql.org/docs/current/indexes-partial.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/indexes-partial.md",
+      "mode": "http",
+      "sha256": "65a539159925b31b79fbb24c60035ed29dd415c70ed676447cac5209b2ac99a3",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/indexes-types.html": {
+      "url": "https://www.postgresql.org/docs/current/indexes-types.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/indexes-types.md",
+      "mode": "http",
+      "sha256": "5f911bc89c99d7823733eb14d85413356cc7fe208a2f0bc0f12fc0b6f60db145",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/mvcc-intro.html": {
+      "url": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/mvcc-intro.md",
+      "mode": "http",
+      "sha256": "07a2f44f210f9f20dd154d70feac402e235db3e13083ff5cabb534cb69bd7646",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/sql-createindex.html": {
+      "url": "https://www.postgresql.org/docs/current/sql-createindex.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/sql-createindex.md",
+      "mode": "http",
+      "sha256": "2fa31e743ecb63b9997872a095042b818760bc9f53a8ca7c15be0dbb0feec2f4",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/sql-select.html": {
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/sql-select.md",
+      "mode": "http",
+      "sha256": "dd66d460afebcd5f9df887080631df6552d003edad22f08595eb641d34a7061e",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://www.postgresql.org/docs/current/wal-intro.html": {
+      "url": "https://www.postgresql.org/docs/current/wal-intro.html",
+      "source": "postgresql",
+      "path": "postgresql/docs/current/wal-intro.md",
+      "mode": "http",
+      "sha256": "43838aa086fc1a29487a227de6d867ea7e300ac00ed16e15399e82559281cab5",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    }
+  }
+}

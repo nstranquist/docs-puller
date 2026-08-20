@@ -90,6 +90,10 @@ test("renders every public page without horizontal overflow", async ({
 test("stays inside browser performance and discovery budgets", async ({
   page,
 }, testInfo) => {
+  // Each navigation has explicit performance assertions. Leave enough total
+  // time for three measured pages and browser artifact teardown on a busy host.
+  test.setTimeout(60_000)
+
   const measurements: Array<{
     path: string
     metrics: Record<string, number>

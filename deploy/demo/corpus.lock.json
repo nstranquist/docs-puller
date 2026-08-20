@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "corpus_id": "public-sample-v1",
-  "retrieved_at": "2026-08-19T01:06:48Z",
-  "source_date_epoch": 1787101608,
+  "retrieved_at": "2026-08-20T22:49:35Z",
+  "source_date_epoch": 1787266175,
   "source_list_digest": "sha256:ed0459a03368c48b3d6a97e4ac2792f3dd03eadf36326c06d4d35ba084d5178a",
-  "corpus_digest": "sha256:39b337204d4a8dfe034a0fcff2f70dfbd855653cc6cb389b9514947dbea35e6e",
+  "corpus_digest": "sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b",
   "document_count": 24,
   "source_count": 3,
   "documents": [
@@ -69,8 +69,8 @@
       "path": "go/ref/spec.md",
       "url": "https://go.dev/ref/spec",
       "license": "CC BY 4.0 website content, unless noted otherwise",
-      "sha256": "sha256:4b1a1bf3ac094f279becbb7a5bae12631b38901be27a399cee65eb9491b1d790",
-      "bytes": 250910
+      "sha256": "sha256:7d4b302ccd1b8dee4b35f70ef0e115efa59c4786f7eaee43793061561ef0ec49",
+      "bytes": 253310
     },
     {
       "source": "postgresql",

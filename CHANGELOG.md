@@ -8,8 +8,19 @@ must name both the old and new behavior.
 
 ### Added
 
-- Route Mintlify Jupiter developer docs (`developers.jup.ag/docs`) into the
-  `jupiter` source, including native `.md` pages and OpenAPI YAML mirrors.
+- Route Mintlify Jupiter developer docs (`developers.jup.ag/docs`) into the `jupiter` source, including native `.md` pages and OpenAPI YAML mirrors.
+- Publish AI-facing project summaries at `ai-info.md` and `llms.txt`, with generated copies on the demo site.
+
+### Changed
+
+- Refresh the reviewed 24-page sample to the Go 1.27 language specification without changing its source or document counts.
+
+### Fixed
+
+- Use the supported `nstranquist.workers.dev` hostname for the public demo and its generated discovery links.
+- Verify the public GitHub repository in the launch contract instead of treating `go install` as a web deployment.
+- Build the public demo from reviewed snapshot bytes and report live upstream drift without changing production.
+- Give the three-page browser budget proof enough time to retain evidence on busy hosts.
 
 ## v0.7.6 — 2026-08-19
 

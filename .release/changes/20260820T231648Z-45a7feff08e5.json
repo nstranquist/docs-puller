@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Route Mintlify Jupiter developer docs (`developers.jup.ag/docs`) into the `jupiter` source, including native `.md` pages and OpenAPI YAML mirrors.",
+  "category": "Added",
+  "commit_type": "feat",
+  "bump": "minor",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

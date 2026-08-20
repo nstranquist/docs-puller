@@ -2,7 +2,7 @@
 
 .PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
-	extension-check extension-package site-check verify-public-sample verify-held-out \
+	extension-check extension-package site-check verify-public-snapshot verify-public-sample verify-held-out \
 	verify-retrieval-regression \
 	release-check release-sync-check release-sync-write release-dist \
 	release-verify release-ready verify-clean-clone
@@ -34,13 +34,14 @@ help:
 	@echo "  make build | test | vet | fmt | verify | publish-ready"
 	@echo "  make install | smoke | demo-smoke | version | help-sizes"
 	@echo "  make site-check"
-	@echo "  make verify-public-sample | verify-retrieval-regression | verify-held-out"
+	@echo "  make verify-public-snapshot | verify-public-sample"
+	@echo "  make verify-retrieval-regression | verify-held-out"
 	@echo "  make verify-clean-clone"
 	@echo "  make release-check | release-dist | release-verify | release-ready"
 	@echo "  make release-sync-check NDEV_ROOT=/path/to/nicos-tools"
 
 # Complete local publication gate. It does not push or publish.
-publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package site-check
+publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package site-check verify-public-snapshot
 
 build:
 	go build $(GO_TAG_FLAGS) -o bin/docs-puller .
@@ -141,6 +142,34 @@ verify-public-sample: build
 		--min-hit-at-5 $(PUBLIC_SAMPLE_MIN_HIT_AT_5) \
 		--min-mrr $(PUBLIC_SAMPLE_MIN_MRR) \
 		--max-p99-ms $(PUBLIC_SAMPLE_MAX_P99_MS)
+
+# Offline proof that the reviewed production snapshot creates one exact index.
+verify-public-snapshot: build
+	@snapshot_root=$$(mktemp -d); \
+	trap 'rm -rf -- "$$snapshot_root"' EXIT; \
+	mkdir -p "$$snapshot_root/a" "$$snapshot_root/b"; \
+	cp -R deploy/demo/snapshot/. "$$snapshot_root/a/"; \
+	cp -R deploy/demo/snapshot/. "$$snapshot_root/b/"; \
+	./bin/docs-puller reindex --out "$$snapshot_root/a"; \
+	./bin/docs-puller reindex --out "$$snapshot_root/b"; \
+	go run $(GO_TAG_FLAGS) ./deploy/demo/cmd/corpus-builder --corpus "$$snapshot_root/a" > "$$snapshot_root/a.json"; \
+	go run $(GO_TAG_FLAGS) ./deploy/demo/cmd/corpus-builder --corpus "$$snapshot_root/b" > "$$snapshot_root/b.json"; \
+	cmp "$$snapshot_root/a/.cache/search.db" "$$snapshot_root/b/.cache/search.db"; \
+	index_a=$$(jq -er .index_digest "$$snapshot_root/a.json"); \
+	index_b=$$(jq -er .index_digest "$$snapshot_root/b.json"); \
+	test "$$index_a" = "$$index_b"; \
+	./bin/docs-puller status --out "$$snapshot_root/a" --check; \
+	DOCS_PULLER_QUERY_LOG=0 ./bin/docs-puller eval \
+		--fixture eval/sample-corpus/fixture.yaml \
+		--out "$$snapshot_root/a" --json \
+		--min-hit-at-1 $(PUBLIC_SAMPLE_MIN_HIT_AT_1) \
+		--min-hit-at-5 $(PUBLIC_SAMPLE_MIN_HIT_AT_5) \
+		--min-mrr $(PUBLIC_SAMPLE_MIN_MRR) \
+		--max-p99-ms $(PUBLIC_SAMPLE_MAX_P99_MS) > "$$snapshot_root/eval.json"; \
+	jq -n --arg index_digest "$$index_a" \
+		--arg corpus_digest "$$(jq -er .corpus_digest "$$snapshot_root/a.json")" \
+		--slurpfile evaluation "$$snapshot_root/eval.json" \
+		'{ok:true, corpus_digest:$$corpus_digest, index_digest:$$index_digest, evaluation:$$evaluation[0].summary}'
 
 # Private/local held-out gate. The fixture is public; the corpus can be private.
 verify-held-out: build

@@ -12,7 +12,10 @@ eight pages from each source:
 
 The authoritative URL list is
 [`eval/sample-corpus/sources.md`](../../eval/sample-corpus/sources.md). The
+authoritative production bytes are in [`snapshot/`](snapshot/). The
 authoritative byte-level review is [`corpus.lock.json`](corpus.lock.json).
+Production and normal CI do not download these pages. They build a new SQLite
+index from the tracked snapshot.
 
 License references:
 
@@ -33,14 +36,17 @@ A document can enter this corpus only when all these statements are true:
 7. The local tree contains no symlink, private source, or unreviewed file.
 8. The pulled bytes match the reviewed lock.
 9. The SQLite index passes `PRAGMA integrity_check` and contains 24 documents.
+10. Two new indexes from two copies of the snapshot are byte-identical.
 
 The container does not receive `_INGEST_LOG.jsonl`, write locks, title caches,
 or any file that is not needed at runtime.
 
 ## Refresh procedure
 
-The scheduled refresh workflow pulls all 24 URLs and verifies the existing
-lock. It never updates production content automatically.
+The scheduled replay workflow pulls all 24 URLs and verifies the existing
+lock. This live pull is a drift detector. It never updates production content
+or the tracked snapshot. It opens one issue when upstream content or retrieval
+quality changes. It closes that issue after a later replay passes.
 
 If upstream bytes change:
 
@@ -48,10 +54,13 @@ If upstream bytes change:
 2. Run the retrieval eval and compare Hit@1, Hit@5, MRR, p50, and p99.
 3. Confirm that no private or unrelated content entered the corpus.
 4. Run the corpus builder with `--write-lock`.
-5. Review the complete lock diff.
-6. Run the full demo CI and managed-browser review.
-7. Deploy the origin before the Worker metadata.
+5. Replace `snapshot/` with only the reviewed documents and source manifests.
+6. Run `make verify-public-snapshot`. This command builds two new indexes and
+   requires them to be byte-identical.
+7. Review the complete lock and snapshot diff.
+8. Run the full demo CI and managed-browser review.
+9. Deploy the origin before the Worker metadata.
 
-The lock ignores only the fresh fetch timestamp when it compares a replay.
+The lock ignores only the new fetch timestamp when it compares a live replay.
 Every source URL, path, license label, byte count, and content digest must stay
-equal.
+equal. A lock match does not replace the two-index reproducibility proof.

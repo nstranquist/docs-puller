@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Publish AI-facing project summaries at `ai-info.md` and `llms.txt`, with generated copies on the demo site.",
+  "category": "Added",
+  "commit_type": "feat",
+  "bump": "minor",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

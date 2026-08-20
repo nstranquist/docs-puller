@@ -43,15 +43,16 @@ The production workflow performs these operations in order:
 
 1. Verify Go modules and the full Go test suite.
 2. Install the exact pnpm lock and run all site checks.
-3. Pull the 24 public pages and verify the reviewed lock.
-4. Enforce Hit@1 >= 0.90, Hit@5 = 1.0, MRR >= 0.95, and p99 <= 250 ms.
-5. Build the Linux binary twice and require equal SHA-256 digests.
-6. Create the deterministic root filesystem and container image.
-7. Generate the SBOM and GitHub artifact attestations.
-8. Deploy the Fly origin with a commit-based image label and blue-green checks.
-9. Prove the old Worker can still reach the new origin.
-10. Deploy the Worker with the exact commit, corpus, index, and deployment time.
-11. Run public readiness, metadata, source, search, document, header, and page
+3. Copy the reviewed snapshot into two new directories and build both indexes.
+4. Require equal index bytes and verify the reviewed content lock.
+5. Enforce Hit@1 >= 0.90, Hit@5 = 1.0, MRR >= 0.95, and p99 <= 250 ms.
+6. Build the Linux binary twice and require equal SHA-256 digests.
+7. Create the deterministic root filesystem and container image.
+8. Generate the SBOM and GitHub artifact attestations.
+9. Deploy the Fly origin with a commit-based image label and blue-green checks.
+10. Prove the old Worker can still reach the new origin.
+11. Deploy the Worker with the exact commit, corpus, index, and deployment time.
+12. Run public readiness, metadata, source, search, document, header, and page
     smoke checks.
 
 The workflow uses one concurrency group and does not cancel an active
@@ -59,7 +60,14 @@ production deployment.
 
 ## Manual deployment
 
-Use the same verified `deploy/demo/.build` directory as CI:
+First, run the offline snapshot proof and stage the reviewed corpus. Use a new
+temporary directory for the staged snapshot:
+
+```sh
+make verify-public-snapshot
+```
+
+Then use the same verified `deploy/demo/.build` directory as CI:
 
 ```sh
 flyctl deploy deploy/demo/.build \
@@ -69,7 +77,9 @@ flyctl deploy deploy/demo/.build \
   --build-arg "SOURCE_DATE_EPOCH=$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
 ```
 
-Then deploy the Worker from `site/`. Override all dynamic identity fields:
+Then deploy the Worker from `site/`. Use the account-pinned
+`cloudflare.docs-puller.production` profile. Override all dynamic identity
+fields:
 
 ```sh
 pnpm exec wrangler deploy \
@@ -125,6 +135,10 @@ pnpm exec wrangler versions list
 pnpm exec wrangler deployments list
 pnpm exec wrangler rollback VERIFIED_VERSION_ID
 ```
+
+For local production work, run Wrangler through the account-pinned
+`cloudflare.docs-puller.production` profile. The profile must own only the
+`docs-puller-demo` Worker. Do not use an account-wide default profile.
 
 Run every required smoke check after a rollback. Provider success is not proof
 that search works.

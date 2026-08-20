@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: public-sample-${{ github.ref }}
@@ -33,6 +34,8 @@ jobs:
           bin/docs-puller reindex --out "${RUNNER_TEMP}/public-sample"
           bin/docs-puller status --out "${RUNNER_TEMP}/public-sample" --check
       - name: Enforce published retrieval floor
+        id: evaluation
+        continue-on-error: true
         run: |
           set -o pipefail
           bin/docs-puller eval \
@@ -44,7 +47,10 @@ jobs:
             --min-mrr 0.95 \
             --max-p99-ms 250 | tee public-sample-result.json
       - name: Verify reviewed production corpus lock
+        id: lock
+        continue-on-error: true
         run: |
+          set -o pipefail
           go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
             --corpus "${RUNNER_TEMP}/public-sample" | tee corpus-lock-verification.json
       - name: Summarize metrics
@@ -59,3 +65,56 @@ jobs:
             public-sample-result.json
             corpus-lock-verification.json
           if-no-files-found: ignore
+      - name: Manage upstream drift issue
+        if: always()
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9.0.0
+        env:
+          EVALUATION_OUTCOME: ${{ steps.evaluation.outcome }}
+          LOCK_OUTCOME: ${{ steps.lock.outcome }}
+        with:
+          script: |
+            const title = "docs-puller public sample replay needs review";
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const openIssue = issues.find((issue) => issue.title === title);
+            const ok = process.env.EVALUATION_OUTCOME === "success" &&
+              process.env.LOCK_OUTCOME === "success";
+
+            if (ok) {
+              if (openIssue) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: openIssue.number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+              }
+              return;
+            }
+            if (openIssue) return;
+
+            const runURL = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body: [
+                "The weekly live replay no longer matches the reviewed production snapshot or its retrieval floor.",
+                "",
+                `Run: ${runURL}`,
+                `Evaluation: ${process.env.EVALUATION_OUTCOME}`,
+                `Content lock: ${process.env.LOCK_OUTCOME}`,
+                "",
+                "Production still uses the frozen, reviewed snapshot. Inspect the upstream diff, license status, and retrieval metrics before changing the lock or deploying new bytes.",
+                "Use deploy/demo/CORPUS.md for the review procedure.",
+              ].join("\n"),
+            });
+      - name: Mark the replay run failed
+        if: steps.evaluation.outcome == 'failure' || steps.lock.outcome == 'failure'
+        run: exit 1

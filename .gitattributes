@@ -1,0 +1,2 @@
+# Keep reviewed upstream documents byte-exact, including Markdown hard breaks.
+deploy/demo/snapshot/** -whitespace

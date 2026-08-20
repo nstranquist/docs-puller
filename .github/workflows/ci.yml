@@ -143,6 +143,7 @@ jobs:
         env:
           DOCS_PULLER_QUERY_LOG: '0'
         run: |
+          set -o pipefail
           mkdir -p "${RUNNER_TEMP}/demo-bin"
           version="$(jq -r .version release/manifest.json)"
           ldflags="-s -w -buildid= -X main.releaseIdentity=docs-puller-release:${version}@${GITHUB_SHA}"
@@ -150,15 +151,28 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false -ldflags "$ldflags" -o "${RUNNER_TEMP}/demo-bin/docs-puller-b" .
           cmp "${RUNNER_TEMP}/demo-bin/docs-puller-a" "${RUNNER_TEMP}/demo-bin/docs-puller-b"
           go build -mod=readonly -tags sqlite_fts5 -trimpath -buildvcs=false -o "${RUNNER_TEMP}/demo-bin/docs-puller-host" .
-          "${RUNNER_TEMP}/demo-bin/docs-puller-host" pull --from eval/sample-corpus/sources.md --out "${RUNNER_TEMP}/demo-corpus"
-          "${RUNNER_TEMP}/demo-bin/docs-puller-host" reindex --out "${RUNNER_TEMP}/demo-corpus"
-          "${RUNNER_TEMP}/demo-bin/docs-puller-host" status --out "${RUNNER_TEMP}/demo-corpus" --check
+          mkdir -p "${RUNNER_TEMP}/demo-corpus-a" "${RUNNER_TEMP}/demo-corpus-b"
+          cp -R deploy/demo/snapshot/. "${RUNNER_TEMP}/demo-corpus-a/"
+          cp -R deploy/demo/snapshot/. "${RUNNER_TEMP}/demo-corpus-b/"
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" reindex --out "${RUNNER_TEMP}/demo-corpus-a"
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" reindex --out "${RUNNER_TEMP}/demo-corpus-b"
+          go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
+            --corpus "${RUNNER_TEMP}/demo-corpus-a" > demo-corpus-a.json
+          go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
+            --corpus "${RUNNER_TEMP}/demo-corpus-b" > demo-corpus-b.json
+          cmp "${RUNNER_TEMP}/demo-corpus-a/.cache/search.db" "${RUNNER_TEMP}/demo-corpus-b/.cache/search.db"
+          index_a="$(jq -er .index_digest demo-corpus-a.json)"
+          index_b="$(jq -er .index_digest demo-corpus-b.json)"
+          test "$index_a" = "$index_b"
+          jq -n --arg index_digest "$index_a" \
+            '{ok:true, builds:2, index_digest:$index_digest}' > demo-index-reproducibility.json
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" status --out "${RUNNER_TEMP}/demo-corpus-a" --check
           "${RUNNER_TEMP}/demo-bin/docs-puller-host" eval \
             --fixture eval/sample-corpus/fixture.yaml \
-            --out "${RUNNER_TEMP}/demo-corpus" \
+            --out "${RUNNER_TEMP}/demo-corpus-a" \
             --json --min-hit-at-1 0.90 --min-hit-at-5 1.0 --min-mrr 0.95 --max-p99-ms 250 | tee demo-eval.json
           go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
-            --corpus "${RUNNER_TEMP}/demo-corpus" \
+            --corpus "${RUNNER_TEMP}/demo-corpus-a" \
             --binary "${RUNNER_TEMP}/demo-bin/docs-puller-a" \
             --build-context deploy/demo/.build | tee demo-build.json
       - name: Prove the container image is reproducible
@@ -209,7 +223,10 @@ jobs:
           name: public-demo-${{ github.run_id }}
           path: |
             demo-build.json
+            demo-corpus-a.json
+            demo-corpus-b.json
             demo-eval.json
+            demo-index-reproducibility.json
             demo-image-reproducibility.json
             demo-origin.spdx.json
             deploy/demo/.build/build-manifest.json

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "entries": {
+    "https://sqlite.org/fts5.html": {
+      "url": "https://sqlite.org/fts5.html",
+      "source": "sqlite",
+      "path": "sqlite/fts5.md",
+      "mode": "http",
+      "sha256": "ee89dbe4a185d0350f218798b6c7bcbb5312e1f5715432156cdc28472de053a6",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/isolation.html": {
+      "url": "https://sqlite.org/isolation.html",
+      "source": "sqlite",
+      "path": "sqlite/isolation.md",
+      "mode": "http",
+      "sha256": "9f4c6fb195aad556fd169b7f4e539dc1cac0854b7aaa5330e9b50ffdcc545661",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/json1.html": {
+      "url": "https://sqlite.org/json1.html",
+      "source": "sqlite",
+      "path": "sqlite/json1.md",
+      "mode": "http",
+      "sha256": "c5fe68fb465febbdaf0e2004883aa0696c0044caa4648b286256adbfaa04c6ba",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/lang_select.html": {
+      "url": "https://sqlite.org/lang_select.html",
+      "source": "sqlite",
+      "path": "sqlite/lang_select.md",
+      "mode": "http",
+      "sha256": "a3a15ef2f0a0a9fd0445f2580adc3cf676efde5dec34c99aaf334a670f8f213d",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/pragma.html": {
+      "url": "https://sqlite.org/pragma.html",
+      "source": "sqlite",
+      "path": "sqlite/pragma.md",
+      "mode": "http",
+      "sha256": "2c638c1aaea93aa76584089ab20db43b73cd8c34cd6f07b7821428319d54813e",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/queryplanner.html": {
+      "url": "https://sqlite.org/queryplanner.html",
+      "source": "sqlite",
+      "path": "sqlite/queryplanner.md",
+      "mode": "http",
+      "sha256": "b82c8fbcfcff552119b312ab001bd9071f303e2ffa3f818989772a0eb04216c5",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/rtree.html": {
+      "url": "https://sqlite.org/rtree.html",
+      "source": "sqlite",
+      "path": "sqlite/rtree.md",
+      "mode": "http",
+      "sha256": "3b0b5be2629672c1f77e8a999b352516c53ff304fe810b7df0245aa3ba5e843a",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://sqlite.org/wal.html": {
+      "url": "https://sqlite.org/wal.html",
+      "source": "sqlite",
+      "path": "sqlite/wal.md",
+      "mode": "http",
+      "sha256": "0b191ffd71b22ba30ee5d6b4f5733ceb9d85e89152947994e237e9f3c66dea1a",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    }
+  }
+}

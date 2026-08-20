@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "entries": {
+    "https://go.dev/blog/maps": {
+      "url": "https://go.dev/blog/maps",
+      "source": "go",
+      "path": "go/blog/maps.md",
+      "mode": "http",
+      "sha256": "21a5731cc0cc61e632218fd93f8e5aef7e8cfdcd2886bdfcff6f0e987dde0c0a",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/blog/pipelines": {
+      "url": "https://go.dev/blog/pipelines",
+      "source": "go",
+      "path": "go/blog/pipelines.md",
+      "mode": "http",
+      "sha256": "2b58a5b25a7344f59bc0edaa378fe74323fd3ed91b7f7bce1fccbe487919445d",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/blog/slices-intro": {
+      "url": "https://go.dev/blog/slices-intro",
+      "source": "go",
+      "path": "go/blog/slices-intro.md",
+      "mode": "http",
+      "sha256": "cb6a7bcc188c273067b2b02fdda570c03f70398945c3e2d2d0016c44b10751e8",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/doc/effective_go": {
+      "url": "https://go.dev/doc/effective_go",
+      "source": "go",
+      "path": "go/doc/effective_go.md",
+      "mode": "http",
+      "sha256": "2d1b67d2f6149267c96954f8892e6eef4f53e5beb6254c7605560a3377bda324",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/doc/modules/managing-dependencies": {
+      "url": "https://go.dev/doc/modules/managing-dependencies",
+      "source": "go",
+      "path": "go/doc/modules/managing-dependencies.md",
+      "mode": "http",
+      "sha256": "c738c3941ae77e3a589e8b8e033332f2fd73cf652831ae5f6dd591365fce5ae5",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/doc/tutorial/generics": {
+      "url": "https://go.dev/doc/tutorial/generics",
+      "source": "go",
+      "path": "go/doc/tutorial/generics.md",
+      "mode": "http",
+      "sha256": "a25a9c9274c0cb372453df468669cb699e54fdf69b4ec6cb3ec233f90b9d5964",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/ref/mem": {
+      "url": "https://go.dev/ref/mem",
+      "source": "go",
+      "path": "go/ref/mem.md",
+      "mode": "http",
+      "sha256": "9d01630b892e431f6181875f3b6704b2906339d6f63463ed1eab66d888478418",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    },
+    "https://go.dev/ref/spec": {
+      "url": "https://go.dev/ref/spec",
+      "source": "go",
+      "path": "go/ref/spec.md",
+      "mode": "http",
+      "sha256": "7d4b302ccd1b8dee4b35f70ef0e115efa59c4786f7eaee43793061561ef0ec49",
+      "fetched_at": "2026-08-20T22:49:35Z"
+    }
+  }
+}
