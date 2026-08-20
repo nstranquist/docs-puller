@@ -6,6 +6,8 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.8.0 — 2026-08-20
+
 ### Added
 
 - Route Mintlify Jupiter developer docs (`developers.jup.ag/docs`) into the `jupiter` source, including native `.md` pages and OpenAPI YAML mirrors.

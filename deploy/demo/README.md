@@ -72,13 +72,10 @@ requires equal index bytes, verifies the content lock, and enforces the
 published retrieval floor. Run `make verify-public-sample` separately when you
 need a live upstream drift check.
 
-Verify and stage only the reviewed corpus:
+Verify and stage only the reviewed corpus and deterministic Linux binary:
 
 ```sh
-go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
-  --corpus /tmp/docs-puller-reviewed-snapshot \
-  --binary /tmp/docs-puller-demo-linux-amd64-a \
-  --build-context deploy/demo/.build
+make stage-public-demo
 ```
 
 Use `source_date_epoch` from `corpus.lock.json` for a reproducible image:

@@ -22,7 +22,7 @@ three-document corpus. It does not change your normal corpus and does not need
 an API key.
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.7.6
+go install github.com/nstranquist/docs-puller@v0.8.0
 docs-puller demo
 ```
 
@@ -57,32 +57,32 @@ for the problem, architecture, measured results, and claim boundaries.
 ## Measured Retrieval
 
 Retrieval quality is measured and checked in. Each result includes its query
-count, mode, and measurement date. The public sample workflow can be replayed
-without an API key. Its source pages are live, so upstream edits can change the
-score. The larger results need the maintainer's local corpus mirror.
+count, mode, and measurement date. The tracked public snapshot gives an exact
+offline replay with no API key. A separate weekly pull checks the live source
+pages for upstream drift. The larger results need the maintainer's local corpus
+mirror.
 
 | Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Replay boundary |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
 | Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
 | Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-18 | Public fixture; local corpus |
-| Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-18 | Live public pages |
+| Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
 The right-hand column is the claim boundary. Treat results on the local mirror
 as maintainer measurements until you rebuild an equivalent corpus. The final
 holdout was frozen before its first scored run. Earlier holdouts were promoted
 to tuning data and are not presented as independent results.
 
-The sample corpus is the honest floor: a fixed list of 24 public page URLs
-(SQLite, Go, and PostgreSQL) that anyone can replay end-to-end in a few minutes
-with no API key and no account. It demonstrates the pipeline, not the ceiling.
-The dated baseline makes upstream content drift visible.
+The sample corpus is the honest floor: 24 reviewed public pages from SQLite,
+Go, and PostgreSQL. Anyone can replay the exact tracked bytes end-to-end in a
+few minutes with no API key and no account. It demonstrates the pipeline, not
+the ceiling. The separate live pull makes upstream content drift visible.
 
 ```sh
-corpus="$(mktemp -d)"
-docs-puller pull --from eval/sample-corpus/sources.md --out "$corpus"
-docs-puller reindex --out "$corpus"
-docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus" \
-  --diff eval/sample-corpus/baseline-2026-07-03.json
+make verify-public-snapshot
+
+# Optional network replay against the current vendor pages.
+make verify-public-sample
 ```
 
 The full suite contains 459 queries across identifier lookups, natural-language
@@ -109,7 +109,7 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.7.6`.
+automation can fail closed with `docs-puller version --expect v0.8.0`.
 
 ## For AI assistants
 
@@ -304,7 +304,7 @@ bearer token is set (`--auth-token`, `--auth-token-file`, or `$DOCS_SERVE_TOKEN`
 The server picks up out-of-process `pull`/`reindex` runs automatically — no
 restart needed.
 
-`vscode-extension/` ships a VS Code client for the same endpoint. The v0.7.6
+`vscode-extension/` ships a VS Code client for the same endpoint. The v0.8.0
 GitHub release includes a checksummed `docs-puller-search-0.3.0.vsix`. The
 extension is not published in the VS Code Marketplace. It supports bearer
 tokens through VS Code SecretStorage and confines returned paths to the local
@@ -455,18 +455,16 @@ docs-puller eval --check-fixture
 docs-puller eval-suite --json
 ```
 
-A **replayable live-page baseline** ships in
-[`eval/sample-corpus/`](eval/sample-corpus/): a fixed list of 24 public doc URLs
-(SQLite, Go, and PostgreSQL), 24 queries, and a dated BM25-only baseline
-(**Hit@1 95.8% / Hit@5 100% / MRR 0.979**). Anyone can run the workflow with no
-API key. Upstream page edits can change a later score.
+A **replayable reviewed baseline** ships in
+[`deploy/demo/snapshot/`](deploy/demo/snapshot/): 24 public pages from SQLite,
+Go, and PostgreSQL, 24 queries, and a dated BM25-only baseline
+(**Hit@1 95.8% / Hit@5 100% / MRR 0.979**). Anyone can run it with no API key.
+The weekly live-page replay detects upstream changes without changing this
+snapshot.
 
 ```sh
-corpus="$(mktemp -d)"
-docs-puller pull --from eval/sample-corpus/sources.md --out "$corpus"
-docs-puller reindex --out "$corpus"
-docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus"
-docs-puller eval-leaderboard --fixtures eval/sample-corpus --out "$corpus" --format json
+make verify-public-snapshot
+make verify-public-sample # optional network drift check
 ```
 
 The main `eval/*.yaml` fixture numbers are measured on the maintainer's larger

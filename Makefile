@@ -3,7 +3,7 @@
 .PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
 	extension-check extension-package site-check verify-public-snapshot verify-public-sample verify-held-out \
-	verify-retrieval-regression \
+	verify-retrieval-regression stage-public-demo \
 	release-check release-sync-check release-sync-write release-dist \
 	release-verify release-ready verify-clean-clone
 
@@ -35,6 +35,7 @@ help:
 	@echo "  make install | smoke | demo-smoke | version | help-sizes"
 	@echo "  make site-check"
 	@echo "  make verify-public-snapshot | verify-public-sample"
+	@echo "  make stage-public-demo"
 	@echo "  make verify-retrieval-regression | verify-held-out"
 	@echo "  make verify-clean-clone"
 	@echo "  make release-check | release-dist | release-verify | release-ready"
@@ -170,6 +171,26 @@ verify-public-snapshot: build
 		--arg corpus_digest "$$(jq -er .corpus_digest "$$snapshot_root/a.json")" \
 		--slurpfile evaluation "$$snapshot_root/eval.json" \
 		'{ok:true, corpus_digest:$$corpus_digest, index_digest:$$index_digest, evaluation:$$evaluation[0].summary}'
+
+# Create the exact, ignored container context used for a manual deployment.
+stage-public-demo: verify-public-snapshot
+	@stage_root=$$(mktemp -d); \
+	trap 'rm -rf -- "$$stage_root"' EXIT; \
+	mkdir -p "$$stage_root/corpus" "$$stage_root/bin"; \
+	cp -R deploy/demo/snapshot/. "$$stage_root/corpus/"; \
+	./bin/docs-puller reindex --out "$$stage_root/corpus"; \
+	version=$$(jq -er .version release/manifest.json); \
+	commit=$$(git rev-parse HEAD); \
+	ldflags="-s -w -buildid= -X main.releaseIdentity=docs-puller-release:$$version@$$commit"; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly $(GO_TAG_FLAGS) \
+		-trimpath -buildvcs=false -ldflags "$$ldflags" -o "$$stage_root/bin/docs-puller-a" .; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly $(GO_TAG_FLAGS) \
+		-trimpath -buildvcs=false -ldflags "$$ldflags" -o "$$stage_root/bin/docs-puller-b" .; \
+	cmp "$$stage_root/bin/docs-puller-a" "$$stage_root/bin/docs-puller-b"; \
+	go run $(GO_TAG_FLAGS) ./deploy/demo/cmd/corpus-builder \
+		--corpus "$$stage_root/corpus" \
+		--binary "$$stage_root/bin/docs-puller-a" \
+		--build-context deploy/demo/.build
 
 # Private/local held-out gate. The fixture is public; the corpus can be private.
 verify-held-out: build

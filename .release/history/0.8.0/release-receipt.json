@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "previous_version": "0.7.6",
+  "version": "0.8.0",
+  "required_bump": "minor",
+  "tag": "v0.8.0",
+  "consumed_intents": [
+    ".release/changes/20260820T231629Z-f8df7a5549ba.json",
+    ".release/changes/20260820T231630Z-b96c46ec1d83.json",
+    ".release/changes/20260820T231648Z-45a7feff08e5.json",
+    ".release/changes/20260820T231649Z-ec6998881f87.json",
+    ".release/changes/20260820T231650Z-85c526894d38.json",
+    ".release/changes/20260820T231650Z-ec20108cbb28.json",
+    ".release/changes/20260820T231658Z-5bd84d1c15b6.json",
+    ".release/changes/20260820T232215Z-d47dc522a59d.json"
+  ],
+  "updated_paths": [
+    ".release/history/0.8.0/20260820T231629Z-f8df7a5549ba.json",
+    ".release/history/0.8.0/20260820T231630Z-b96c46ec1d83.json",
+    ".release/history/0.8.0/20260820T231648Z-45a7feff08e5.json",
+    ".release/history/0.8.0/20260820T231649Z-ec6998881f87.json",
+    ".release/history/0.8.0/20260820T231650Z-85c526894d38.json",
+    ".release/history/0.8.0/20260820T231650Z-ec20108cbb28.json",
+    ".release/history/0.8.0/20260820T231658Z-5bd84d1c15b6.json",
+    ".release/history/0.8.0/20260820T232215Z-d47dc522a59d.json",
+    ".release/history/0.8.0/release-receipt.json",
+    "CHANGELOG.md",
+    "VERSION"
+  ],
+  "input_sha256": "b24335bc493149562e5fcd31bada30b6f41fe1b2a5c63703d202859a68901adf",
+  "output_sha256": "e247d7a2b8354ec1f33e1c99d74838b0dfa6564da4817987d6778f8ec7980552"
+}

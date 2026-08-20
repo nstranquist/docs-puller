@@ -198,8 +198,8 @@ const sources = [
           href="https://github.com/nstranquist/docs-puller/blob/main/eval/sample-corpus/sources.md"
           class="text-primary font-medium hover:underline"
           >eval/sample-corpus/sources.md</a
-        >. Production also records each retrieved content digest and the final
-        index digest.
+        >. Production uses the tracked, reviewed bytes. CI builds two new
+        indexes from separate copies and requires byte-identical results.
       </p>
     </div>
   </section>
@@ -346,25 +346,19 @@ const sources = [
         <p class="eyebrow">Reproduce it</p>
         <h2 class="section-title mt-5">No special access required.</h2>
         <p class="text-muted-foreground mt-6 leading-relaxed">
-          Build the same public corpus, index it, and run the fixture with the
-          open CLI.
+          Build the exact reviewed corpus and run its fixture with the open CLI.
+          The optional network replay checks current vendor pages for drift.
         </p>
       </div>
       <div class="terminal-shell">
         <div class="terminal-chrome">
-          <span>terminal</span><span>public sample replay</span>
+          <span>terminal</span><span>public snapshot proof</span>
         </div>
         <pre
           class="overflow-x-auto p-5 font-mono text-[0.73rem] leading-7 text-slate-300 sm:p-7"><code><span class="text-emerald-400">$</span> git clone https://github.com/nstranquist/docs-puller
 <span class="text-emerald-400">$</span> cd docs-puller
-<span class="text-emerald-400">$</span> go build -tags sqlite_fts5 -o bin/docs-puller .
-<span class="text-emerald-400">$</span> corpus="$(mktemp -d)"
-<span class="text-emerald-400">$</span> bin/docs-puller pull \
-    --from eval/sample-corpus/sources.md --out "$corpus"
-<span class="text-emerald-400">$</span> bin/docs-puller reindex --out "$corpus"
-<span class="text-emerald-400">$</span> bin/docs-puller eval \
-    --fixture eval/sample-corpus/fixture.yaml \
-    --out "$corpus" --json</code></pre>
+<span class="text-emerald-400">$</span> make verify-public-snapshot
+<span class="text-emerald-400">$</span> make verify-public-sample # optional live drift check</code></pre>
       </div>
     </div>
   </section>

@@ -82,7 +82,7 @@ does not silently weaken the server boundary.
 
 ### A release is a supply-chain artifact
 
-The v0.7.6 contract builds six macOS, Linux, and Windows archives. It also
+The v0.8.0 contract builds six macOS, Linux, and Windows archives. It also
 builds checksums, a CycloneDX SBOM, provenance, and a deterministic VS Code
 package. CI uses pinned action revisions and verifies the generated artifacts
 before it creates a GitHub release.
@@ -94,7 +94,7 @@ used zero model tokens.
 
 | Evaluation | Queries | Hit@1 | Hit@5 | MRR | Evidence boundary |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the live public-page list; upstream content can drift. |
+| Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the tracked snapshot; a separate live pull detects drift. |
 | Full fixture suite | 459 | 71.5% | 93.5% | 0.810 | Operator-measured on the maintainer's local mirror. |
 | Final frozen holdout | 35 | 45.7% | 94.3% | 0.674 | Fixture is public; exact corpus mirror is not. |
 | Tuned main regression set | 151 | 84.1% | 100% | 0.900 | Operator-measured regression gate. |
@@ -130,8 +130,8 @@ A new user can:
 
 ## Claim boundaries
 
-- The public sample workflow is replayable. Its live upstream pages can change.
-  The larger local-mirror scores are operator measurements.
+- The tracked public snapshot is replayable. A separate workflow reports live
+  upstream drift. The larger local-mirror scores are operator measurements.
 - Optional AI reranking needs a separately configured provider.
 - A GitHub release and launch post do not prove external adoption.
 - Local dogfood telemetry does not count as an external user.
@@ -141,13 +141,13 @@ A new user can:
 ## Replay the public proof
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.7.6
+go install github.com/nstranquist/docs-puller@v0.8.0
 docs-puller demo --json
 
-corpus="$(mktemp -d)"
-docs-puller pull --from eval/sample-corpus/sources.md --out "$corpus"
-docs-puller reindex --out "$corpus"
-docs-puller eval --fixture eval/sample-corpus/fixture.yaml --out "$corpus"
+git clone --depth 1 --branch v0.8.0 https://github.com/nstranquist/docs-puller
+cd docs-puller
+make verify-public-snapshot
+make verify-public-sample # optional network drift check
 ```
 
 See the [README](README.md), [first-hour guide](docs/user/first-hour.md), and

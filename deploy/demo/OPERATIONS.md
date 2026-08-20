@@ -60,11 +60,11 @@ production deployment.
 
 ## Manual deployment
 
-First, run the offline snapshot proof and stage the reviewed corpus. Use a new
-temporary directory for the staged snapshot:
+First, run the offline snapshot proof. Build two deterministic Linux binaries
+and stage the reviewed corpus:
 
 ```sh
-make verify-public-snapshot
+make stage-public-demo
 ```
 
 Then use the same verified `deploy/demo/.build` directory as CI:

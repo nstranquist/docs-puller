@@ -6,7 +6,7 @@
 
 - [Home](https://github.com/nstranquist/docs-puller): Official repository and install path
 - [Public demo](https://docs-puller-demo.nstranquist.workers.dev): Reviewed snapshot. No account.
-- Install: `go install github.com/nstranquist/docs-puller@v0.7.6`
+- Install: `go install github.com/nstranquist/docs-puller@v0.8.0`
 
 ## Docs
 

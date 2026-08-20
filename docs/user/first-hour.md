@@ -33,10 +33,10 @@ files outside docs-puller.
 ## Replay the public benchmark
 
 The repository contains a fixed list of 24 live public-page URLs, 24 queries,
-and a dated baseline. Use a v0.7.6 checkout so the fixture and binary agree:
+and a dated baseline. Use a v0.8.0 checkout so the fixture and binary agree:
 
 ```sh
-git clone --depth 1 --branch v0.7.6 \
+git clone --depth 1 --branch v0.8.0 \
   https://github.com/nstranquist/docs-puller.git
 cd docs-puller
 corpus="$(mktemp -d)"
