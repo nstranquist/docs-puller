@@ -21,6 +21,7 @@ must name both the old and new behavior.
 - Verify the public GitHub repository in the launch contract instead of treating `go install` as a web deployment.
 - Build the public demo from reviewed snapshot bytes and report live upstream drift without changing production.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
+- Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
 
 ## v0.7.6 — 2026-08-19
 

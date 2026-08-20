@@ -55,8 +55,7 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	}
 	report.CheckedConsumerPaths = append(report.CheckedConsumerPaths, localPaths...)
 	checkVersionFile(&report, localPaths[1], manifest.SemVer())
-	checkContainsVersion(&report, localPaths[2], manifest.Module+"@"+manifest.Version)
-	checkContainsVersion(&report, localPaths[2], "--expect, "+manifest.Version)
+	checkNShipLaunch(&report, localPaths[2], manifest)
 	for _, path := range localPaths[3:] {
 		checkContainsVersion(&report, path, manifest.Version)
 	}
@@ -81,6 +80,23 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	slices.Sort(report.CheckedConsumerPaths)
 	report.OK = len(report.Drift) == 0
 	return report, nil
+}
+
+func checkNShipLaunch(report *syncReport, path string, manifest releasecontract.Manifest) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	if bytes.Contains(body, []byte("target_channel: source-repository")) {
+		repositoryURL := "https://" + strings.TrimSuffix(manifest.Module, "/")
+		if !bytes.Contains(body, []byte(repositoryURL)) {
+			report.Drift = append(report.Drift, fmt.Sprintf("%s: missing %q", path, repositoryURL))
+		}
+		return
+	}
+	checkContainsVersion(report, path, manifest.Module+"@"+manifest.Version)
+	checkContainsVersion(report, path, "--expect, "+manifest.Version)
 }
 
 func checkVersionFile(report *syncReport, path, expected string) {

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Keep source-repository launch proof independent from versioned install checks in the release synchronizer.",
+  "category": "Fixed",
+  "commit_type": "fix",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

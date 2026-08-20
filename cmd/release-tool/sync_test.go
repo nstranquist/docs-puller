@@ -93,6 +93,35 @@ func TestNShipRewriteUpdatesModuleAndExpectedVersion(t *testing.T) {
 	}
 }
 
+func TestNShipSourceRepositoryLaunchIsVersionIndependent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nship-launch.yaml")
+	body := `target_channel: source-repository
+deploy:
+  argv: [curl, https://github.com/nstranquist/docs-puller]
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := releasecontract.Manifest{
+		Module:  "github.com/nstranquist/docs-puller",
+		Version: "v0.8.0",
+	}
+	var report syncReport
+	checkNShipLaunch(&report, path, manifest)
+	if len(report.Drift) != 0 {
+		t.Fatalf("source-repository launch drifted: %v", report.Drift)
+	}
+
+	if err := os.WriteFile(path, []byte(strings.ReplaceAll(body, "nstranquist", "someone-else")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checkNShipLaunch(&report, path, manifest)
+	if len(report.Drift) != 1 || !strings.Contains(report.Drift[0], "missing") {
+		t.Fatalf("wrong source repository drift = %v", report.Drift)
+	}
+}
+
 func TestVersionFileMustExactlyMatchManifestSemVer(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "VERSION")
 	if err := os.WriteFile(path, []byte("0.6.0\n"), 0o644); err != nil {
