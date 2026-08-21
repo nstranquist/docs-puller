@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -501,6 +503,84 @@ func TestIngestLocalBatchHonorsAuthoritativeReplacement(t *testing.T) {
 	}
 	if len(manifest.Entries) != 0 {
 		t.Fatalf("empty authoritative manifest retained %d entries", len(manifest.Entries))
+	}
+}
+
+func TestPullLocalBatchCLIAcknowledgesLargePrune(t *testing.T) {
+	source := t.TempDir()
+	out := t.TempDir()
+	for i := 0; i < 6; i++ {
+		path := filepath.Join(source, fmt.Sprintf("doc-%d.md", i))
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("# Document %d\n", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	opts := pullOpts{
+		out:           out,
+		sourceCache:   filepath.Join(out, ".cache"),
+		replaceSource: true,
+	}
+	if _, err := ingestLocalBatch(
+		[]localBatchSource{{name: "replace", walkRoot: source}},
+		opts,
+		[]string{"pull-local-batch", "--replace-source"},
+		nil,
+	); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < 6; i++ {
+		if err := os.Remove(filepath.Join(source, fmt.Sprintf("doc-%d.md", i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	command := exec.Command(
+		os.Args[0],
+		"-test.run=TestDocsPullerCLIHelper",
+		"--",
+		"pull-local-batch",
+		"--source", "replace="+source,
+		"--out", out,
+		"--replace-source",
+		"--allow-large-prune",
+		"--json",
+	)
+	command.Env = append(os.Environ(), "DOCS_PULLER_TEST_CLI_HELPER=1")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("authorized batch replacement failed: %v\n%s", err, output)
+	}
+	var summary localBatchSummary
+	if err := json.Unmarshal(output, &summary); err != nil {
+		t.Fatalf("decode batch summary: %v\n%s", err, output)
+	}
+	if summary.PrunedPathCount != 5 || summary.UnchangedCount != 1 {
+		t.Fatalf("authorized summary = %+v, want five pruned and one unchanged", summary)
+	}
+}
+
+func TestPullLocalBatchCLIRejectsLargePruneFlagWithoutReplacement(t *testing.T) {
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "guide.md"), []byte("# Guide\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command(
+		os.Args[0],
+		"-test.run=TestDocsPullerCLIHelper",
+		"--",
+		"pull-local-batch",
+		"--source", "replace="+source,
+		"--out", t.TempDir(),
+		"--allow-large-prune",
+	)
+	command.Env = append(os.Environ(), "DOCS_PULLER_TEST_CLI_HELPER=1")
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("unsafe flag combination unexpectedly succeeded:\n%s", output)
+	}
+	if !strings.Contains(string(output), "--allow-large-prune requires --replace-source") {
+		t.Fatalf("unexpected validation error:\n%s", output)
 	}
 }
 
