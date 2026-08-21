@@ -12,6 +12,8 @@ must name both the old and new behavior.
 
 - Lead the portfolio showcase with a current production workbench capture while retaining the local-corpus evidence.
 - Use one repository pin for the Staticcheck version in local and hosted gates.
+- Collapse exact cross-source and aggregate-workspace copies while preserving normal same-source aliases. On the 151-query regression fixture against the 181,118-document local corpus, Hit@1 changed from 84.77% to 86.09%, Hit@3 from 94.04% to 96.69%, Hit@5 from 96.69% to 100%, Hit@10 from 98.68% to 100%, and MRR from 0.8956 to 0.9160. The run made zero model calls and used zero AI tokens.
+- Report the number of exact candidate copies represented by each JSON search result as `duplicates_collapsed`.
 
 ### Fixed
 
@@ -21,6 +23,11 @@ must name both the old and new behavior.
 - Store VS Code package entries without compression so the same reviewed files produce the same VSIX bytes across supported Go patch releases.
 - Check that local and hosted analyzer commands consume the shared Staticcheck pin.
 - Remove the two resolved agent friction records after their regressions pass.
+- Honor authoritative replacement for `pull-local-batch --replace-source`, including fail-closed large-prune checks, empty-source pruning, FTS deletion, and prune telemetry.
+- Reuse unchanged local-batch artifacts when a temporary staging root changes, and skip nested docs-puller held-out corpus snapshots.
+- Map SDK queries to library paths and lift a matching `libraries/<runtime>` page without hiding unrelated results.
+- Route macOS configuration-payload intent to Apple device-management docs without treating general macOS searches as MDM searches.
+- Prefer an API or CLI path when the query explicitly requests that interface, without changing queries that do not name either surface.
 
 ## v0.8.0 — 2026-08-21
 

@@ -67,8 +67,8 @@ mirror.
 | Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Replay boundary |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
 | Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
-| Tuned regression fixture | 151 | BM25 / FTS5 only | 85.4% | 100% | 0.909 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
-| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
+| Tuned regression fixture | 151 | BM25 / FTS5 only | 86.1% | 100% | 0.916 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
+| Frozen v0.6 regression | 35 | BM25 / FTS5 only | 48.6% | 94.3% | 0.686 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
 The right-hand column is the claim boundary. Treat results on the local mirror
@@ -88,10 +88,11 @@ make verify-public-snapshot
 make verify-public-sample
 ```
 
-The full suite contains 459 queries across identifier lookups, natural-language
-questions, cross-source retrieval, and reviewed local telemetry. It retains
-known difficult cases. The final holdout adds 35 source-scoped questions that
-were not used to tune the ranker before their first run.
+The full suite contains identifier lookups, natural-language questions,
+cross-source retrieval, and reviewed local telemetry. It retains known
+difficult cases. The 35-query v0.6 fixture was independent before its first
+run. A v0.8.1 failure later informed the API-versus-CLI ranking invariant, so
+current runs are regression evidence rather than a fresh holdout claim.
 
 ```sh
 docs-puller eval-suite --json
@@ -172,7 +173,7 @@ docs-puller pdf-doctor --provider-pin ~/.docs-puller/pdf-inspector.json
 docs-puller pull-pdf ./manual.pdf --name manual \
   --provider-pin ~/.docs-puller/pdf-inspector.json --out ~/code/docs
 docs-puller pull --local ~/projects/my-app --name my-app --out ~/code/docs
-docs-puller pull-local-batch --source app=~/projects/my-app --source docs=~/code/docs --out ~/code/docs
+docs-puller pull-local-batch --source app=~/projects/my-app --source docs=~/code/docs --replace-source --out ~/code/docs
 docs-puller pull --github-repo owner/repo --name repo-docs --out ~/code/docs
 docs-puller pull --git-repo https://projects.example.com/team/manual.git --ref release-1.0 --subdir manual --name product --origin-base https://docs.example.com/latest --out ~/code/docs
 docs-puller reindex --out ~/code/docs
@@ -207,7 +208,14 @@ provide OCR.
 `--replace-source` treats the discovered URL set as authoritative. It refuses
 large deletion plans by default and also refuses filtered or capped replacement
 runs. After reviewing the discovery input, pass `--allow-large-prune` to
-explicitly acknowledge an intentional large replacement.
+explicitly acknowledge an intentional large replacement. The policy also
+applies to `pull-local-batch`. Its JSON summary and ingest log report pruned,
+written, and unchanged counts.
+
+FTS5 and scan search results collapse exact copies across sources and inside
+aggregate workspace or corpus trees. A JSON hit reports the removed candidate
+count as `duplicates_collapsed`. Separate aliases inside one normal vendor
+source remain searchable.
 
 Local, GitHub, and generic Git ingestion accept `.md`, `.mdx`, `.mdoc`, and
 `.rst`. reStructuredText is normalized into agent-readable Markdown while

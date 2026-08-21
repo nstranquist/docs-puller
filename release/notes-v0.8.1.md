@@ -1,8 +1,8 @@
 # docs-puller v0.8.1
 
-v0.8.1 is a patch release for agent command ergonomics and reproducible
-release checks. It does not change search ranking, the public corpus, or the
-HTTP API.
+v0.8.1 is a patch release for retrieval hygiene, authoritative local refreshes,
+agent command ergonomics, and reproducible release checks. It does not change
+the reviewed public demo corpus or the HTTP API.
 
 ## Try it
 
@@ -20,12 +20,35 @@ docs-puller version --expect v0.8.1 --json
 docs-puller demo --json
 ```
 
+If you already have a corpus, rebuild its derived FTS5 cache once. v0.8.1 adds
+a content fingerprint that supports exact-copy collapse:
+
+```sh
+docs-puller reindex --out ~/code/docs
+```
+
 You can also download a macOS, Linux, or Windows archive from this release.
 Verify the selected archive with `checksums.txt` before you run it. See the
 [install guide](https://github.com/nstranquist/docs-puller/blob/v0.8.1/docs/user/install.md).
 
 ## Fixed
 
+- Search now collapses exact copies across sources and inside aggregate
+  workspace or corpus trees. JSON results report `duplicates_collapsed`.
+  Distinct aliases inside one normal vendor source remain visible.
+- `pull-local-batch --replace-source` now applies the authoritative replacement
+  policy that the flag requests. It prunes removed files and FTS rows, refuses
+  unapproved large prune plans, reports prune counts, and handles a source that
+  now has zero documents.
+- Local batch refreshes reuse unchanged files when a temporary staging root
+  changes. They also skip docs-puller's own held-out corpus snapshots to prevent
+  recursive ingestion.
+- SDK searches now connect `sdk` with `library` paths and prefer a matching
+  `libraries/<runtime>` page. macOS configuration-payload searches now prefer
+  the Apple device-management source without treating all macOS queries as MDM
+  queries.
+- A query that explicitly requests an API or CLI now prefers a matching path
+  surface. Queries that do not name either interface keep their normal order.
 - `--json` and `--compact` can now appear before the top-level command. The
   command still owns and validates each flag. A real subprocess test proves
   the agent-facing invocation.
@@ -38,10 +61,16 @@ Verify the selected archive with `checksums.txt` before you run it. See the
 
 ## Measured evidence
 
+On the public 151-query regression fixture against the 181,118-document local
+corpus, Hit@1 changed from 84.77% to 86.09%, Hit@3 from 94.04% to 96.69%,
+Hit@5 from 96.69% to 100%, Hit@10 from 98.68% to 100%, and MRR from 0.8956 to
+0.9160. The evaluation made zero model calls and used zero AI tokens.
+
 The unchanged reviewed 24-query sample reports 95.83% Hit@1, 100% Hit@5, and
 0.979 MRR. Its corpus digest is
 `sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b`.
-The build and evaluation make zero model calls and use no AI tokens.
+The sample build and evaluation also make zero model calls and use no AI
+tokens.
 
 ## Supply-chain evidence
 
