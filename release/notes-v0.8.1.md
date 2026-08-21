@@ -66,6 +66,16 @@ corpus, Hit@1 changed from 84.77% to 86.09%, Hit@3 from 94.04% to 96.69%,
 Hit@5 from 96.69% to 100%, Hit@10 from 98.68% to 100%, and MRR from 0.8956 to
 0.9160. The evaluation made zero model calls and used zero AI tokens.
 
+A new 30-query fixture was frozen before its first ranked run. None of its
+expected documents appears in an earlier checked-in fixture. The first run
+reports 60.00% Hit@1, 96.67% Hit@5, 100% Hit@10, 0.7542 MRR, and 593 ms p99 on
+a hashed 181,118-document FTS snapshot. After an authoritative refresh to
+191,436 indexed documents, the quality metrics are unchanged and p99 is 1.43
+seconds. Both runs pass the precommitted gates and use zero model calls and zero
+AI tokens. The fixture and run evidence are in
+`eval/heldout-v0.8.1-final.yaml` and
+`eval/heldout-v0.8.1-first-run.json`.
+
 The unchanged reviewed 24-query sample reports 95.83% Hit@1, 100% Hit@5, and
 0.979 MRR. Its corpus digest is
 `sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b`.

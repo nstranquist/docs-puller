@@ -14,6 +14,7 @@ must name both the old and new behavior.
 - Use one repository pin for the Staticcheck version in local and hosted gates.
 - Collapse exact cross-source and aggregate-workspace copies while preserving normal same-source aliases. On the 151-query regression fixture against the 181,118-document local corpus, Hit@1 changed from 84.77% to 86.09%, Hit@3 from 94.04% to 96.69%, Hit@5 from 96.69% to 100%, Hit@10 from 98.68% to 100%, and MRR from 0.8956 to 0.9160. The run made zero model calls and used zero AI tokens.
 - Report the number of exact candidate copies represented by each JSON search result as `duplicates_collapsed`.
+- Freeze a new 30-query independent holdout before its first ranked run. It reports 60.00% Hit@1, 96.67% Hit@5, 100% Hit@10, and 0.7542 MRR on a hashed local FTS snapshot. An authoritative refresh to 191,436 indexed documents reproduces the same quality metrics. Both runs made zero model calls and used zero AI tokens.
 
 ### Fixed
 

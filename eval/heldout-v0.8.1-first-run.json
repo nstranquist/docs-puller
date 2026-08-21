@@ -1,0 +1,61 @@
+{
+  "schema_version": "docs-puller-heldout-evidence/v1",
+  "fixture": "eval/heldout-v0.8.1-final.yaml",
+  "fixture_sha256": "9c34e1a4fa332fe9791cbff3ed97764d3b497a665206c8ad21a608881d2d1918",
+  "fixture_git_blob": "bd3b09dfdda8631f64ee1daebc95dd93b2420283",
+  "source_tree": "e984cd4a5ffee5ac113765edac8bf2238df4adb7",
+  "acceptance_thresholds": {
+    "min_hit_at_1": 0.45,
+    "min_hit_at_5": 0.9001,
+    "min_mrr": 0.65,
+    "max_p99_ms": 2000
+  },
+  "first_ranked_run": {
+    "recorded_at": "2026-08-21T18:18:31Z",
+    "fts_documents": 181118,
+    "fts_sha256": "6d69132f26ea94a9c64eecb6cdff80909b5fc363d6bb248376a0d183e2b50a13",
+    "summary": {
+      "mode": "fts5",
+      "n": 30,
+      "hit_at_1": 0.6,
+      "hit_at_3": 0.8666666666666667,
+      "hit_at_5": 0.9666666666666667,
+      "hit_at_10": 1,
+      "recall_at_5": 0.9666666666666667,
+      "mrr": 0.7542063492063491,
+      "p50_ms": 134.717,
+      "p99_ms": 593.453
+    }
+  },
+  "authoritative_refresh_replay": {
+    "recorded_at": "2026-08-21T18:24:58Z",
+    "fts_documents": 191436,
+    "fts_sha256": "25f1c43285753bddeacb33463d68c50b6b1428dc07dcd7e33bebe720d6a113cd",
+    "index_matches_corpus": true,
+    "summary": {
+      "mode": "fts5",
+      "n": 30,
+      "hit_at_1": 0.6,
+      "hit_at_3": 0.8666666666666667,
+      "hit_at_5": 0.9666666666666667,
+      "hit_at_10": 1,
+      "recall_at_5": 0.9666666666666667,
+      "mrr": 0.7542063492063491,
+      "p50_ms": 337.87,
+      "p99_ms": 1427.675
+    }
+  },
+  "known_misses_at_5": [
+    {
+      "query": "remove unnecessary dependencies from a React Effect",
+      "source": "react",
+      "expected_path": "react/learn/removing-effect-dependencies.md",
+      "rank": 7
+    }
+  ],
+  "model_usage": {
+    "calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

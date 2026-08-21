@@ -68,6 +68,7 @@ mirror.
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
 | Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
 | Tuned regression fixture | 151 | BM25 / FTS5 only | 86.1% | 100% | 0.916 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
+| Independent v0.8.1 holdout | 30 | BM25 / FTS5 only | 60.0% | 96.7% | 0.754 | 2026-08-21 | Frozen public fixture; first run on a hashed local FTS snapshot |
 | Frozen v0.6 regression | 35 | BM25 / FTS5 only | 48.6% | 94.3% | 0.686 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
@@ -88,11 +89,14 @@ make verify-public-snapshot
 make verify-public-sample
 ```
 
-The full suite contains identifier lookups, natural-language questions,
+The full suite contains 489 identifier lookups, natural-language questions,
 cross-source retrieval, and reviewed local telemetry. It retains known
-difficult cases. The 35-query v0.6 fixture was independent before its first
-run. A v0.8.1 failure later informed the API-versus-CLI ranking invariant, so
-current runs are regression evidence rather than a fresh holdout claim.
+difficult cases. The v0.8.1 holdout uses 30 expected documents that do not
+appear in an earlier fixture. Its fixture, thresholds, source tree, first-run
+summary, and FTS digest were recorded before any tuning against its result. The
+35-query v0.6 fixture was independent before its first run. A v0.8.1 failure
+later informed the API-versus-CLI ranking invariant, so current runs of that
+fixture are regression evidence rather than a fresh holdout claim.
 
 ```sh
 docs-puller eval-suite --json
