@@ -225,10 +225,15 @@ func cmdPullLocalBatch(args []string) {
 	var sources stringSliceFlag
 	var excludes stringSliceFlag
 	jsonOut := fs.Bool("json", false, "emit JSON summary")
+	allowLargePrune := fs.Bool("allow-large-prune", false, "with --replace-source: allow a guarded large source deletion after reviewing discovery input")
 	fs.Var(&sources, "source", "local source in NAME=PATH form (repeatable)")
 	fs.Var(&excludes, "exclude", "skip paths matching glob for all sources (repeatable)")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	o.allowLargePrune = *allowLargePrune
+	if err := validateReplacementFlags(o.replaceSource, o.allowLargePrune, "", 0); err != nil {
+		die(err)
+	}
 
 	if len(sources) == 0 {
 		die(fmt.Errorf("pull-local-batch: pass at least one --source NAME=PATH"))
