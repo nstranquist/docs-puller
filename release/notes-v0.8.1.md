@@ -79,8 +79,11 @@ AI tokens. The fixture and run evidence are in
 The unchanged reviewed 24-query sample reports 95.83% Hit@1, 100% Hit@5, and
 0.979 MRR. Its corpus digest is
 `sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b`.
-The sample build and evaluation also make zero model calls and use no AI
-tokens.
+The content-fingerprint schema changes the deterministic index digest to
+`sha256:30e224d017df23a8e41f6a56dc1ff4608a96750c22248acc4a5edb8d95811313`.
+The 24 reviewed document bytes did not change, and two clean rebuilds produce
+the same index bytes. The sample build and evaluation also make zero model
+calls and use no AI tokens.
 
 ## Supply-chain evidence
 

@@ -29,6 +29,7 @@ must name both the old and new behavior.
 - Map SDK queries to library paths and lift a matching `libraries/<runtime>` page without hiding unrelated results.
 - Route macOS configuration-payload intent to Apple device-management docs without treating general macOS searches as MDM searches.
 - Prefer an API or CLI path when the query explicitly requests that interface, without changing queries that do not name either surface.
+- Refresh the reviewed public-demo index lock for the content-fingerprint schema. The 24 reviewed document bytes and corpus digest are unchanged; two clean rebuilds produce the new byte-identical index digest.
 
 ## v0.8.0 — 2026-08-21
 
