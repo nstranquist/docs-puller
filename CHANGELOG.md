@@ -6,13 +6,21 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.8.1 — 2026-08-21
+
 ### Changed
 
 - Lead the portfolio showcase with a current production workbench capture while retaining the local-corpus evidence.
+- Use one repository pin for the Staticcheck version in local and hosted gates.
 
 ### Fixed
 
 - Make release synchronization fail when portfolio notes or verification dates still describe an older release.
+- Accept `--json` and `--compact` before the top-level command so agents can use one output-flag order.
+- Prove the leading-output-flag behavior through the real CLI subprocess boundary.
+- Store VS Code package entries without compression so the same reviewed files produce the same VSIX bytes across supported Go patch releases.
+- Check that local and hosted analyzer commands consume the shared Staticcheck pin.
+- Remove the two resolved agent friction records after their regressions pass.
 
 ## v0.8.0 — 2026-08-21
 
