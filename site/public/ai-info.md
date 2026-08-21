@@ -11,7 +11,7 @@ Generated: 2026-08-20T23:20:00Z
 - Category: Local-first documentation retrieval for developers and AI agents
 - Website: https://github.com/nstranquist/docs-puller
 - Demo: https://docs-puller-demo.nstranquist.workers.dev
-- Install: `go install github.com/nstranquist/docs-puller@v0.8.0`
+- Install: `go install github.com/nstranquist/docs-puller@v0.8.1`
 - Launch: Public GitHub product with a measured CLI and a public demo
 
 ## Background
