@@ -24,7 +24,7 @@ If you already have a corpus, rebuild its derived FTS5 cache once. v0.8.1 adds
 a content fingerprint that supports exact-copy collapse:
 
 ```sh
-docs-puller reindex --out ~/code/docs
+docs-puller reindex --out ~/code/docs --reclaim-space
 ```
 
 You can also download a macOS, Linux, or Windows archive from this release.
@@ -40,6 +40,10 @@ Verify the selected archive with `checksums.txt` before you run it. See the
   policy that the flag requests. It prunes removed files and FTS rows, refuses
   unapproved large prune plans, reports prune counts, and handles a source that
   now has zero documents.
+- `pull-local-batch --allow-large-prune` now accepts an approved replacement
+  plan instead of failing during flag parsing. Approved large prunes remove
+  empty directories, compact FTS5, and report reclaimed bytes. Use
+  `reindex --reclaim-space` to compact an existing derived index explicitly.
 - Local batch refreshes reuse unchanged files when a temporary staging root
   changes. They also skip docs-puller's own held-out corpus snapshots to prevent
   recursive ingestion.
