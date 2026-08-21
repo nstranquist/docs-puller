@@ -83,11 +83,11 @@ var urlRE = regexp.MustCompile(`https?://[^\s)>"']+`)
 var httpClient = &http.Client{Timeout: 60 * time.Second}
 
 func main() {
-	if len(os.Args) < 2 {
+	command, commandArgs, ok := normalizeTopLevelInvocation(os.Args[1:])
+	if !ok {
 		usage()
 		os.Exit(2)
 	}
-	command := os.Args[1]
 	if command == "-h" || command == "--help" {
 		command = "help"
 	}
@@ -97,7 +97,25 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
-	handler(os.Args[2:])
+	handler(commandArgs)
+}
+
+// normalizeTopLevelInvocation accepts agent output flags before or after the
+// command. Each command still owns and validates the flag itself.
+func normalizeTopLevelInvocation(args []string) (string, []string, bool) {
+	leading := make([]string, 0, 2)
+	for len(args) > 0 {
+		switch args[0] {
+		case "--json", "--compact":
+			leading = append(leading, args[0])
+			args = args[1:]
+		default:
+			commandArgs := append([]string(nil), args[1:]...)
+			commandArgs = append(commandArgs, leading...)
+			return args[0], commandArgs, true
+		}
+	}
+	return "", nil, false
 }
 
 var topLevelCommandHandlers = map[string]func([]string){
@@ -195,6 +213,7 @@ CORE
 GLOBAL
   --out DIR  --source-cache DIR  --concurrency N
   DOCS_PULLER_OUT overrides default corpus root (~/code/docs)
+  --json and --compact can precede the command
 
 Hosted Team tier is proprietary. Boundary: OPEN-CORE.md
 Agents: prefer docs-puller help --compact (or --json --compact).

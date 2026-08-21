@@ -62,6 +62,27 @@ func TestNormalizeSinglePositionalArgsAllowsURLBeforeFlags(t *testing.T) {
 	}
 }
 
+func TestNormalizeTopLevelInvocationMovesAgentOutputFlags(t *testing.T) {
+	command, args, ok := normalizeTopLevelInvocation([]string{
+		"--json", "--compact", "help", "--ignored",
+	})
+	if !ok || command != "help" {
+		t.Fatalf("normalized command = %q ok=%v, want help/true", command, ok)
+	}
+	want := []string{"--ignored", "--json", "--compact"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("normalized args = %#v, want %#v", args, want)
+	}
+
+	command, args, ok = normalizeTopLevelInvocation([]string{"status", "--json"})
+	if !ok || command != "status" || !reflect.DeepEqual(args, []string{"--json"}) {
+		t.Fatalf("command-first invocation changed: command=%q args=%#v ok=%v", command, args, ok)
+	}
+	if _, _, ok = normalizeTopLevelInvocation([]string{"--json"}); ok {
+		t.Fatal("output flag without a command must not dispatch")
+	}
+}
+
 func TestExtractURLsHTMLResolvesRelative(t *testing.T) {
 	body := []byte(`<html><body>
 <a href="/doc/effective_go">Effective Go</a>
