@@ -10,7 +10,7 @@ SHELL := /bin/bash -euo pipefail
 	release-verify release-ready verify-clean-clone
 
 GO_TAG_FLAGS := -tags sqlite_fts5
-STATICCHECK_VERSION ?= v0.7.0
+STATICCHECK_VERSION ?= $(shell tr -d '[:space:]' < .staticcheck-version)
 GOVULNCHECK_VERSION ?= v1.1.4
 FUZZ_SMOKE_BUDGET ?= 10000x
 RELEASE_VERSION ?=
