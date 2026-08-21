@@ -24,6 +24,7 @@ must name both the old and new behavior.
 - Build the public demo from reviewed snapshot bytes and report live upstream drift without changing production.
 - Lock the deterministic public-demo index identity and keep Worker defaults aligned with the reviewed corpus.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
+- Keep result links as native links and make site tests reliable under bounded shared-host contention.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
 - Keep the best canonical result from a named source ahead of duplicate workspace pages without hiding stronger cross-source evidence.
 - Route natural-language product-client questions to the product contract instead of an incidental technology source.

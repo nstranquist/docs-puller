@@ -659,6 +659,7 @@ function ResultCard({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                nativeButton={false}
                 render={
                   <a
                     href={result.url}

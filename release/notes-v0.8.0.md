@@ -22,7 +22,7 @@ docs-puller demo --json
 ```
 
 You can also download a macOS, Linux, or Windows archive from this release.
-Verify it with `checksums.txt` before you run it. See the
+Check it with `checksums.txt` before you run it. See the
 [install guide](https://github.com/nstranquist/docs-puller/blob/v0.8.0/docs/user/install.md)
 for archive and Windows instructions.
 
@@ -46,6 +46,8 @@ for archive and Windows instructions.
   corpus still contains 24 documents from three public sources.
 - Browser tests keep the page-level performance limits and have enough total
   time to retain traces and video on a busy host.
+- Result links keep native link semantics, and site tests use bounded workers
+  with enough time to stay reliable on a busy shared host.
 - Release synchronization treats source-repository launch proof as
   version-independent. Versioned install contracts still require exact tags.
 - Queries with one clear source or product-client intent keep that source's
