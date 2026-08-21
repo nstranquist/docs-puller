@@ -46,6 +46,13 @@ proof:
         - Optional reranking and embeddings need separately configured model providers.
         - Public source, releases, deployment health, and synthetic checks do not prove external adoption.
 assets:
+    - path: portfolio/assets/public-demo.png
+      kind: screenshot
+      alt: docs-puller public demo showing ranked SQLite FTS5 evidence
+      caption: The production workbench returning ranked evidence from the reviewed public sample.
+      public: true
+      provenance: public-production-synthetic-query-capture
+      copyright_owner: Nico Stranquist
     - path: portfolio/assets/search-results.png
       kind: screenshot
       alt: docs-puller web search showing ranked SQLite documentation results
@@ -72,6 +79,7 @@ case_study:
     enabled: true
     summary: A local-first Go retrieval system with frozen evaluations, secure serving, and reproducible release artifacts.
     evidence:
+        - portfolio/assets/public-demo.png
         - portfolio/assets/search-results.png
         - screenshots/landing.png
         - assets/brand/docs-puller.svg

@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Changed
+
+- Lead the portfolio showcase with a current production workbench capture while retaining the local-corpus evidence.
+
 ### Fixed
 
 - Make release synchronization fail when portfolio notes or verification dates still describe an older release.

@@ -46,11 +46,13 @@ Read the [install guide](docs/user/install.md), the
 
 <img src="https://raw.githubusercontent.com/nstranquist/docs-puller/main/assets/brand/docs-puller.png" width="96" height="96" alt="docs-puller application icon">
 
-![docs-puller web search showing ranked SQLite documentation results](https://raw.githubusercontent.com/nstranquist/docs-puller/main/portfolio/assets/search-results.png)
+![docs-puller public demo showing ranked SQLite FTS5 evidence](portfolio/assets/public-demo.png)
 
-The screenshot is a real local FTS5 search for `sqlite` on this machine
-(47,924 documents in the index). It is the reviewed evidence declared in
-`portfolio/manifest.yaml`. A full-page capture is in
+The screenshot shows the production workbench returning ranked SQLite
+FTS5 evidence from the reviewed public sample. The separate
+[local-corpus capture](portfolio/assets/search-results.png) is a real FTS5
+search for `sqlite` across 47,924 ingested documents. Both are reviewed assets
+in `portfolio/manifest.yaml`. A full-page local capture is in
 [screenshots/](screenshots/). Read the [engineering case study](CASE_STUDY.md)
 for the problem, architecture, measured results, and claim boundaries.
 
