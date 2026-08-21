@@ -558,6 +558,9 @@ func TestPullLocalBatchCLIAcknowledgesLargePrune(t *testing.T) {
 	if summary.PrunedPathCount != 5 || summary.UnchangedCount != 1 {
 		t.Fatalf("authorized summary = %+v, want five pruned and one unchanged", summary)
 	}
+	if !summary.FTSCompacted || summary.FTSCompactError != "" {
+		t.Fatalf("authorized large prune did not compact FTS5: %+v", summary)
+	}
 }
 
 func TestPullLocalBatchCLIRejectsLargePruneFlagWithoutReplacement(t *testing.T) {

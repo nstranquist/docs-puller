@@ -718,6 +718,54 @@ func TestDeletePrunedDocPathsRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestDeletePrunedDocPathsRemovesOnlyEmptyParents(t *testing.T) {
+	out := t.TempDir()
+	stale := filepath.Join(out, "source", "stale", "nested", "old.md")
+	keep := filepath.Join(out, "source", "keep", "current.md")
+	for path, body := range map[string]string{stale: "old\n", keep: "keep\n"} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := deletePrunedDocPaths(out, []string{"source/stale/nested/old.md"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "source", "stale")); !os.IsNotExist(err) {
+		t.Fatalf("empty stale directory remains: %v", err)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatalf("unrelated live document was removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "source")); err != nil {
+		t.Fatalf("source root was removed: %v", err)
+	}
+}
+
+func TestShouldCompactFTSAfterPrune(t *testing.T) {
+	cases := []struct {
+		name      string
+		pruned    int
+		remaining int
+		want      bool
+	}{
+		{name: "none", pruned: 0, remaining: 100, want: false},
+		{name: "small absolute", pruned: 4, remaining: 1, want: false},
+		{name: "large ratio", pruned: 5, remaining: 1, want: true},
+		{name: "small ratio", pruned: 5, remaining: 95, want: false},
+		{name: "large absolute", pruned: 50, remaining: 950, want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldCompactFTSAfterPrune(tc.pruned, tc.remaining); got != tc.want {
+				t.Fatalf("shouldCompactFTSAfterPrune(%d, %d) = %v, want %v", tc.pruned, tc.remaining, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDeletePrunedDocPathsRejectsSymlinkParentEscape(t *testing.T) {
 	out := t.TempDir()
 	outside := t.TempDir()
