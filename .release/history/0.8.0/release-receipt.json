@@ -35,12 +35,17 @@
     "VERSION"
   ],
   "input_sha256": "cd217f4598c15ee77b771298f8d1c6aec56abf09e61470542f5c23eb467ee952",
-  "output_sha256": "a695c16c035daf11bdfdea756ec41b37bac03438b8e29cd958016c6c02bdc409",
+  "output_sha256": "02347b0f990275b9e7d50510b4174326edf4fdad573520b5adff6b8dd325513c",
   "refreshes": [
     {
       "previous_output_sha256": "45a6504ad2bf31813874eb53089b13f75d91f226b2f35bdebfe4c5273c82b6eb",
       "reviewed_input_sha256": "d87a4a5e9fe4fd54b6533db9bf154d5835bbf2abdbea51da61b747276d6ce96d",
       "output_sha256": "a695c16c035daf11bdfdea756ec41b37bac03438b8e29cd958016c6c02bdc409"
+    },
+    {
+      "previous_output_sha256": "a695c16c035daf11bdfdea756ec41b37bac03438b8e29cd958016c6c02bdc409",
+      "reviewed_input_sha256": "5ddd907e98dbf7dddc0eefd62a442f5bc0f9b4a1914824313d555f4643480363",
+      "output_sha256": "02347b0f990275b9e7d50510b4174326edf4fdad573520b5adff6b8dd325513c"
     }
   ]
 }
