@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -81,6 +83,42 @@ func TestNormalizeTopLevelInvocationMovesAgentOutputFlags(t *testing.T) {
 	if _, _, ok = normalizeTopLevelInvocation([]string{"--json"}); ok {
 		t.Fatal("output flag without a command must not dispatch")
 	}
+}
+
+func TestLeadingAgentOutputFlagRunsDemoEndToEnd(t *testing.T) {
+	corpus := filepath.Join(t.TempDir(), "corpus")
+	command := exec.Command(os.Args[0], "-test.run=TestDocsPullerCLIHelper", "--", "--json", "demo", "--out", corpus)
+	command.Env = append(os.Environ(), "DOCS_PULLER_TEST_CLI_HELPER=1")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("leading output flag invocation failed: %v\n%s", err, output)
+	}
+	var result demoResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("decode leading output flag result: %v\n%s", err, output)
+	}
+	if !result.OK || result.Mode != "fts5" || result.Documents != 3 || len(result.Results) == 0 {
+		t.Fatalf("unexpected demo result: %#v", result)
+	}
+}
+
+func TestDocsPullerCLIHelper(t *testing.T) {
+	if os.Getenv("DOCS_PULLER_TEST_CLI_HELPER") != "1" {
+		return
+	}
+	separator := -1
+	for index, argument := range os.Args {
+		if argument == "--" {
+			separator = index
+			break
+		}
+	}
+	if separator < 0 || separator+1 >= len(os.Args) {
+		os.Exit(2)
+	}
+	os.Args = append([]string{"docs-puller"}, os.Args[separator+1:]...)
+	main()
+	os.Exit(0)
 }
 
 func TestExtractURLsHTMLResolvesRelative(t *testing.T) {
