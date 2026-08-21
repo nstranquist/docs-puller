@@ -50,10 +50,12 @@ The production workflow performs these operations in order:
 7. Create the deterministic root filesystem and container image.
 8. Generate the SBOM and GitHub artifact attestations.
 9. Deploy the Fly origin with a commit-based image label and blue-green checks.
-10. Prove the old Worker can still reach the new origin.
-11. Deploy the Worker with the exact commit, corpus, index, and deployment time.
-12. Run public readiness, metadata, source, search, document, header, and page
+10. Deploy the Worker with the exact commit, corpus, index, and deployment time.
+11. Run public readiness, metadata, source, search, document, header, and page
     smoke checks.
+
+A changed corpus can make the old Worker fail readiness after the Fly cutover.
+Deploy the matching Worker immediately, then run the complete public smoke set.
 
 The workflow uses one concurrency group and does not cancel an active
 production deployment.
@@ -73,23 +75,45 @@ Then use the same verified `deploy/demo/.build` directory as CI:
 flyctl deploy deploy/demo/.build \
   --config "$(pwd)/deploy/demo/fly.toml" \
   --local-only \
-  --image-label "$(git rev-parse --short=12 HEAD)" \
-  --build-arg "SOURCE_DATE_EPOCH=$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)"
+  --image-label "git-$(git rev-parse --short=12 HEAD)" \
+  --build-arg "SOURCE_DATE_EPOCH=$(jq -r .source_date_epoch deploy/demo/corpus.lock.json)" \
+  --strategy bluegreen \
+  --wait-timeout 5m
 ```
 
 Then deploy the Worker from `site/`. Use the account-pinned
 `cloudflare.docs-puller.production` profile. Override all dynamic identity
-fields:
+fields. The broker reads the Worker name, origin, sidecar, assets, routes, and
+secret bindings from the checked-in config. It rejects command-line overrides
+for those fields.
 
 ```sh
-pnpm exec wrangler deploy \
-  --var "BUILD_ID:manual-$(date -u +%Y%m%dT%H%M%SZ)" \
-  --var "BUILD_COMMIT:$(git rev-parse HEAD)" \
-  --var "DEPLOYED_AT:$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --var "ENGINE_VERSION:$(jq -r .version ../release/manifest.json)"
+cd site
+deploy_commit="$(git rev-parse HEAD)"
+deploy_timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+deploy_build_id="manual-$(date -u +%Y%m%dT%H%M%SZ)"
+deploy_engine_version="$(jq -r .version ../release/manifest.json)"
+deploy_corpus_digest="$(jq -r .corpus_digest ../deploy/demo/corpus.lock.json)"
+deploy_index_digest="$(jq -r .index_digest ../deploy/demo/.build/build-manifest.json)"
+deploy_corpus_time="$(jq -r .retrieved_at ../deploy/demo/corpus.lock.json)"
+
+ndev integrations cloudflare run \
+  --profile cloudflare.docs-puller.production \
+  --operation mutating \
+  -- pnpm exec wrangler deploy \
+  --message "docs-puller demo ${deploy_commit}" \
+  --tag "${deploy_commit}" \
+  --var "BUILD_ID:${deploy_build_id}" \
+  --var "BUILD_COMMIT:${deploy_commit}" \
+  --var "DEPLOYED_AT:${deploy_timestamp}" \
+  --var "ENGINE_VERSION:${deploy_engine_version}" \
+  --var "CORPUS_DIGEST:${deploy_corpus_digest}" \
+  --var "CORPUS_INDEX_DIGEST:${deploy_index_digest}" \
+  --var "CORPUS_RETRIEVED_AT:${deploy_corpus_time}"
 ```
 
-Do not deploy the Worker metadata before the matching origin is healthy.
+Do not run bare `wrangler deploy` for production. Do not deploy the Worker
+metadata before the matching origin is healthy.
 
 ## Required smoke checks
 

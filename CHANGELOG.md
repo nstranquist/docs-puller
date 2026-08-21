@@ -6,7 +6,7 @@ must name both the old and new behavior.
 
 ## Unreleased
 
-## v0.8.0 — 2026-08-20
+## v0.8.0 — 2026-08-21
 
 ### Added
 
@@ -25,6 +25,7 @@ must name both the old and new behavior.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
 - Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.
+- Document the complete account-pinned Worker deployment and the real corpus cutover boundary.
 
 ## v0.7.6 — 2026-08-19
 

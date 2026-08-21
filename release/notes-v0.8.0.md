@@ -50,6 +50,8 @@ for archive and Windows instructions.
 - Queries that start with one clear source name keep that source's canonical
   docs ahead of duplicate workspace pages. Cross-source results remain
   available after the named source.
+- Manual Worker deployments now use the account-pinned broker with complete
+  release identity. The runbook states the corpus-changing cutover boundary.
 
 ## Measured evidence
 
