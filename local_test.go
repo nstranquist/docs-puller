@@ -363,6 +363,147 @@ func TestIngestLocalBatchEndToEnd(t *testing.T) {
 	}
 }
 
+func TestCollectLocalIngestResultsSkipsHeldoutCorpusSnapshots(t *testing.T) {
+	source := t.TempDir()
+	out := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(source, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("guide.md", "# Canonical\n")
+	write("docs-puller-heldout-snapshot.A1b2C3/corpus/vendor/guide.md", "# Recursive copy\n")
+
+	docs, stats, err := collectLocalIngestResults(source, "local", out, func(rel string) string {
+		return "file://" + filepath.Join(source, rel)
+	}, "local", "2026-08-21T00:00:00Z", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) != 1 || docs[0].result.Path != "local/guide.md" {
+		t.Fatalf("collected docs = %+v, want only canonical guide", docs)
+	}
+	if stats.walked != 1 || stats.copied != 1 {
+		t.Fatalf("stats = %+v, want one walked and copied document", stats)
+	}
+}
+
+func TestIngestLocalBatchReusesStablePathAcrossStagingRoots(t *testing.T) {
+	first := t.TempDir()
+	second := t.TempDir()
+	out := t.TempDir()
+	for _, root := range []string{first, second} {
+		if err := os.WriteFile(filepath.Join(root, "guide.md"), []byte("# Stable guide\n\nunchanged body\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts := pullOpts{out: out, sourceCache: filepath.Join(out, ".cache")}
+	initial, err := ingestLocalBatch([]localBatchSource{{name: "staged", walkRoot: first}}, opts, []string{"pull-local-batch"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initial.WriteCount != 1 || initial.UnchangedCount != 0 {
+		t.Fatalf("initial summary = %+v, want one write", initial)
+	}
+
+	warm, err := ingestLocalBatch([]localBatchSource{{name: "staged", walkRoot: second}}, opts, []string{"pull-local-batch"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warm.WriteCount != 0 || warm.UnchangedCount != 1 || warm.ChangedPathCount != 0 {
+		t.Fatalf("warm summary = %+v, want path-stable reuse", warm)
+	}
+	manifest, err := loadOrMigrateManifest(filepath.Join(out, "staged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Entries) != 1 {
+		t.Fatalf("manifest entries = %d, want one current path", len(manifest.Entries))
+	}
+	for url := range manifest.Entries {
+		if !strings.Contains(url, second) {
+			t.Fatalf("manifest URL = %q, want refreshed staging root %q", url, second)
+		}
+	}
+}
+
+func TestIngestLocalBatchHonorsAuthoritativeReplacement(t *testing.T) {
+	source := t.TempDir()
+	out := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(source, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("keep.md", "# Keep\n\nstable phrase\n")
+	write("drop.md", "# Drop\n\nobsolete phrase\n")
+	opts := pullOpts{out: out, sourceCache: filepath.Join(out, ".cache"), replaceSource: true}
+	if _, err := ingestLocalBatch([]localBatchSource{{name: "replace", walkRoot: source}}, opts, []string{"pull-local-batch", "--replace-source"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(source, "drop.md")); err != nil {
+		t.Fatal(err)
+	}
+	replaced, err := ingestLocalBatch([]localBatchSource{{name: "replace", walkRoot: source}}, opts, []string{"pull-local-batch", "--replace-source"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replaced.PrunedPathCount != 1 || replaced.ChangedPathCount != 1 || replaced.UnchangedCount != 1 {
+		t.Fatalf("replacement summary = %+v, want one prune and one unchanged document", replaced)
+	}
+	if _, err := os.Stat(filepath.Join(out, "replace", "drop.md")); !os.IsNotExist(err) {
+		t.Fatalf("pruned artifact still exists: %v", err)
+	}
+
+	idx, err := openFTSIndexReadOnly(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("obsolete phrase", "", 5, false, nil, false)
+	idx.close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("pruned FTS document still searchable: %+v", hits)
+	}
+	entries, err := readIngestLog(out, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Pruned != 1 || entries[0].Pulled != 0 || entries[0].Unchanged != 1 {
+		t.Fatalf("replacement log = %+v, want prune/write/unchanged telemetry", entries)
+	}
+
+	if err := os.Remove(filepath.Join(source, "keep.md")); err != nil {
+		t.Fatal(err)
+	}
+	empty, err := ingestLocalBatch([]localBatchSource{{name: "replace", walkRoot: source}}, opts, []string{"pull-local-batch", "--replace-source"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty.PrunedPathCount != 1 {
+		t.Fatalf("empty authoritative replacement = %+v, want final document pruned", empty)
+	}
+	manifest, err := loadOrMigrateManifest(filepath.Join(out, "replace"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Entries) != 0 {
+		t.Fatalf("empty authoritative manifest retained %d entries", len(manifest.Entries))
+	}
+}
+
 func TestLocalBatchMemoryDocsReuseCollectedTitle(t *testing.T) {
 	docs := []localIngestDoc{
 		{

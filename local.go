@@ -109,6 +109,7 @@ type localBatchSummary struct {
 	WriteCount       int      `json:"write_count"`
 	UnchangedCount   int      `json:"unchanged_write_count"`
 	ChangedPathCount int      `json:"changed_path_count"`
+	PrunedPathCount  int      `json:"pruned_path_count"`
 	ElapsedMs        float64  `json:"elapsed_ms"`
 	CopyMs           float64  `json:"copy_ms"`
 	LockMs           float64  `json:"lock_ms"`
@@ -119,6 +120,16 @@ type localBatchSummary struct {
 	FTSSizeBytes     int64    `json:"fts_size_bytes,omitempty"`
 	LogMs            float64  `json:"log_ms"`
 	FTSUpdated       bool     `json:"fts_updated"`
+}
+
+func shouldSkipLocalDir(name string) bool {
+	if _, skip := skipDirs[name]; skip {
+		return true
+	}
+	// Release and held-out proofs create a complete corpus snapshot. Pulling
+	// that snapshot back into a parent local source recursively duplicates
+	// every vendor document and can crowd canonical pages out of search.
+	return strings.HasPrefix(name, "docs-puller-heldout-snapshot.")
 }
 
 // excludeMatch reports whether rel (a path relative to walkRoot, separator-
@@ -716,6 +727,12 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		return nil, localIngestStats{}, err
 	}
 	priorByURL := readManifestEntriesNoMigrate(srcOut)
+	priorByPath := make(map[string]result, len(priorByURL))
+	for _, prior := range priorByURL {
+		if prior.Path != "" {
+			priorByPath[canonicalLogicalPath(prior.Path)] = prior
+		}
+	}
 
 	var (
 		docs        []localIngestDoc
@@ -730,7 +747,7 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 			if p == walkRoot {
 				return nil
 			}
-			if _, skip := skipDirs[d.Name()]; skip {
+			if shouldSkipLocalDir(d.Name()) {
 				return fs.SkipDir
 			}
 			// Don't descend into hidden dirs except the root.
@@ -792,7 +809,15 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		url := urlFor(rel)
 		changed := true
 		logicalPath := pathpkg.Join(source, outRel)
-		if prior, ok := priorByURL[url]; ok && prior.Path == logicalPath && prior.SHA256 == sha {
+		prior, ok := priorByURL[url]
+		if !ok {
+			// Staged batch crawls use a fresh temporary root on every run. The
+			// logical path and digest are stable even when the file:// origin is
+			// not, so reuse the existing artifact instead of rewriting the whole
+			// corpus solely because its staging directory changed.
+			prior, ok = priorByPath[logicalPath]
+		}
+		if ok && canonicalLogicalPath(prior.Path) == logicalPath && prior.SHA256 == sha {
 			if info, err := os.Stat(outPath); err == nil && info.Size() == int64(len(data)) {
 				changed = false
 			}
@@ -1011,6 +1036,21 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 		stats.unchanged += collected.stats.unchanged
 	}
 	summary.CopyMs = durationMillis(time.Since(copyStart))
+	manifestResults := allResults
+	if o.replaceSource {
+		touched := make(map[string]bool, len(allSources))
+		for _, item := range manifestResults {
+			touched[item.Source] = true
+		}
+		for _, source := range allSources {
+			if !touched[source] {
+				// A source that now has zero documents is still an authoritative
+				// replacement. The source-only sentinel is ignored by manifest
+				// merge logic but keeps the touched source in the prune plan.
+				manifestResults = append(manifestResults, result{Source: source})
+			}
+		}
+	}
 
 	ftsUpdated := false
 	ftsDocCount := 0
@@ -1018,9 +1058,16 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	lockStart := time.Now()
 	if err := withWriteLock(o.out, func() error {
 		manifestStart := time.Now()
-		if err := writeManifests(o.out, allResults, false, nil); err != nil {
+		var prunedPaths []string
+		if err := writeManifestsWithPolicy(o.out, manifestResults, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
 			return err
 		}
+		if len(prunedPaths) > 0 {
+			if err := deletePrunedDocPaths(o.out, prunedPaths); err != nil {
+				return err
+			}
+		}
+		summary.PrunedPathCount = len(prunedPaths)
 		summary.ManifestMs = durationMillis(time.Since(manifestStart))
 		indexStart := time.Now()
 		if len(preExistingSources) == 0 {
@@ -1039,6 +1086,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 				changedPaths = append(changedPaths, doc.result.Path)
 			}
 		}
+		changedPaths = uniqueStrings(append(changedPaths, prunedPaths...))
 		summary.ChangedPathCount = len(changedPaths)
 		ftsStart := time.Now()
 		if idx, err := openFTSIndex(o.out); err == nil {
@@ -1065,8 +1113,10 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 			Args:       cmdArgs,
 			Sources:    allSources,
 			URLs:       stats.walked,
-			Pulled:     stats.copied,
+			Pulled:     stats.written,
+			Unchanged:  stats.unchanged,
 			Skipped:    stats.skipped,
+			Pruned:     len(prunedPaths),
 		}
 		logStart := time.Now()
 		if err := appendIngestLog(o.out, entry); err != nil {
@@ -1098,6 +1148,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 		FTSSizeBytes:     ftsSizeBytes,
 		LogMs:            summary.LogMs,
 		ChangedPathCount: summary.ChangedPathCount,
+		PrunedPathCount:  summary.PrunedPathCount,
 		FTSUpdated:       ftsUpdated,
 	}, nil
 }

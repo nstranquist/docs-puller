@@ -672,6 +672,29 @@ func TestWriteManifestsCanonicalURLMigrationKeepsSharedPath(t *testing.T) {
 	}
 }
 
+func TestMergeIntoManifestFreshPathWinsTimestampTie(t *testing.T) {
+	m := newManifest()
+	m.Entries["file:///tmp/stage-a/guide.md"] = result{
+		URL:       "file:///tmp/stage-a/guide.md",
+		Source:    "staged",
+		Path:      "staged/guide.md",
+		FetchedAt: "2026-08-21T17:00:00Z",
+	}
+	fresh := result{
+		URL:       "file:///tmp/stage-b/guide.md",
+		Source:    "staged",
+		Path:      "staged/guide.md",
+		FetchedAt: "2026-08-21T17:00:00Z",
+	}
+	mergeIntoManifest(&m, []result{fresh})
+	if len(m.Entries) != 1 {
+		t.Fatalf("manifest entries = %+v, want one current logical path", m.Entries)
+	}
+	if got, ok := m.Entries[fresh.URL]; !ok || got.Path != fresh.Path {
+		t.Fatalf("fresh same-path URL did not win timestamp tie: %+v", m.Entries)
+	}
+}
+
 func TestDeletePrunedDocPathsRejectsTraversal(t *testing.T) {
 	out := t.TempDir()
 	safe := filepath.Join(out, "safe.md")

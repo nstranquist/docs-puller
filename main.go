@@ -1523,16 +1523,37 @@ func appendUniqueStrings(base []string, values ...string) []string {
 	return base
 }
 
-// mergeIntoManifest applies fresh results to m in-place. URLs already in m
-// get overwritten; new URLs get added. Empty-URL results are dropped.
+// mergeIntoManifest applies fresh results to m in-place. A fresh logical path
+// is authoritative even when its canonical URL changed (for example, a local
+// batch staged under a new temporary root). Removing prior same-path URLs here
+// makes the current observation win without relying on second-resolution
+// fetched_at timestamps in the later defensive dedupe pass.
 func mergeIntoManifest(m *manifest, fresh []result) {
 	if m.Entries == nil {
 		m.Entries = map[string]result{}
 	}
-	for _, r := range fresh {
-		if r.URL != "" {
-			m.Entries[r.URL] = r
+	urlsByPath := make(map[string][]string, len(m.Entries))
+	for url, existing := range m.Entries {
+		if existing.Path == "" {
+			continue
 		}
+		path := canonicalLogicalPath(existing.Path)
+		urlsByPath[path] = append(urlsByPath[path], url)
+	}
+	for _, r := range fresh {
+		if r.URL == "" {
+			continue
+		}
+		path := canonicalLogicalPath(r.Path)
+		if path != "" && r.Skipped == "" {
+			for _, oldURL := range urlsByPath[path] {
+				if oldURL != r.URL {
+					delete(m.Entries, oldURL)
+				}
+			}
+			urlsByPath[path] = []string{r.URL}
+		}
+		m.Entries[r.URL] = r
 	}
 }
 

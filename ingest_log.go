@@ -33,6 +33,7 @@ type logEntry struct {
 	Pulled     int      `json:"pulled"`
 	Unchanged  int      `json:"unchanged,omitempty"`
 	Skipped    int      `json:"skipped"`
+	Pruned     int      `json:"pruned,omitempty"`
 	Warned     int      `json:"warned,omitempty"`
 }
 
