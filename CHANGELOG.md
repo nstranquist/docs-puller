@@ -30,6 +30,7 @@ must name both the old and new behavior.
 - Route natural-language product-client questions to the product contract instead of an incidental technology source.
 - Document the complete account-pinned Worker deployment and the real corpus cutover boundary.
 - Delete refreshed FTS rows by indexed row ID instead of rescanning the full corpus for each document.
+- Preserve the reviewed snapshot bytes on Windows instead of converting their line endings during checkout.
 
 ## v0.7.6 — 2026-08-19
 

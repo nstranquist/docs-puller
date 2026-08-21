@@ -37,6 +37,8 @@ for archive and Windows instructions.
 
 - Production builds from tracked, reviewed document bytes. Normal CI no
   longer depends on the current response from 24 vendor URLs.
+- Git preserves those reviewed bytes on every operating system. Windows
+  checkouts no longer replace LF line endings with CRLF before digest checks.
 - CI builds two new SQLite indexes from separate snapshot copies and requires
   byte-identical results that match the reviewed index digest before it stages
   the container.

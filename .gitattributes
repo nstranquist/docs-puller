@@ -1,2 +1,4 @@
-# Keep reviewed upstream documents byte-exact, including Markdown hard breaks.
-deploy/demo/snapshot/** -whitespace
+# Keep reviewed public-demo inputs byte-exact, including line endings and
+# Markdown hard breaks.
+deploy/demo/snapshot/** -text -whitespace
+eval/sample-corpus/sources.md -text
