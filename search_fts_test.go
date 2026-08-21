@@ -1056,14 +1056,41 @@ func TestFTSShortCanonicalTitleWinsOverLongVendorRedundant(t *testing.T) {
 			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
 	}
 	seenOther := false
-	for i, hit := range hits {
-		if hit.Source != "supabase" {
-			seenOther = true
-			continue
-		}
-		if seenOther {
-			t.Fatalf("rank %d = %q from intended source after an off-source duplicate", i, hit.Path)
-		}
+	for _, hit := range hits[1:] {
+		seenOther = seenOther || hit.Source != "supabase"
+	}
+	if !seenOther {
+		t.Fatal("leading-source lift removed every cross-source result")
+	}
+}
+
+func TestFTSLeadingSourceIntentKeepsStrongCrossSourceAnswer(t *testing.T) {
+	out := t.TempDir()
+	for i := 0; i < 8; i++ {
+		writeFTSDoc(t, filepath.Join(out, "clickhouse"), fmt.Sprintf("changelogs/%02d.md", i),
+			fmt.Sprintf("---\ntitle: 'ClickHouse release %d'\n---\n\nMaterialized columns changed in this ClickHouse release.\n", i))
+	}
+	writeFTSDoc(t, filepath.Join(out, "posthog"), "blog/clickhouse-materialized-columns.md",
+		"---\ntitle: 'How to speed up ClickHouse queries using materialized columns'\n---\n\nA focused guide to ClickHouse materialized columns.\n")
+
+	idx, _ := openFTSIndex(out)
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("clickhouse materialized columns", "", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 5 || hits[0].Source != "clickhouse" {
+		t.Fatalf("leading source is not represented first: %#v", hits)
+	}
+	found := false
+	for _, hit := range hits {
+		found = found || hit.Path == "posthog/blog/clickhouse-materialized-columns.md"
+	}
+	if !found {
+		t.Fatalf("strong cross-source answer was crowded out: %#v", hits)
 	}
 }
 
@@ -1097,6 +1124,29 @@ func TestFTSLeadingSourceIntentSurvivesCandidatePoolCrowding(t *testing.T) {
 	}
 	if hits[0].Path != "supabase/guides/runtime.md" {
 		t.Fatalf("rank 0 = %q from %q, want intended-source body candidate", hits[0].Path, hits[0].Source)
+	}
+}
+
+func TestFTSProductSurfaceIntentBeatsIncidentalTechnology(t *testing.T) {
+	out := t.TempDir()
+	writeFTSDoc(t, filepath.Join(out, "supabase"), "guides/database/functions.md",
+		"---\ntitle: 'Database Functions'\n---\n\nCall Postgres functions from the Supabase client.\n")
+	for i := 0; i < 20; i++ {
+		writeFTSDoc(t, filepath.Join(out, "postgresql"), fmt.Sprintf("functions/%02d.md", i),
+			fmt.Sprintf("---\ntitle: 'Postgres client function %d'\n---\n\nWrite and call a Postgres function from a database client.\n", i))
+	}
+
+	idx, _ := openFTSIndex(out)
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("how do I write a postgres function I can call from the supabase client", "", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || hits[0].Path != "supabase/guides/database/functions.md" {
+		t.Fatalf("product client contract did not win: %#v", hits)
 	}
 }
 

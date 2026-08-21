@@ -578,6 +578,32 @@ func TestLeadingSourceIntent(t *testing.T) {
 	}
 }
 
+func TestProductSurfaceSourceIntent(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  string
+		source string
+		ok     bool
+	}{
+		{name: "client contract", query: "write a postgres function I can call from the supabase client", source: "supabase", ok: true},
+		{name: "API contract", query: "capture events with the PostHog API", source: "posthog", ok: true},
+		{name: "multi-token SDK", query: "stream text with the Vercel AI SDK", source: "ai-sdk", ok: true},
+		{name: "incidental technology", query: "rows in postgres", ok: false},
+		{name: "two clients are ambiguous", query: "compare the supabase client and postgres client", ok: false},
+		{name: "ambiguous product", query: "call the Claude API", ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := filterFTSStopWords(tokenizeForFTS(tt.query))
+			got, ok := productSurfaceSourceIntent(tokens)
+			if got != tt.source || ok != tt.ok {
+				t.Fatalf("productSurfaceSourceIntent(%q) = (%q, %v), want (%q, %v); tokens=%v",
+					tt.query, got, ok, tt.source, tt.ok, tokens)
+			}
+		})
+	}
+}
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout

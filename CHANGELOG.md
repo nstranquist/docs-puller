@@ -25,7 +25,8 @@ must name both the old and new behavior.
 - Lock the deterministic public-demo index identity and keep Worker defaults aligned with the reviewed corpus.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
-- Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.
+- Keep the best canonical result from a named source ahead of duplicate workspace pages without hiding stronger cross-source evidence.
+- Route natural-language product-client questions to the product contract instead of an incidental technology source.
 - Document the complete account-pinned Worker deployment and the real corpus cutover boundary.
 - Delete refreshed FTS rows by indexed row ID instead of rescanning the full corpus for each document.
 

@@ -97,16 +97,18 @@ used zero model tokens.
 | Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the tracked snapshot; a separate live pull detects drift. |
 | Full fixture suite | 459 | 71.5% | 93.5% | 0.810 | Operator-measured on the maintainer's local mirror. |
 | Final frozen holdout | 35 | 45.7% | 94.3% | 0.674 | Fixture is public; exact corpus mirror is not. |
-| Tuned main regression set | 151 | 84.1% | 100% | 0.900 | Operator-measured regression gate. |
+| Tuned main regression set | 151 | 85.4% | 100% | 0.909 | Public fixture replayed on an immutable local corpus snapshot. |
 
 A refreshed Stripe corpus exposed a real drift regression before release. The
 final fix changed the 459-query aggregate from 71.0% to 71.5% Hit@1, from
 93.2% to 93.5% Hit@5, and from 0.806 to 0.810 MRR. The same change restored the
 final holdout from 42.9% to 45.7% Hit@1 without reducing its 94.3% Hit@5.
 
-The local dogfood corpus audit covered 84 sources and 49,275 documents. The
-SQLite index matched all 48,819 indexable documents after refresh. These are
-local operational measurements, not external adoption evidence.
+The current local dogfood snapshot covered 87 sources and 59,663 documents.
+The SQLite index matched all 59,207 indexable documents after refresh. The
+151-query regression replay measured 33.7 ms median and 239 ms p99; the frozen
+35-query holdout measured 65.4 ms median and 131 ms p99. These are local
+operational measurements, not external adoption evidence.
 
 ## Adopter journey
 

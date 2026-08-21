@@ -65,7 +65,8 @@ mirror.
 | Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Replay boundary |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
 | Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
-| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-18 | Public fixture; local corpus |
+| Tuned regression fixture | 151 | BM25 / FTS5 only | 85.4% | 100% | 0.909 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
+| Final frozen holdout | 35 | BM25 / FTS5 only | 45.7% | 94.3% | 0.674 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
 The right-hand column is the claim boundary. Treat results on the local mirror

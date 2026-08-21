@@ -412,6 +412,45 @@ func leadingSourceIntent(tokens []string) (string, bool) {
 	return onlySource(sourceKeywords[tokens[0]])
 }
 
+// productSurfaceSourceIntent recognizes a product name attached to a concrete
+// client surface anywhere in a natural-language query. This is stronger than
+// an incidental technology mention: "call a postgres function from the
+// supabase client" asks for the Supabase client contract, while "rows in
+// postgres" remains unscoped. Ambiguous products still do not create an
+// invariant.
+func productSurfaceSourceIntent(tokens []string) (string, bool) {
+	matched := map[string]bool{}
+	for i := 0; i+1 < len(tokens); i++ {
+		if !isProductSurfaceMarker(tokens[i+1]) {
+			continue
+		}
+		for source := range sourceKeywords[tokens[i]] {
+			matched[source] = true
+		}
+	}
+	for source, phrases := range sourceKeywordPhrases {
+		for _, phrase := range phrases {
+			hasMarker := false
+			for _, token := range phrase {
+				hasMarker = hasMarker || isProductSurfaceMarker(token)
+			}
+			if hasMarker && containsTokenPhrase(tokens, phrase) {
+				matched[source] = true
+			}
+		}
+	}
+	return onlySource(matched)
+}
+
+func isProductSurfaceMarker(token string) bool {
+	switch token {
+	case "api", "cli", "client", "sdk":
+		return true
+	default:
+		return false
+	}
+}
+
 func onlySource(sources map[string]bool) (string, bool) {
 	if len(sources) != 1 {
 		return "", false
@@ -509,6 +548,7 @@ var naturalLanguageCanonicalQueries = []naturalLanguageCanonicalQuery{
 	{all: []string{"supabase", "row", "level", "security"}, rewrite: []string{"supabase", "row", "level", "security"}},
 	{all: []string{"supabase", "storage", "file"}, oneOf: []string{"upload", "uploads"}, rewrite: []string{"supabase", "storage", "standard", "uploads"}},
 	{all: []string{"supabase", "function", "row", "changes"}, rewrite: []string{"supabase", "database", "webhooks"}},
+	{all: []string{"supabase", "postgres", "client"}, oneOf: []string{"function", "functions", "rpc"}, rewrite: []string{"supabase", "database", "functions"}},
 	{all: []string{"supabase", "real-time", "clients"}, rewrite: []string{"supabase", "realtime", "broadcast"}},
 	{all: []string{"supabase", "real", "time", "clients"}, rewrite: []string{"supabase", "realtime", "broadcast"}},
 	{all: []string{"supabase", "multi-factor"}, rewrite: []string{"supabase", "auth", "mfa"}},

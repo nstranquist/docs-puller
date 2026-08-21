@@ -48,9 +48,9 @@ for archive and Windows instructions.
   time to retain traces and video on a busy host.
 - Release synchronization treats source-repository launch proof as
   version-independent. Versioned install contracts still require exact tags.
-- Queries that start with one clear source name keep that source's canonical
-  docs ahead of duplicate workspace pages. Cross-source results remain
-  available after the named source.
+- Queries with one clear source or product-client intent keep that source's
+  best canonical result ahead of duplicate workspace pages. Strong
+  cross-source results remain visible immediately after it.
 - Manual Worker deployments now use the account-pinned broker with complete
   release identity. The runbook states the corpus-changing cutover boundary.
 
@@ -60,6 +60,13 @@ The reviewed 24-query sample reports 95.83% Hit@1, 100% Hit@5, and 0.979 MRR.
 The reviewed corpus digest is
 `sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b`.
 The build makes zero model calls and uses no AI tokens.
+
+An immutable local snapshot contains 59,207 indexable documents from 87
+sources. On this snapshot, the 151-query regression fixture reports 85.43%
+Hit@1, 100% Hit@5, 0.909 MRR, and 239 ms p99. The independently frozen
+35-query holdout reports
+45.71% Hit@1, 94.29% Hit@5, 0.674 MRR, and 131 ms p99. The fixtures are public.
+The larger corpus mirror is not public.
 
 A local Apple M1 Pro benchmark updated 100 existing docs in a 1,500-document
 corpus in 53 ms median, versus 802 ms before (15.2x). Each median uses three

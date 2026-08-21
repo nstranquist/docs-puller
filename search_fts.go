@@ -1075,7 +1075,11 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if q == "" {
 		return nil, nil
 	}
-	strongSource, hasStrongSource := leadingSourceIntent(ftsScoringTokens(query, exact))
+	scoringTokens := ftsScoringTokens(query, exact)
+	strongSource, hasStrongSource := productSurfaceSourceIntent(scoringTokens)
+	if !hasStrongSource {
+		strongSource, hasStrongSource = leadingSourceIntent(scoringTokens)
+	}
 	if source != "" || exact {
 		hasStrongSource = false
 	}
@@ -1197,11 +1201,13 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 				// as "cache an expensive calculation" -> React useMemo. Within a
 				// known source, a second OR pass over body text supplies that
 				// semantic lexical evidence without the cost/noise of a corpus-wide
-				// OR scan. Require an explicit --source: inferred vendor words can
-				// be incidental context ("rows in postgres" may still ask for a
-				// Supabase guide). Its rank is fused later instead of comparing raw
-				// BM25 magnitudes from different query expressions.
-				if source != "" && sourceFilter != "" {
+				// OR scan. Admit an explicit --source or a strong product-surface
+				// intent such as "supabase client". A bare incidental vendor word
+				// such as "rows in postgres" remains ineligible. Its rank is fused
+				// later instead of comparing raw BM25 magnitudes from different
+				// query expressions.
+				strongInferredBody := hasStrongSource && sourceFilter == strongSource
+				if sourceFilter != "" && (source != "" || strongInferredBody) {
 					bodyRelaxedQ := strings.Replace(relaxedQ, "{title path_tokens}", "{title path_tokens body}", 1)
 					scopedBodyQ := ftsScopeRelaxedQuery(bodyRelaxedQ, sourceFilter)
 					// Some documentation sites expose short variant selectors instead
@@ -1457,26 +1463,27 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			c.hit.Score += maxScore + searchTitleExactBoost
 		}
 	}
-	// A leading, unambiguous product name is a ranking invariant. The body
+	// A strong, unambiguous product name is a ranking invariant. The body
 	// tier intentionally remains global so cross-source material is still
 	// discoverable, but an arbitrary number of duplicated workspace pages
-	// must not crowd the named product's canonical docs out of the requested
-	// result window. Lift the complete intended-source group just above the
-	// strongest off-source candidate. Computing the minimum/maximum gap keeps
-	// the public descending-score contract and preserves order within each
-	// group. Explicit --source already filters, and exact search retains its
-	// exact-title semantics.
+	// must not crowd the named product's best candidate out of the requested
+	// result window. Lift only the strongest intended-source candidate just
+	// above the strongest off-source candidate. Lifting
+	// the complete intended-source group would hide strong cross-source answers
+	// such as a PostHog article for "clickhouse materialized columns". Explicit
+	// --source already filters, and exact search retains its exact-title
+	// semantics.
 	if hasStrongSource {
-		minIntended := 0
+		var bestIntended *cand
 		maxOther := 0
-		hasIntended := false
 		hasOther := false
 		for _, c := range cands {
 			if c.hit.Source == strongSource {
-				if !hasIntended || c.hit.Score < minIntended {
-					minIntended = c.hit.Score
+				if bestIntended == nil || c.hit.Score > bestIntended.hit.Score ||
+					(c.hit.Score == bestIntended.hit.Score && c.tieBreak > bestIntended.tieBreak) ||
+					(c.hit.Score == bestIntended.hit.Score && c.tieBreak == bestIntended.tieBreak && c.hit.Path < bestIntended.hit.Path) {
+					bestIntended = c
 				}
-				hasIntended = true
 				continue
 			}
 			if !hasOther || c.hit.Score > maxOther {
@@ -1484,13 +1491,8 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			}
 			hasOther = true
 		}
-		if hasIntended && hasOther && minIntended <= maxOther {
-			lift := maxOther - minIntended + 1
-			for _, c := range cands {
-				if c.hit.Source == strongSource {
-					c.hit.Score += lift
-				}
-			}
+		if bestIntended != nil && hasOther && bestIntended.hit.Score <= maxOther {
+			bestIntended.hit.Score += maxOther - bestIntended.hit.Score + 1
 		}
 	}
 	// Re-sort by adjusted score so the title bonus actually moves results.
