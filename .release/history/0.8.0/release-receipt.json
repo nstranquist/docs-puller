@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "component": "docs-puller",
   "previous_version": "0.7.6",
   "version": "0.8.0",
@@ -35,5 +35,12 @@
     "VERSION"
   ],
   "input_sha256": "cd217f4598c15ee77b771298f8d1c6aec56abf09e61470542f5c23eb467ee952",
-  "output_sha256": "45a6504ad2bf31813874eb53089b13f75d91f226b2f35bdebfe4c5273c82b6eb"
+  "output_sha256": "a695c16c035daf11bdfdea756ec41b37bac03438b8e29cd958016c6c02bdc409",
+  "refreshes": [
+    {
+      "previous_output_sha256": "45a6504ad2bf31813874eb53089b13f75d91f226b2f35bdebfe4c5273c82b6eb",
+      "reviewed_input_sha256": "d87a4a5e9fe4fd54b6533db9bf154d5835bbf2abdbea51da61b747276d6ce96d",
+      "output_sha256": "a695c16c035daf11bdfdea756ec41b37bac03438b8e29cd958016c6c02bdc409"
+    }
+  ]
 }
