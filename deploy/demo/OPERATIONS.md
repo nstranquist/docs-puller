@@ -41,10 +41,10 @@ argument.
 
 The production workflow performs these operations in order:
 
-1. Verify Go modules and the full Go test suite.
+1. Check Go modules and the full Go test suite.
 2. Install the exact pnpm lock and run all site checks.
 3. Copy the reviewed snapshot into two new directories and build both indexes.
-4. Require equal index bytes and verify the reviewed corpus and index lock.
+4. Require equal index bytes and check the reviewed corpus and index lock.
 5. Enforce Hit@1 >= 0.90, Hit@5 = 1.0, MRR >= 0.95, and p99 <= 250 ms.
 6. Build the Linux binary twice and require equal SHA-256 digests.
 7. Create the deterministic root filesystem and container image.
@@ -117,7 +117,7 @@ metadata before the matching origin is healthy.
 
 ## Required smoke checks
 
-Verify these public routes:
+Check these public routes:
 
 - `/healthz` returns `200`.
 - `/readyz` returns `200` and reports 24 documents and three sources.
@@ -152,16 +152,32 @@ flyctl deploy --app docs-puller-demo-origin \
 
 ### Cloudflare Worker
 
-List versions and deployments, then roll back to the last verified version:
+List versions and deployments through the account-pinned profile:
 
 ```sh
-pnpm exec wrangler versions list
-pnpm exec wrangler deployments list
-pnpm exec wrangler rollback VERIFIED_VERSION_ID
+ndev integrations cloudflare run \
+  --profile cloudflare.docs-puller.production \
+  --operation read \
+  -- pnpm exec wrangler versions list --json
+
+ndev integrations cloudflare run \
+  --profile cloudflare.docs-puller.production \
+  --operation read \
+  -- pnpm exec wrangler deployments list --json
 ```
 
-For local production work, run Wrangler through the account-pinned
-`cloudflare.docs-puller.production` profile. The profile must own only the
+Then roll back to the last verified version. Replace `VERIFIED_VERSION_ID`
+with the exact Worker version UUID from the readback:
+
+```sh
+ndev integrations cloudflare run \
+  --profile cloudflare.docs-puller.production \
+  --operation mutating \
+  -- pnpm exec wrangler rollback VERIFIED_VERSION_ID \
+  --message "restore the last verified docs-puller release"
+```
+
+The broker adds `--yes` for non-interactive use. The profile owns only the
 `docs-puller-demo` Worker. Do not use an account-wide default profile.
 
 Run every required smoke check after a rollback. Provider success is not proof
@@ -182,9 +198,9 @@ Operational targets, not a contractual SLA:
 - No raw query or document text in application telemetry.
 
 Investigate one failed run. Treat two consecutive failures as an incident.
-Disable the public Worker or roll back if requests leak protected fields,
-authentication fails open, the corpus identity changes without review, or the
-5xx rate stays above the target.
+If requests leak protected fields or authentication fails open, disable the
+public Worker. If the corpus identity changes without review or the 5xx rate
+stays above the target, roll back.
 
 ## Secret rotation
 
@@ -193,7 +209,7 @@ authentication fails open, the corpus identity changes without review, or the
 3. Update `DOCS_SERVE_TOKEN` on Fly.
 4. Update `SIDECAR_TOKEN` on the Worker immediately.
 5. Run the full smoke set.
-6. Rotate `RATE_KEY_SECRET` separately when needed.
+6. If needed, rotate `RATE_KEY_SECRET` separately.
 
 The provider stores secret values. The repository stores only secret names and
 procedures.
