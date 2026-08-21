@@ -176,8 +176,6 @@ jobs:
           pnpm exec wrangler deploy --strict \
             --message "docs-puller demo ${DEPLOY_COMMIT}" \
             --tag "$DEPLOY_COMMIT" \
-            --var 'PUBLIC_ORIGIN:https://docs-puller-demo.nstranquist.workers.dev' \
-            --var 'SIDECAR_URL:https://docs-puller-demo-origin.fly.dev' \
             --var "BUILD_ID:${build_id}" \
             --var "BUILD_COMMIT:${DEPLOY_COMMIT}" \
             --var "DEPLOYED_AT:${deployed_at}" \

@@ -34,6 +34,12 @@ type dependencySnapshot struct {
 	NextReleaseAction string   `json:"next_release_action"`
 }
 
+type demoCorpusIdentity struct {
+	CorpusDigest string `json:"corpus_digest"`
+	IndexDigest  string `json:"index_digest"`
+	RetrievedAt  string `json:"retrieved_at"`
+}
+
 func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest, requireClean bool) (syncReport, error) {
 	report := syncReport{SchemaVersion: 1, Version: manifest.Version, Tag: manifest.Tag}
 	dirty, err := gitDirty(repoRoot)
@@ -45,20 +51,33 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 		report.Drift = append(report.Drift, "docs-puller worktree is dirty")
 	}
 
+	manifestPath := filepath.Join(repoRoot, "release", "manifest.json")
+	versionPath := filepath.Join(repoRoot, "VERSION")
+	launchPath := filepath.Join(repoRoot, manifest.Consumers.NShipLaunch)
+	readmePath := filepath.Join(repoRoot, "README.md")
+	installPath := filepath.Join(repoRoot, "docs", "user", "install.md")
+	firstHourPath := filepath.Join(repoRoot, "docs", "user", "first-hour.md")
+	corpusLockPath := filepath.Join(repoRoot, "deploy", "demo", "corpus.lock.json")
+	workerConfigPath := filepath.Join(repoRoot, "site", "wrangler.toml")
+	deployWorkflowPath := filepath.Join(repoRoot, ".github", "workflows", "demo-deploy.yml")
 	localPaths := []string{
-		filepath.Join(repoRoot, "release", "manifest.json"),
-		filepath.Join(repoRoot, "VERSION"),
-		filepath.Join(repoRoot, manifest.Consumers.NShipLaunch),
-		filepath.Join(repoRoot, "README.md"),
-		filepath.Join(repoRoot, "docs", "user", "install.md"),
-		filepath.Join(repoRoot, "docs", "user", "first-hour.md"),
+		manifestPath,
+		versionPath,
+		launchPath,
+		readmePath,
+		installPath,
+		firstHourPath,
+		corpusLockPath,
+		workerConfigPath,
+		deployWorkflowPath,
 	}
 	report.CheckedConsumerPaths = append(report.CheckedConsumerPaths, localPaths...)
-	checkVersionFile(&report, localPaths[1], manifest.SemVer())
-	checkNShipLaunch(&report, localPaths[2], manifest)
-	for _, path := range localPaths[3:] {
+	checkVersionFile(&report, versionPath, manifest.SemVer())
+	checkNShipLaunch(&report, launchPath, manifest)
+	for _, path := range []string{readmePath, installPath, firstHourPath} {
 		checkContainsVersion(&report, path, manifest.Version)
 	}
+	checkDemoDeploymentIdentity(&report, corpusLockPath, workerConfigPath, deployWorkflowPath)
 
 	if ndevRoot != "" {
 		ndevAbs, err := filepath.Abs(ndevRoot)
@@ -80,6 +99,51 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	slices.Sort(report.CheckedConsumerPaths)
 	report.OK = len(report.Drift) == 0
 	return report, nil
+}
+
+func checkDemoDeploymentIdentity(report *syncReport, lockPath, configPath, workflowPath string) {
+	body, err := os.ReadFile(lockPath)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", lockPath, err))
+		return
+	}
+	var identity demoCorpusIdentity
+	if err := json.Unmarshal(body, &identity); err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: decode: %v", lockPath, err))
+		return
+	}
+
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", configPath, err))
+		return
+	}
+	expected := []struct {
+		key   string
+		value string
+	}{
+		{key: "CORPUS_DIGEST", value: identity.CorpusDigest},
+		{key: "CORPUS_INDEX_DIGEST", value: identity.IndexDigest},
+		{key: "CORPUS_RETRIEVED_AT", value: identity.RetrievedAt},
+	}
+	for _, item := range expected {
+		pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(item.key+` = "`+item.value+`"`) + `$`)
+		if item.value == "" || len(pattern.FindAll(config, -1)) != 1 {
+			report.Drift = append(report.Drift, fmt.Sprintf("%s: %s does not match the reviewed corpus lock", configPath, item.key))
+		}
+	}
+
+	workflow, err := os.ReadFile(workflowPath)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", workflowPath, err))
+		return
+	}
+	for _, key := range []string{"PUBLIC_ORIGIN", "SIDECAR_URL"} {
+		pattern := regexp.MustCompile(`--var(?:=|\s+)["']?` + key + `:`)
+		if pattern.Match(workflow) {
+			report.Drift = append(report.Drift, fmt.Sprintf("%s: deploy overrides config-owned %s", workflowPath, key))
+		}
+	}
 }
 
 func checkNShipLaunch(report *syncReport, path string, manifest releasecontract.Manifest) {

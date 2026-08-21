@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	lockSchemaVersion  = 1
+	lockSchemaVersion  = 2
 	stageSchemaVersion = 3
 	dockerfileMarker   = "__ROOTFS_ARCHIVE__"
 	corpusID           = "public-sample-v1"
@@ -65,6 +65,7 @@ type corpusLock struct {
 	SourceDateEpoch  int64            `json:"source_date_epoch"`
 	SourceListDigest string           `json:"source_list_digest"`
 	CorpusDigest     string           `json:"corpus_digest"`
+	IndexDigest      string           `json:"index_digest"`
 	DocumentCount    int              `json:"document_count"`
 	SourceCount      int              `json:"source_count"`
 	Documents        []lockedDocument `json:"documents"`
@@ -160,6 +161,14 @@ func run(corpusRoot, sourceList, lockPath string, writeLock bool, buildContext, 
 	if err := validateExactCorpusFiles(corpusRoot, current.Documents); err != nil {
 		return err
 	}
+	if err := checkpointAndVerifyIndex(corpusRoot); err != nil {
+		return err
+	}
+	indexDigest, _, err := fileDigest(filepath.Join(corpusRoot, ".cache", "search.db"))
+	if err != nil {
+		return fmt.Errorf("digest search index: %w", err)
+	}
+	current.IndexDigest = indexDigest
 	if writeLock {
 		if err := writeJSONAtomic(lockPath, current, 0o644); err != nil {
 			return fmt.Errorf("write corpus lock: %w", err)
@@ -172,14 +181,6 @@ func run(corpusRoot, sourceList, lockPath string, writeLock bool, buildContext, 
 	}
 	if err := verifyLock(reviewed, current); err != nil {
 		return err
-	}
-	if err := checkpointAndVerifyIndex(corpusRoot); err != nil {
-		return err
-	}
-
-	indexDigest, _, err := fileDigest(filepath.Join(corpusRoot, ".cache", "search.db"))
-	if err != nil {
-		return fmt.Errorf("digest search index: %w", err)
 	}
 	result := commandResult{
 		OK:             true,
@@ -338,6 +339,9 @@ func validateReviewedLock(reviewed corpusLock) error {
 	if err := validateSHA256(reviewed.CorpusDigest, "corpus_digest"); err != nil {
 		return err
 	}
+	if err := validateSHA256(reviewed.IndexDigest, "index_digest"); err != nil {
+		return err
+	}
 
 	sources := make(map[string]bool, expectedSources)
 	var totalBytes int64
@@ -404,6 +408,7 @@ func locksEqual(first, second corpusLock) bool {
 		first.SourceDateEpoch != second.SourceDateEpoch ||
 		first.SourceListDigest != second.SourceListDigest ||
 		first.CorpusDigest != second.CorpusDigest ||
+		first.IndexDigest != second.IndexDigest ||
 		first.DocumentCount != second.DocumentCount ||
 		first.SourceCount != second.SourceCount ||
 		len(first.Documents) != len(second.Documents) {

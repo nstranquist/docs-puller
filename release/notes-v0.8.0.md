@@ -38,7 +38,8 @@ for archive and Windows instructions.
 - Production builds from tracked, reviewed document bytes. Normal CI no
   longer depends on the current response from 24 vendor URLs.
 - CI builds two new SQLite indexes from separate snapshot copies and requires
-  byte-identical results before it stages the container.
+  byte-identical results that match the reviewed index digest before it stages
+  the container.
 - The weekly live pull is now an upstream-drift detector. It opens one issue
   when content or retrieval quality changes and never updates production.
 - The reviewed sample now includes the Go 1.27 language specification. The

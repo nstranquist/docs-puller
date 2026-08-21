@@ -94,6 +94,7 @@ func TestVerifyLock(t *testing.T) {
 		{name: "invalid timestamp", mutate: func(lock *corpusLock) { lock.RetrievedAt = "yesterday" }},
 		{name: "wrong list length", mutate: func(lock *corpusLock) { lock.Documents = lock.Documents[:23] }},
 		{name: "changed content", mutate: func(lock *corpusLock) { lock.Documents[0].SHA256 = "sha256:changed" }},
+		{name: "changed index", mutate: func(lock *corpusLock) { lock.IndexDigest = "sha256:" + strings.Repeat("f", 64) }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -137,6 +138,9 @@ func TestTrackedSnapshotMatchesReviewedLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read reviewed corpus lock: %v", err)
 	}
+	// This test proves the tracked document bytes. The separate two-index gate
+	// proves and checks the reviewed index identity.
+	current.IndexDigest = reviewed.IndexDigest
 	if err := verifyLock(reviewed, current); err != nil {
 		t.Fatalf("verify tracked snapshot against reviewed lock: %v", err)
 	}
@@ -469,6 +473,7 @@ func fixtureLock() corpusLock {
 		RetrievedAt:      "2026-08-19T01:06:48Z",
 		SourceDateEpoch:  1787101608,
 		SourceListDigest: sourceListDigest,
+		IndexDigest:      "sha256:" + strings.Repeat("b", 64),
 		CorpusDigest:     digestDocuments(sourceListDigest, documents),
 		DocumentCount:    expectedDocuments,
 		SourceCount:      expectedSources,

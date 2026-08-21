@@ -140,3 +140,47 @@ func TestVersionFileMustExactlyMatchManifestSemVer(t *testing.T) {
 		t.Fatalf("prefixed VERSION drift = %v", report.Drift)
 	}
 }
+
+func TestDemoDeploymentIdentityMatchesReviewedLockAndOwnsRoutingInConfig(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "corpus.lock.json")
+	configPath := filepath.Join(dir, "wrangler.toml")
+	workflowPath := filepath.Join(dir, "demo-deploy.yml")
+	lock := `{
+  "corpus_digest": "sha256:corpus",
+  "index_digest": "sha256:index",
+  "retrieved_at": "2026-08-20T22:49:35Z"
+}`
+	config := `[vars]
+PUBLIC_ORIGIN = "https://docs-puller-demo.example"
+SIDECAR_URL = "https://docs-puller-origin.example"
+CORPUS_DIGEST = "sha256:corpus"
+CORPUS_INDEX_DIGEST = "sha256:index"
+CORPUS_RETRIEVED_AT = "2026-08-20T22:49:35Z"
+`
+	workflow := `pnpm exec wrangler deploy --var "BUILD_ID:${build_id}"`
+	for path, body := range map[string]string{
+		lockPath: lock, configPath: config, workflowPath: workflow,
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var report syncReport
+	checkDemoDeploymentIdentity(&report, lockPath, configPath, workflowPath)
+	if len(report.Drift) != 0 {
+		t.Fatalf("matching deployment identity drifted: %v", report.Drift)
+	}
+
+	if err := os.WriteFile(configPath, []byte(strings.Replace(config, "sha256:index", "sha256:stale", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(workflowPath, []byte(workflow+` --var 'SIDECAR_URL:https://attacker.invalid'`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report = syncReport{}
+	checkDemoDeploymentIdentity(&report, lockPath, configPath, workflowPath)
+	if len(report.Drift) != 2 || !strings.Contains(strings.Join(report.Drift, "\n"), "CORPUS_INDEX_DIGEST") || !strings.Contains(strings.Join(report.Drift, "\n"), "SIDECAR_URL") {
+		t.Fatalf("deployment drift was not detected: %v", report.Drift)
+	}
+}

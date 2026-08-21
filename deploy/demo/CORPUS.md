@@ -13,7 +13,8 @@ eight pages from each source:
 The authoritative URL list is
 [`eval/sample-corpus/sources.md`](../../eval/sample-corpus/sources.md). The
 authoritative production bytes are in [`snapshot/`](snapshot/). The
-authoritative byte-level review is [`corpus.lock.json`](corpus.lock.json).
+authoritative document and index review is
+[`corpus.lock.json`](corpus.lock.json).
 Production and normal CI do not download these pages. They build a new SQLite
 index from the tracked snapshot.
 
@@ -34,9 +35,10 @@ A document can enter this corpus only when all these statements are true:
 5. The complete corpus is no larger than 16 MiB.
 6. The corpus contains exactly 24 documents from exactly three sources.
 7. The local tree contains no symlink, private source, or unreviewed file.
-8. The pulled bytes match the reviewed lock.
+8. The pulled bytes match the reviewed content identity.
 9. The SQLite index passes `PRAGMA integrity_check` and contains 24 documents.
-10. Two new indexes from two copies of the snapshot are byte-identical.
+10. Two new indexes from two copies of the snapshot are byte-identical and
+    match the reviewed index digest.
 
 The container does not receive `_INGEST_LOG.jsonl`, write locks, title caches,
 or any file that is not needed at runtime.

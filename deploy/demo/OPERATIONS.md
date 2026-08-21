@@ -44,7 +44,7 @@ The production workflow performs these operations in order:
 1. Verify Go modules and the full Go test suite.
 2. Install the exact pnpm lock and run all site checks.
 3. Copy the reviewed snapshot into two new directories and build both indexes.
-4. Require equal index bytes and verify the reviewed content lock.
+4. Require equal index bytes and verify the reviewed corpus and index lock.
 5. Enforce Hit@1 >= 0.90, Hit@5 = 1.0, MRR >= 0.95, and p99 <= 250 ms.
 6. Build the Linux binary twice and require equal SHA-256 digests.
 7. Create the deterministic root filesystem and container image.

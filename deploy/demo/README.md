@@ -26,7 +26,7 @@ not weaken the open-core boundary in [`OPEN-CORE.md`](../../OPEN-CORE.md).
 ## Owned artifacts
 
 - `corpus.lock.json` records every reviewed public URL, source license, byte
-  count, and SHA-256 digest.
+  count, content digest, and deterministic index digest.
 - `snapshot/` contains the exact reviewed document bytes and source manifests
   used by production.
 - `cmd/corpus-builder` verifies the lock, checkpoints SQLite, and creates the
@@ -68,7 +68,7 @@ make verify-public-snapshot
 ```
 
 This target copies the snapshot twice. It creates a new index in each copy,
-requires equal index bytes, verifies the content lock, and enforces the
+requires equal index bytes, verifies the corpus and index lock, and enforces the
 published retrieval floor. Run `make verify-public-sample` separately when you
 need a live upstream drift check.
 

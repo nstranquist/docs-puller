@@ -22,6 +22,7 @@ must name both the old and new behavior.
 - Use the supported `nstranquist.workers.dev` hostname for the public demo and its generated discovery links.
 - Verify the public GitHub repository in the launch contract instead of treating `go install` as a web deployment.
 - Build the public demo from reviewed snapshot bytes and report live upstream drift without changing production.
+- Lock the deterministic public-demo index identity and keep Worker defaults aligned with the reviewed corpus.
 - Give the three-page browser budget proof enough time to retain evidence on busy hosts.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
 - Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.
