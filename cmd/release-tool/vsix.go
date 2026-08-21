@@ -248,7 +248,9 @@ func normalizeVSIX(path string, fixedTime time.Time, expected extensionPackage) 
 	writer := zip.NewWriter(&output)
 	files := make([]string, 0, len(inputs))
 	for _, input := range inputs {
-		header := &zip.FileHeader{Name: input.Name, Method: zip.Deflate, Modified: fixedTime}
+		// Store normalized entries without compression. Deflate output can change
+		// across Go patch releases even when every entry byte is identical.
+		header := &zip.FileHeader{Name: input.Name, Method: zip.Store, Modified: fixedTime}
 		header.SetMode(input.Mode)
 		entry, err := writer.CreateHeader(header)
 		if err != nil {

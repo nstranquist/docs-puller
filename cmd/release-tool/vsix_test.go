@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"os"
 	"path/filepath"
@@ -32,6 +33,15 @@ func TestNormalizeVSIXRemovesOrderAndTimestampDrift(t *testing.T) {
 	}
 	if !bytes.Equal(first, second) || !slices.Equal(firstFiles, secondFiles) {
 		t.Fatal("normalized VSIX output retained input order or timestamp drift")
+	}
+	reader, err := zip.NewReader(bytes.NewReader(first), int64(len(first)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range reader.File {
+		if file.Method != zip.Store {
+			t.Fatalf("normalized VSIX entry %q uses compression method %d", file.Name, file.Method)
+		}
 	}
 }
 
