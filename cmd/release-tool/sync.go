@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -92,9 +93,23 @@ func checkConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 		}
 		report.CheckedConsumerPaths = append(report.CheckedConsumerPaths, paths...)
 		checkDependencySnapshot(&report, paths[0], manifest)
-		checkContainsVersion(&report, paths[1], "/releases/tag/"+manifest.Version)
-		checkContainsVersion(&report, paths[2], "/releases/tag/"+manifest.Version)
-		checkContainsVersion(&report, paths[3], "latest release "+manifest.Version)
+		checkContainsAll(&report, paths[1], []string{
+			"/releases/tag/" + manifest.Version,
+			`launch_blocker: "OSS ` + manifest.Version,
+			"through " + manifest.Version + ".",
+			"public and attested " + manifest.Version + " release",
+			"Apache-2.0, " + manifest.Version + ", CI green",
+		})
+		checkContainsCount(&report, paths[1], `  verified_at: "`+manifest.ReleaseDate+`"`, 2)
+		checkScopedContainsAll(&report, paths[2], `^    product\.docs-puller:\s*$`, `^    [A-Za-z0-9_.-]+:\s*$`, []string{
+			"/releases/tag/" + manifest.Version,
+			"Release " + manifest.Version + " is published and attested",
+			`verified_at: "` + manifest.ReleaseDate + `"`,
+		})
+		checkScopedContainsAll(&report, paths[3], `^    - id: product\.docs-puller\s*$`, `^    - id: `, []string{
+			"latest release " + manifest.Version,
+			`verified_at: "` + manifest.ReleaseDate + `"`,
+		})
 	}
 	slices.Sort(report.CheckedConsumerPaths)
 	report.OK = len(report.Drift) == 0
@@ -185,6 +200,48 @@ func checkContainsVersion(report *syncReport, path, expected string) {
 	}
 }
 
+func checkContainsAll(report *syncReport, path string, expected []string) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	checkBodyContainsAll(report, path, body, expected)
+}
+
+func checkContainsCount(report *syncReport, path, expected string, count int) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	if got := bytes.Count(body, []byte(expected)); got != count {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %q occurs %d times, want %d", path, expected, got, count))
+	}
+}
+
+func checkScopedContainsAll(report *syncReport, path, startPattern, nextPattern string, expected []string) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	lines, start, end, err := locateScopedYAMLBlock(body, startPattern, nextPattern)
+	if err != nil {
+		report.Drift = append(report.Drift, fmt.Sprintf("%s: %v", path, err))
+		return
+	}
+	checkBodyContainsAll(report, path, []byte(strings.Join(lines[start:end], "\n")), expected)
+}
+
+func checkBodyContainsAll(report *syncReport, path string, body []byte, expected []string) {
+	for _, value := range expected {
+		if !bytes.Contains(body, []byte(value)) {
+			report.Drift = append(report.Drift, fmt.Sprintf("%s: missing %q", path, value))
+		}
+	}
+}
+
 func checkDependencySnapshot(report *syncReport, path string, manifest releasecontract.Manifest) {
 	body, err := os.ReadFile(path)
 	if err != nil {
@@ -253,12 +310,7 @@ func writeConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	}
 
 	if changed, err := rewriteFile(catalogProduct, func(body []byte) ([]byte, error) {
-		body = replaceAll(body, `(/releases/tag/)v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
-		body = replaceAll(body, `(current public release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
-		body = replaceAll(body, `(public release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
-		body = replaceAll(body, `(Apache-2\.0, )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
-		body = replaceAll(body, `(OSS )v[0-9]+\.[0-9]+\.[0-9]+( is publicly launched)`, `${1}`+manifest.Version+`${2}`)
-		return body, nil
+		return rewriteCatalogProduct(body, manifest), nil
 	}); err != nil {
 		return nil, err
 	} else if changed {
@@ -277,6 +329,17 @@ func writeConsumers(repoRoot, ndevRoot string, manifest releasecontract.Manifest
 	}
 	slices.Sort(written)
 	return written, nil
+}
+
+func rewriteCatalogProduct(body []byte, manifest releasecontract.Manifest) []byte {
+	body = replaceAll(body, `(/releases/tag/)v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `(current public release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `(public release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `(Apache-2\.0, )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `(OSS )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `(through )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	body = replaceAll(body, `([Pp]ublic and attested )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version)
+	return replaceAll(body, `(?m)^(\s*verified_at:\s*")[0-9]{4}-[0-9]{2}-[0-9]{2}("\s*)$`, `${1}`+manifest.ReleaseDate+`${2}`)
 }
 
 func rewriteNShipLaunch(body []byte, manifest releasecontract.Manifest) []byte {
@@ -302,31 +365,42 @@ func rewriteDependencySnapshot(path string, manifest releasecontract.Manifest) (
 
 func rewriteScopedYAMLBlock(path, startPattern, nextPattern string, manifest releasecontract.Manifest) (bool, error) {
 	return rewriteFile(path, func(body []byte) ([]byte, error) {
-		lines := strings.Split(string(body), "\n")
-		startRE := regexp.MustCompile(startPattern)
-		nextRE := regexp.MustCompile(nextPattern)
-		start, end := -1, len(lines)
-		for i, line := range lines {
-			if start < 0 && startRE.MatchString(line) {
-				start = i
-				continue
-			}
-			if start >= 0 && nextRE.MatchString(line) {
-				end = i
-				break
-			}
-		}
-		if start < 0 {
-			return nil, fmt.Errorf("%s: docs-puller block not found", path)
+		lines, start, end, err := locateScopedYAMLBlock(body, startPattern, nextPattern)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		block := strings.Join(lines[start:end], "\n")
 		block = string(replaceAll([]byte(block), `(/releases/tag/)v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version))
 		block = string(replaceAll([]byte(block), `(latest release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version))
+		block = string(replaceAll([]byte(block), `(Release )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version))
+		block = string(replaceAll([]byte(block), `([Pp]ublic and attested )v[0-9]+\.[0-9]+\.[0-9]+`, `${1}`+manifest.Version))
 		block = string(replaceAll([]byte(block), `(as of )[0-9]{4}-[0-9]{2}-[0-9]{2}`, `${1}`+manifest.ReleaseDate))
+		block = string(replaceAll([]byte(block), `(?m)^(\s*verified_at:\s*")[0-9]{4}-[0-9]{2}-[0-9]{2}("\s*)$`, `${1}`+manifest.ReleaseDate+`${2}`))
 		lines[start] = block
 		lines = append(lines[:start+1], lines[end:]...)
 		return []byte(strings.Join(lines, "\n")), nil
 	})
+}
+
+func locateScopedYAMLBlock(body []byte, startPattern, nextPattern string) ([]string, int, int, error) {
+	lines := strings.Split(string(body), "\n")
+	startRE := regexp.MustCompile(startPattern)
+	nextRE := regexp.MustCompile(nextPattern)
+	start, end := -1, len(lines)
+	for i, line := range lines {
+		if start < 0 && startRE.MatchString(line) {
+			start = i
+			continue
+		}
+		if start >= 0 && nextRE.MatchString(line) {
+			end = i
+			break
+		}
+	}
+	if start < 0 {
+		return nil, 0, 0, errors.New("docs-puller block not found")
+	}
+	return lines, start, end, nil
 }
 
 func replaceAll(body []byte, pattern, replacement string) []byte {

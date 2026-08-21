@@ -15,8 +15,12 @@ func TestRewriteScopedYAMLBlockChangesOnlyDocsPuller(t *testing.T) {
 	body := `products:
     product.docs-puller:
         proof_url: https://github.com/nstranquist/docs-puller/releases/tag/v0.5.0
+        verified_at: "2026-08-17"
+        notes: 'Release v0.5.0 is published and attested.'
     product.other:
         proof_url: https://github.com/example/other/releases/tag/v1.2.3
+        verified_at: "2026-01-02"
+        notes: 'Release v1.2.3 is published and attested.'
 `
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -37,8 +41,60 @@ func TestRewriteScopedYAMLBlockChangesOnlyDocsPuller(t *testing.T) {
 	if !strings.Contains(text, "docs-puller/releases/tag/v0.6.0") {
 		t.Fatalf("docs-puller version was not updated:\n%s", text)
 	}
-	if !strings.Contains(text, "other/releases/tag/v1.2.3") {
+	if !strings.Contains(text, "Release v0.6.0 is published and attested") || !strings.Contains(text, `verified_at: "2026-08-18"`) {
+		t.Fatalf("docs-puller release claims were not updated:\n%s", text)
+	}
+	if !strings.Contains(text, "other/releases/tag/v1.2.3") || !strings.Contains(text, `verified_at: "2026-01-02"`) {
 		t.Fatalf("other product version was changed:\n%s", text)
+	}
+}
+
+func TestRewriteCatalogProductUpdatesEveryCurrentReleaseClaim(t *testing.T) {
+	body := []byte(`launch_blocker: "OSS v0.5.0 and its demo are public."
+business:
+  verified_at: "2026-08-17"
+  notes: "Published through v0.5.0."
+showcase:
+  verified_at: "2026-08-17"
+  notes: "Public and attested v0.5.0 release."
+  proof_url: "https://github.com/nstranquist/docs-puller/releases/tag/v0.5.0"
+summary: "Apache-2.0, v0.5.0, CI green"
+`)
+	manifest := releasecontract.Manifest{Version: "v0.6.0", ReleaseDate: "2026-08-18"}
+	got := rewriteCatalogProduct(body, manifest)
+	text := string(got)
+	if strings.Contains(text, "v0.5.0") || strings.Contains(text, "2026-08-17") {
+		t.Fatalf("catalog product retained stale release claims:\n%s", text)
+	}
+	if strings.Count(text, "v0.6.0") != 5 {
+		t.Fatalf("catalog product did not update every version claim:\n%s", text)
+	}
+	if strings.Count(text, `verified_at: "2026-08-18"`) != 2 {
+		t.Fatalf("catalog product did not update both verification dates:\n%s", text)
+	}
+}
+
+func TestScopedConsumerCheckRejectsStaleNarrativeWithCurrentProofURL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "policy.yaml")
+	body := `products:
+    product.docs-puller:
+        proof_url: https://github.com/nstranquist/docs-puller/releases/tag/v0.6.0
+        verified_at: "2026-08-17"
+        notes: 'Release v0.5.0 is published and attested.'
+    product.other:
+        notes: 'Release v9.9.9 is published and attested.'
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var report syncReport
+	checkScopedContainsAll(&report, path, `^    product\.docs-puller:\s*$`, `^    [A-Za-z0-9_.-]+:\s*$`, []string{
+		"/releases/tag/v0.6.0",
+		"Release v0.6.0 is published and attested",
+		`verified_at: "2026-08-18"`,
+	})
+	if len(report.Drift) != 2 {
+		t.Fatalf("stale narrative and date were not both rejected: %v", report.Drift)
 	}
 }
 

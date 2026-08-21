@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Fixed
+
+- Make release synchronization fail when portfolio notes or verification dates still describe an older release.
+
 ## v0.8.0 — 2026-08-21
 
 ### Added
