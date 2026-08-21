@@ -1,0 +1,161 @@
+# Independent retrieval audit for docs-puller v0.8.1.
+#
+# These 30 privacy-safe questions use canonical documents that do not appear
+# as expected paths in any earlier checked-in fixture. The fixture and its
+# acceptance thresholds were captured before the first ranked evaluation.
+# Keep this file immutable after that first run. If a later release uses a
+# failure here to change ranking, retain the fixture as regression evidence and
+# create a new independent holdout for the new release.
+
+query_type: privacy_safe_v0_8_1_independent_holdout_v1
+
+queries:
+  - q: interpret semantic version numbers for a Go module
+    source: go
+    expect:
+      - go/doc/modules/version-numbers.md
+
+  - q: understand the CPU and memory costs of Go garbage collection
+    source: go
+    expect:
+      - go/doc/gc-guide.md
+
+  - q: connect to and query a relational database from Go
+    source: go
+    expect:
+      - go/doc/database.md
+
+  - q: configure OAuth authentication for PostgreSQL clients
+    source: postgresql
+    expect:
+      - postgresql/docs/current/auth-oauth.md
+
+  - q: check or enable data checksums with the PostgreSQL pg_checksums utility
+    source: postgresql
+    expect:
+      - postgresql/docs/current/app-pgchecksums.md
+
+  - q: export a PostgreSQL database with pg_dump
+    source: postgresql
+    expect:
+      - postgresql/docs/current/app-pgdump.md
+
+  - q: cancel an existing Stripe Billing subscription
+    source: stripe
+    expect:
+      - stripe/billing/subscriptions/cancel.md
+
+  - q: store and validate customer tax identification numbers in Stripe Billing
+    source: stripe
+    expect:
+      - stripe/billing/customer/tax-ids.md
+
+  - q: understand HTTP status codes and error objects returned by the Stripe API
+    source: stripe
+    expect:
+      - stripe/api/errors.md
+
+  - q: connect Drizzle ORM to a Cloudflare D1 database
+    source: drizzle
+    expect:
+      - drizzle/connect-cloudflare-d1.md
+
+  - q: define PostgreSQL column types with Drizzle ORM
+    source: drizzle
+    expect:
+      - drizzle/column-types/pg.md
+
+  - q: execute ordered SQL statements with the Drizzle batch API
+    source: drizzle
+    expect:
+      - drizzle/batch-api.md
+
+  - q: compile a Bun TypeScript application into a standalone executable
+    source: bun
+    expect:
+      - bun/bundler/executables.md
+
+  - q: bundle and transform CSS with the Bun bundler
+    source: bun
+    expect:
+      - bun/bundler/css.md
+
+  - q: enable hot module replacement in the Bun development server
+    source: bun
+    expect:
+      - bun/bundler/hot-reloading.md
+
+  - q: run a Hono application on AWS Lambda
+    source: hono
+    expect:
+      - hono/getting-started/aws-lambda.md
+
+  - q: throw and handle an HTTPException in Hono
+    source: hono
+    expect:
+      - hono/api/exception.md
+
+  - q: compare the router implementations available in Hono
+    source: hono
+    expect:
+      - hono/concepts/routers.md
+
+  - q: avoid prop drilling by passing React data deeply with context
+    source: react
+    expect:
+      - react/learn/passing-data-deeply-with-context.md
+
+  - q: control when React preserves or resets component state
+    source: react
+    expect:
+      - react/learn/preserving-and-resetting-state.md
+
+  - q: remove unnecessary dependencies from a React Effect
+    source: react
+    expect:
+      - react/learn/removing-effect-dependencies.md
+
+  - q: combine keyword and semantic retrieval for Supabase hybrid search
+    source: supabase
+    expect:
+      - supabase/guides/ai/hybrid-search.md
+
+  - q: apply row level permissions to Supabase retrieval augmented generation
+    source: supabase
+    expect:
+      - supabase/guides/ai/rag-with-permissions.md
+
+  - q: automatically generate and update vector embeddings in Supabase Postgres
+    source: supabase
+    expect:
+      - supabase/guides/ai/automatic-embeddings.md
+
+  - q: enforce JSON Schema inputs with strict Claude tool use
+    source: anthropic
+    expect:
+      - anthropic/agents-and-tools/tool-use/strict-tool-use.md
+
+  - q: let Claude fetch content from a specific web URL
+    source: anthropic
+    expect:
+      - anthropic/agents-and-tools/tool-use/web-fetch-tool.md
+
+  - q: connect Claude to third party remote MCP servers
+    source: anthropic
+    expect:
+      - anthropic/agents-and-tools/remote-mcp-servers.md
+
+  - q: run an Expo EAS build locally with the local flag
+    source: expo
+    expect:
+      - expo/build-reference/local-builds.md
+
+  - q: install private npm packages during an Expo EAS build
+    source: expo
+    expect:
+      - expo/build-reference/private-npm-packages.md
+
+  - q: understand how Expo EAS Build resolves its build configuration
+    source: expo
+    expect:
+      - expo/build-reference/build-configuration.md

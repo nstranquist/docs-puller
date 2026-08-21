@@ -21,7 +21,8 @@ PUBLIC_SAMPLE_MIN_HIT_AT_5 ?= 1.0
 PUBLIC_SAMPLE_MIN_MRR ?= 0.95
 PUBLIC_SAMPLE_MAX_P99_MS ?= 250
 HELD_OUT_CORPUS ?= $(HOME)/code/docs
-HELD_OUT_FIXTURE ?= eval/heldout-v0.6-final.yaml
+HELD_OUT_FIXTURE ?= eval/heldout-v0.8.1-final.yaml
+FROZEN_REGRESSION_FIXTURE ?= eval/heldout-v0.6-final.yaml
 HELD_OUT_MIN_HIT_AT_1 ?= 0.45
 HELD_OUT_MIN_HIT_AT_5 ?= 0.9001
 HELD_OUT_MIN_MRR ?= 0.65
@@ -203,6 +204,16 @@ verify-held-out: build
 		--min-mrr $(HELD_OUT_MIN_MRR) \
 		--max-p99-ms $(HELD_OUT_MAX_P99_MS)
 
+# Historical independent holdout, retained as an immutable regression after a
+# v0.8.1 failure informed the API-versus-CLI ranking invariant.
+verify-frozen-regression: build
+	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --stale-days 0 --check
+	./bin/docs-puller eval --fixture "$(FROZEN_REGRESSION_FIXTURE)" --out "$(HELD_OUT_CORPUS)" --json \
+		--min-hit-at-1 $(HELD_OUT_MIN_HIT_AT_1) \
+		--min-hit-at-5 $(HELD_OUT_MIN_HIT_AT_5) \
+		--min-mrr $(HELD_OUT_MIN_MRR) \
+		--max-p99-ms $(HELD_OUT_MAX_P99_MS)
+
 # Tuned regression corpus. Keep this distinct from the frozen generalization holdout.
 verify-retrieval-regression: build
 	./bin/docs-puller status --out "$(HELD_OUT_CORPUS)" --stale-days 0 --check
@@ -226,7 +237,7 @@ release-dist:
 release-verify: release-dist
 	go run ./cmd/release-tool verify $(RELEASE_VERSION_ARG) --json
 
-release-ready: publish-ready release-check verify-public-sample verify-retrieval-regression verify-held-out release-verify verify-clean-clone
+release-ready: publish-ready release-check verify-public-sample verify-retrieval-regression verify-frozen-regression verify-held-out release-verify verify-clean-clone
 
 # Proves committed source from a fresh clone, excluding local generated state.
 verify-clean-clone:

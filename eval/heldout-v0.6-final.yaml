@@ -3,8 +3,10 @@
 # These 35 privacy-safe questions cover public documentation concepts that do
 # not occur in the earlier v0.6 tuning corpora. Every query uses an explicit
 # source, which is the contract for the source-scoped semantic lexical tier.
-# This file was committed before its first ranked evaluation. The first result
-# is immutable release evidence; do not tune v0.6 against this fixture.
+# This file was committed before its first ranked evaluation and remains
+# immutable. Its v0.6 result is independent release evidence. Starting with
+# v0.8.1, a failure here informed an API-versus-CLI ranking fix, so later runs
+# are regression evidence rather than a fresh holdout claim.
 
 query_type: privacy_safe_final_independent_holdout_v4
 
