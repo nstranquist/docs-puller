@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "component": "docs-puller",
+  "summary": "Delete refreshed FTS rows by indexed row ID instead of rescanning the full corpus for each document.",
+  "category": "Fixed",
+  "commit_type": "fix",
+  "bump": "patch",
+  "breaking": false,
+  "source": {
+    "kind": "manual"
+  }
+}

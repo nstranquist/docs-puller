@@ -60,6 +60,10 @@ The reviewed corpus digest is
 `sha256:54d3a0da70352d5be0e998714f1722eefa683189afa96fc37dd8373f7a45ec7b`.
 The build makes zero model calls and uses no AI tokens.
 
+A local Apple M1 Pro benchmark updated 100 existing docs in a 1,500-document
+corpus in 53 ms median, versus 802 ms before (15.2x). Each median uses three
+one-iteration runs of the checked-in benchmark.
+
 ## Supply-chain evidence
 
 - GitHub locks the release tag and assets after publication and creates its

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1522,6 +1523,88 @@ func TestFTSRepeatPullRepairsMissingUnchangedPath(t *testing.T) {
 	}
 	if n != 2 {
 		t.Fatalf("total docs after orphan repair = %d, want 2", n)
+	}
+}
+
+func TestFTSDeletePathUsesRowIDFastPathAndOrphanFallback(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "s")
+	writeFTSDoc(t, src, "a.md", "# A\n\nalpha\n")
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	deletePath := func() bool {
+		t.Helper()
+		tx, err := idx.db.BeginTx(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		fallback, err := deleteFTSPath(context.Background(), tx, idx.q.WithTx(tx), "s/a.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+		return fallback
+	}
+
+	if fallback := deletePath(); fallback {
+		t.Fatal("an indexed path used the corpus-wide FTS fallback")
+	}
+	if err := idx.upsertPaths(out, []string{"s/a.md"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.q.DeletePathByPath(context.Background(), "s/a.md"); err != nil {
+		t.Fatal(err)
+	}
+	if fallback := deletePath(); !fallback {
+		t.Fatal("an orphaned FTS row did not use the repair fallback")
+	}
+}
+
+func BenchmarkFTSIncrementalUpsertExisting100Of1500(b *testing.B) {
+	out := b.TempDir()
+	src := filepath.Join(out, "benchmark")
+	body := "# Incremental update benchmark\n\n" + strings.Repeat("bounded search corpus content ", 160)
+	paths := make([]string, 0, 100)
+	for i := 0; i < 1500; i++ {
+		rel := fmt.Sprintf("guides/doc-%04d.md", i)
+		path := filepath.Join(src, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			b.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			b.Fatal(err)
+		}
+		if i < 100 {
+			paths = append(paths, pathpkg.Join("benchmark", rel))
+		}
+	}
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportMetric(float64(len(paths)), "docs/op")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := idx.upsertPaths(out, paths); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

@@ -519,9 +519,11 @@ func (f *ftsIndex) updateFTSFromMemory(out string, changedPaths []string, docs [
 
 // upsertPaths replaces (or inserts) FTS5 rows for the given paths. Each
 // path is rooted at <out> (e.g. "supabase/guides/rls.md"). Inside one
-// transaction it deletes both the side-table mapping and every FTS row for the
-// path before inserting fresh state. Deleting by path also repairs an orphaned
-// docs row when docs_path was lost or partially written.
+// transaction it deletes both the side-table mapping and the FTS row before
+// inserting fresh state. The normal path resolves docs_path's primary key and
+// deletes the FTS row by rowid. FTS5 path is UNINDEXED, so DELETE WHERE path
+// scans the complete index and is reserved for the rare missing-side-table
+// repair path.
 // Caller is expected to hold the write lock.
 //
 // A path whose underlying file no longer exists results in just the DELETE
@@ -554,10 +556,7 @@ func (f *ftsIndex) upsertPaths(out string, paths []string) error {
 			continue
 		}
 
-		if err := q.DeletePathByPath(ctx, relPath); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM docs WHERE path = ?`, relPath); err != nil {
+		if _, err := deleteFTSPath(ctx, tx, q, relPath); err != nil {
 			return err
 		}
 
@@ -566,6 +565,28 @@ func (f *ftsIndex) upsertPaths(out string, paths []string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// deleteFTSPath returns true only when it had to scan the UNINDEXED FTS path
+// column to repair a missing docs_path mapping. Existing indexed paths use the
+// primary-key lookup and rowid delete, which stays bounded as the corpus grows.
+func deleteFTSPath(ctx context.Context, tx *sql.Tx, q *ftsdb.Queries, relPath string) (bool, error) {
+	oldRowID, err := q.LookupDocRowIDByPath(ctx, relPath)
+	switch err {
+	case nil:
+		if err := q.DeleteDocByRowID(ctx, oldRowID); err != nil {
+			return false, err
+		}
+		return false, q.DeletePathByPath(ctx, relPath)
+	case sql.ErrNoRows:
+		// Repair the inverse partial drift: an FTS row can exist without its
+		// docs_path mapping after an interrupted historical write. This
+		// fallback is intentionally the only path-based FTS scan.
+		_, err := tx.ExecContext(ctx, `DELETE FROM docs WHERE path = ?`, relPath)
+		return true, err
+	default:
+		return false, err
+	}
 }
 
 func (f *ftsIndex) upsertMemoryDocs(paths []string, docs []ftsMemoryDoc) error {

@@ -15,7 +15,8 @@
     ".release/changes/20260820T231658Z-5bd84d1c15b6.json",
     ".release/changes/20260820T232215Z-d47dc522a59d.json",
     ".release/changes/20260820T234513Z-e35c134827f6.json",
-    ".release/changes/20260821T000335Z-b554f551386c.json"
+    ".release/changes/20260821T000335Z-b554f551386c.json",
+    ".release/changes/20260821T001857Z-29cb4df99703.json"
   ],
   "updated_paths": [
     ".release/history/0.8.0/20260820T231629Z-f8df7a5549ba.json",
@@ -28,10 +29,11 @@
     ".release/history/0.8.0/20260820T232215Z-d47dc522a59d.json",
     ".release/history/0.8.0/20260820T234513Z-e35c134827f6.json",
     ".release/history/0.8.0/20260821T000335Z-b554f551386c.json",
+    ".release/history/0.8.0/20260821T001857Z-29cb4df99703.json",
     ".release/history/0.8.0/release-receipt.json",
     "CHANGELOG.md",
     "VERSION"
   ],
-  "input_sha256": "831c642d15c3b4e9b1d8220e12a45be2caca2154f136e50e87878a8df0a532cb",
-  "output_sha256": "0a7f1066ed303e0be17ab9c4080ddc77207a7acfb9eade97a3a38530d416725d"
+  "input_sha256": "cd217f4598c15ee77b771298f8d1c6aec56abf09e61470542f5c23eb467ee952",
+  "output_sha256": "45a6504ad2bf31813874eb53089b13f75d91f226b2f35bdebfe4c5273c82b6eb"
 }

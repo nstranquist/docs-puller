@@ -26,6 +26,7 @@ must name both the old and new behavior.
 - Keep source-repository launch proof independent from versioned install checks in the release synchronizer.
 - Keep canonical docs from a named leading source ahead of duplicate off-source workspace pages.
 - Document the complete account-pinned Worker deployment and the real corpus cutover boundary.
+- Delete refreshed FTS rows by indexed row ID instead of rescanning the full corpus for each document.
 
 ## v0.7.6 — 2026-08-19
 
