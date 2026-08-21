@@ -1,5 +1,7 @@
 # Local developer and release gates for the docs-puller open-core CLI.
 
+SHELL := /bin/bash -euo pipefail
+
 .PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
 	extension-check extension-package site-check verify-public-snapshot verify-public-sample verify-held-out \

@@ -39,6 +39,9 @@ for archive and Windows instructions.
   longer depends on the current response from 24 vendor URLs.
 - Git preserves those reviewed bytes on every operating system. Windows
   checkouts no longer replace LF line endings with CRLF before digest checks.
+- Local release recipes now stop at the first failed command or pipeline stage.
+- `status --check` gates core corpus and index health. When a gate requires
+  ingest history, add `--check-ingest-log`.
 - CI builds two new SQLite indexes from separate snapshot copies and requires
   byte-identical results that match the reviewed index digest before it stages
   the container.

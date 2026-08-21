@@ -252,7 +252,7 @@ func TestBuildStatusCheckWarningsIgnoresFlatEmbeddingWarningsByDefault(t *testin
 	if warningContains(buildStatusWarnings(status), "flat embedding index missing for model test-model") == false {
 		t.Fatalf("status output warnings should still include flat-index warning")
 	}
-	if got := buildStatusCheckWarnings(status, false); len(got) != 0 {
+	if got := buildStatusCheckWarnings(status, false, false); len(got) != 0 {
 		t.Fatalf("default check warnings = %v, want none", got)
 	}
 }
@@ -265,8 +265,27 @@ func TestBuildStatusCheckWarningsIncludesFlatEmbeddingWarningsWhenRequested(t *t
 			{Model: "test-model", Docs: 2, Dim: 2},
 		},
 	}
-	if !warningContains(buildStatusCheckWarnings(status, true), "flat embedding index missing for model test-model") {
+	if !warningContains(buildStatusCheckWarnings(status, true, false), "flat embedding index missing for model test-model") {
 		t.Fatalf("strict embedding check should include flat-index warning")
+	}
+}
+
+func TestBuildStatusCheckWarningsIgnoresMissingIngestHistoryByDefault(t *testing.T) {
+	status := checkReadyStatus()
+	status.IngestLog = statusIngestLog{Path: "/tmp/docs/_INGEST_LOG.jsonl"}
+	if !warningContains(buildStatusWarnings(status), "no ingest history") {
+		t.Fatal("status output should report missing ingest history")
+	}
+	if got := buildStatusCheckWarnings(status, false, false); len(got) != 0 {
+		t.Fatalf("default check warnings = %v, want none", got)
+	}
+}
+
+func TestBuildStatusCheckWarningsIncludesIngestHistoryWhenRequested(t *testing.T) {
+	status := checkReadyStatus()
+	status.IngestLog = statusIngestLog{Path: "/tmp/docs/_INGEST_LOG.jsonl"}
+	if !warningContains(buildStatusCheckWarnings(status, false, true), "no ingest history") {
+		t.Fatal("strict ingest-log check should include missing history warning")
 	}
 }
 

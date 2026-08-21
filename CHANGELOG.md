@@ -31,6 +31,8 @@ must name both the old and new behavior.
 - Document the complete account-pinned Worker deployment and the real corpus cutover boundary.
 - Delete refreshed FTS rows by indexed row ID instead of rescanning the full corpus for each document.
 - Preserve the reviewed snapshot bytes on Windows instead of converting their line endings during checkout.
+- Make local release recipes stop at the first failed command or pipeline stage.
+- Keep `status --check` focused on core corpus and index health. When ingest history is required, use `--check-ingest-log`.
 
 ## v0.7.6 — 2026-08-19
 

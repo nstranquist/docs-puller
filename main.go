@@ -235,7 +235,7 @@ Usage:
   docs-puller curation lint                  [--json]
   docs-puller refresh [--source-cache DIR]
   docs-puller reindex [--out DIR]            # rebuild FTS5 search index
-  docs-puller status [--out DIR] [--check] [--check-embeddings]
+  docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
                                              # health summary for corpus + FTS5
   docs-puller list                           [--out DIR] [--json]
   docs-puller show <source>                  [--out DIR] [--json]

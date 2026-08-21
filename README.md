@@ -176,6 +176,7 @@ docs-puller pull --git-repo https://projects.example.com/team/manual.git --ref r
 docs-puller reindex --out ~/code/docs
 docs-puller status --out ~/code/docs --check
 docs-puller status --out ~/code/docs --check --check-embeddings
+docs-puller status --out ~/code/docs --check --check-ingest-log
 docs-puller search "supabase row level security" --out ~/code/docs --compact
 docs-puller pins refresh --write --out ~/code/docs
 docs-puller search "flatlist performance" --out ~/code/docs --source react-native --version 0.79
@@ -217,7 +218,9 @@ published documentation URL differs from the source repository URL.
 
 Embeddings are stored separately from FTS at `<out>/.cache/embeddings.db`; the FTS index remains `<out>/.cache/search.db`. Whole-doc embedding runs also write a flat vector sidecar (`embeddings-<model>.vec`) used by `--rerank-hybrid` before falling back to SQLite.
 
-`status` reports missing or stale embedding sidecars, but `status --check` only fails on core corpus/index health. Add `--check-embeddings` when rerank readiness should be part of the gate.
+`status` reports missing optional data, but `status --check` fails only on core
+corpus and index health. Add `--check-embeddings` to gate rerank readiness. Add
+`--check-ingest-log` to require readable ingest history.
 
 ```sh
 docs-puller embed --out ~/code/docs --model text-embedding-3-small

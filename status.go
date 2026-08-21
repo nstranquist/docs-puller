@@ -117,6 +117,7 @@ func cmdStatus(args []string) {
 		asJSON          bool
 		check           bool
 		checkEmbeddings bool
+		checkIngestLog  bool
 		staleDays       int
 	)
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
@@ -124,6 +125,7 @@ func cmdStatus(args []string) {
 	fs.BoolVar(&asJSON, "json", false, "emit JSON instead of human-readable")
 	fs.BoolVar(&check, "check", false, "exit non-zero when core corpus/index warnings are present")
 	fs.BoolVar(&checkEmbeddings, "check-embeddings", false, "with --check, also fail on embedding DB or flat sidecar warnings")
+	fs.BoolVar(&checkIngestLog, "check-ingest-log", false, "with --check, also fail on missing or unreadable ingest history")
 	fs.IntVar(&staleDays, "stale-days", 30, "warn when a source's newest manifest entry is older than this many days (0 disables)")
 	fs.Parse(args)
 
@@ -146,7 +148,7 @@ func cmdStatus(args []string) {
 		emitDocsStatusText(status)
 	}
 
-	if check && len(buildStatusCheckWarnings(status, checkEmbeddings)) > 0 {
+	if check && len(buildStatusCheckWarnings(status, checkEmbeddings, checkIngestLog)) > 0 {
 		os.Exit(1)
 	}
 }
@@ -464,14 +466,14 @@ func collectStatusPins(out string) statusPins {
 }
 
 func buildStatusWarnings(status docsStatus) []string {
-	return buildStatusWarningsWithOptions(status, true)
+	return buildStatusWarningsWithOptions(status, true, true)
 }
 
-func buildStatusCheckWarnings(status docsStatus, includeEmbeddings bool) []string {
-	return buildStatusWarningsWithOptions(status, includeEmbeddings)
+func buildStatusCheckWarnings(status docsStatus, includeEmbeddings, includeIngestLog bool) []string {
+	return buildStatusWarningsWithOptions(status, includeEmbeddings, includeIngestLog)
 }
 
-func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings bool) []string {
+func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings, includeIngestLog bool) []string {
 	var warnings []string
 	if status.SourceCount == 0 {
 		warnings = append(warnings, fmt.Sprintf("no source dirs found under %s", status.Out))
@@ -493,10 +495,12 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings bool) [
 			warnings = append(warnings, flatEmbeddingWarnings(status.Embeddings)...)
 		}
 	}
-	if status.IngestLog.Error != "" {
-		warnings = append(warnings, fmt.Sprintf("ingest log unreadable: %s", status.IngestLog.Error))
-	} else if !status.IngestLog.Exists || status.IngestLog.Entries == 0 {
-		warnings = append(warnings, fmt.Sprintf("no ingest history at %s", status.IngestLog.Path))
+	if includeIngestLog {
+		if status.IngestLog.Error != "" {
+			warnings = append(warnings, fmt.Sprintf("ingest log unreadable: %s", status.IngestLog.Error))
+		} else if !status.IngestLog.Exists || status.IngestLog.Entries == 0 {
+			warnings = append(warnings, fmt.Sprintf("no ingest history at %s", status.IngestLog.Path))
+		}
 	}
 	if status.Pins.Error != "" {
 		warnings = append(warnings, fmt.Sprintf("docs pins unreadable: %s; rerun `docs-puller pins refresh --write`", status.Pins.Error))
