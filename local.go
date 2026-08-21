@@ -99,27 +99,32 @@ type localBatchCollectResult struct {
 }
 
 type localBatchSummary struct {
-	Mode             string   `json:"mode"`
-	SourceCnt        int      `json:"source_count"`
-	Sources          []string `json:"sources"`
-	Walked           int      `json:"walked"`
-	Pulled           int      `json:"pulled"`
-	Skipped          int      `json:"skipped"`
-	Excluded         int      `json:"excluded"`
-	WriteCount       int      `json:"write_count"`
-	UnchangedCount   int      `json:"unchanged_write_count"`
-	ChangedPathCount int      `json:"changed_path_count"`
-	PrunedPathCount  int      `json:"pruned_path_count"`
-	ElapsedMs        float64  `json:"elapsed_ms"`
-	CopyMs           float64  `json:"copy_ms"`
-	LockMs           float64  `json:"lock_ms"`
-	ManifestMs       float64  `json:"manifest_ms"`
-	IndexRegenMs     float64  `json:"index_regen_ms"`
-	FTSUpdateMs      float64  `json:"fts_update_ms"`
-	FTSDocCount      int      `json:"fts_doc_count"`
-	FTSSizeBytes     int64    `json:"fts_size_bytes,omitempty"`
-	LogMs            float64  `json:"log_ms"`
-	FTSUpdated       bool     `json:"fts_updated"`
+	Mode               string   `json:"mode"`
+	SourceCnt          int      `json:"source_count"`
+	Sources            []string `json:"sources"`
+	Walked             int      `json:"walked"`
+	Pulled             int      `json:"pulled"`
+	Skipped            int      `json:"skipped"`
+	Excluded           int      `json:"excluded"`
+	WriteCount         int      `json:"write_count"`
+	UnchangedCount     int      `json:"unchanged_write_count"`
+	ChangedPathCount   int      `json:"changed_path_count"`
+	PrunedPathCount    int      `json:"pruned_path_count"`
+	ElapsedMs          float64  `json:"elapsed_ms"`
+	CopyMs             float64  `json:"copy_ms"`
+	LockMs             float64  `json:"lock_ms"`
+	ManifestMs         float64  `json:"manifest_ms"`
+	IndexRegenMs       float64  `json:"index_regen_ms"`
+	FTSUpdateMs        float64  `json:"fts_update_ms"`
+	FTSCompactMs       float64  `json:"fts_compact_ms"`
+	FTSDocCount        int      `json:"fts_doc_count"`
+	FTSSizeBytes       int64    `json:"fts_size_bytes,omitempty"`
+	FTSSizeBeforeBytes int64    `json:"fts_size_before_bytes,omitempty"`
+	FTSReclaimedBytes  int64    `json:"fts_reclaimed_bytes,omitempty"`
+	FTSCompacted       bool     `json:"fts_compacted"`
+	FTSCompactError    string   `json:"fts_compact_error,omitempty"`
+	LogMs              float64  `json:"log_ms"`
+	FTSUpdated         bool     `json:"fts_updated"`
 }
 
 func shouldSkipLocalDir(name string) bool {
@@ -666,6 +671,9 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 	// rather than racing on the FTS5 index.
 	if err := withWriteLock(o.out, func() error {
 		var prunedPaths []string
+		ftsCompacted := false
+		ftsReclaimedBytes := int64(0)
+		ftsCompactError := ""
 		if err := writeManifestsWithPolicy(o.out, results, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
 			return err
 		}
@@ -694,20 +702,36 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 			coversCorpus := len(preExistingSources) == 0
 			if rerr := idx.updateFTSFromMemory(o.out, changedPaths, localFTSMemoryDocs(docs, coversCorpus), coversCorpus); rerr != nil {
 				fmt.Fprintf(os.Stderr, "fts5: update failed: %v\n", rerr)
+			} else if remaining, countErr := idx.totalDocs(); countErr == nil && shouldCompactFTSAfterPrune(len(prunedPaths), remaining) {
+				compacted, compactErr := compactFTSIndex(o.out, idx)
+				ftsReclaimedBytes = compacted.ReclaimedBytes
+				if compactErr != nil {
+					ftsCompactError = compactErr.Error()
+					fmt.Fprintf(os.Stderr, "fts5: compaction failed: %v\n", compactErr)
+				} else {
+					ftsCompacted = true
+					if compacted.ReclaimedBytes > 0 {
+						fmt.Fprintf(os.Stderr, "fts5: reclaimed %s after pruning %d documents\n", byteSize(compacted.ReclaimedBytes), len(prunedPaths))
+					}
+				}
 			}
 			idx.close()
 		}
 		entry := logEntry{
-			StartedAt:  now,
-			FinishedAt: time.Now().UTC().Format(time.RFC3339),
-			ElapsedMs:  time.Since(start).Milliseconds(),
-			Mode:       mode,
-			Args:       cmdArgs,
-			Sources:    []string{source},
-			URLs:       stats.copied,
-			Pulled:     stats.written,
-			Unchanged:  stats.unchanged,
-			Skipped:    stats.skipped,
+			StartedAt:         now,
+			FinishedAt:        time.Now().UTC().Format(time.RFC3339),
+			ElapsedMs:         time.Since(start).Milliseconds(),
+			Mode:              mode,
+			Args:              cmdArgs,
+			Sources:           []string{source},
+			URLs:              stats.copied,
+			Pulled:            stats.written,
+			Unchanged:         stats.unchanged,
+			Skipped:           stats.skipped,
+			Pruned:            len(prunedPaths),
+			FTSCompacted:      ftsCompacted,
+			FTSReclaimedBytes: ftsReclaimedBytes,
+			FTSCompactError:   ftsCompactError,
 		}
 		if err := appendIngestLog(o.out, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "ingest-log: append failed: %v\n", err)
@@ -1060,6 +1084,11 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	ftsUpdated := false
 	ftsDocCount := 0
 	ftsSizeBytes := int64(0)
+	ftsSizeBeforeBytes := int64(0)
+	ftsReclaimedBytes := int64(0)
+	ftsCompacted := false
+	ftsCompactError := ""
+	ftsCompactMs := float64(0)
 	lockStart := time.Now()
 	if err := withWriteLock(o.out, func() error {
 		manifestStart := time.Now()
@@ -1103,6 +1132,19 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 				if n, err := idx.totalDocs(); err == nil {
 					ftsDocCount = n
 				}
+				if shouldCompactFTSAfterPrune(len(prunedPaths), ftsDocCount) {
+					compactStart := time.Now()
+					compacted, compactErr := compactFTSIndex(o.out, idx)
+					ftsCompactMs = durationMillis(time.Since(compactStart))
+					ftsSizeBeforeBytes = compacted.BeforeBytes
+					ftsReclaimedBytes = compacted.ReclaimedBytes
+					if compactErr != nil {
+						ftsCompactError = compactErr.Error()
+						fmt.Fprintf(os.Stderr, "fts5: compaction failed: %v\n", compactErr)
+					} else {
+						ftsCompacted = true
+					}
+				}
 			}
 			idx.close()
 		}
@@ -1111,17 +1153,20 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 		}
 		summary.FTSUpdateMs = durationMillis(time.Since(ftsStart))
 		entry := logEntry{
-			StartedAt:  now,
-			FinishedAt: time.Now().UTC().Format(time.RFC3339),
-			ElapsedMs:  time.Since(start).Milliseconds(),
-			Mode:       "local-batch",
-			Args:       cmdArgs,
-			Sources:    allSources,
-			URLs:       stats.walked,
-			Pulled:     stats.written,
-			Unchanged:  stats.unchanged,
-			Skipped:    stats.skipped,
-			Pruned:     len(prunedPaths),
+			StartedAt:         now,
+			FinishedAt:        time.Now().UTC().Format(time.RFC3339),
+			ElapsedMs:         time.Since(start).Milliseconds(),
+			Mode:              "local-batch",
+			Args:              cmdArgs,
+			Sources:           allSources,
+			URLs:              stats.walked,
+			Pulled:            stats.written,
+			Unchanged:         stats.unchanged,
+			Skipped:           stats.skipped,
+			Pruned:            len(prunedPaths),
+			FTSCompacted:      ftsCompacted,
+			FTSReclaimedBytes: ftsReclaimedBytes,
+			FTSCompactError:   ftsCompactError,
 		}
 		logStart := time.Now()
 		if err := appendIngestLog(o.out, entry); err != nil {
@@ -1134,27 +1179,32 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	}
 	summary.LockMs = durationMillis(time.Since(lockStart))
 	return localBatchSummary{
-		Mode:             "local-batch",
-		SourceCnt:        len(allSources),
-		Sources:          allSources,
-		Walked:           stats.walked,
-		Pulled:           stats.copied,
-		Skipped:          stats.skipped,
-		Excluded:         stats.excluded,
-		WriteCount:       stats.written,
-		UnchangedCount:   stats.unchanged,
-		ElapsedMs:        durationMillis(time.Since(start)),
-		CopyMs:           summary.CopyMs,
-		LockMs:           summary.LockMs,
-		ManifestMs:       summary.ManifestMs,
-		IndexRegenMs:     summary.IndexRegenMs,
-		FTSUpdateMs:      summary.FTSUpdateMs,
-		FTSDocCount:      ftsDocCount,
-		FTSSizeBytes:     ftsSizeBytes,
-		LogMs:            summary.LogMs,
-		ChangedPathCount: summary.ChangedPathCount,
-		PrunedPathCount:  summary.PrunedPathCount,
-		FTSUpdated:       ftsUpdated,
+		Mode:               "local-batch",
+		SourceCnt:          len(allSources),
+		Sources:            allSources,
+		Walked:             stats.walked,
+		Pulled:             stats.copied,
+		Skipped:            stats.skipped,
+		Excluded:           stats.excluded,
+		WriteCount:         stats.written,
+		UnchangedCount:     stats.unchanged,
+		ElapsedMs:          durationMillis(time.Since(start)),
+		CopyMs:             summary.CopyMs,
+		LockMs:             summary.LockMs,
+		ManifestMs:         summary.ManifestMs,
+		IndexRegenMs:       summary.IndexRegenMs,
+		FTSUpdateMs:        summary.FTSUpdateMs,
+		FTSCompactMs:       ftsCompactMs,
+		FTSDocCount:        ftsDocCount,
+		FTSSizeBytes:       ftsSizeBytes,
+		FTSSizeBeforeBytes: ftsSizeBeforeBytes,
+		FTSReclaimedBytes:  ftsReclaimedBytes,
+		FTSCompacted:       ftsCompacted,
+		FTSCompactError:    ftsCompactError,
+		LogMs:              summary.LogMs,
+		ChangedPathCount:   summary.ChangedPathCount,
+		PrunedPathCount:    summary.PrunedPathCount,
+		FTSUpdated:         ftsUpdated,
 	}, nil
 }
 

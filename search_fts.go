@@ -261,6 +261,43 @@ func (f *ftsIndex) close() error {
 	return f.db.Close()
 }
 
+type ftsCompactionStats struct {
+	BeforeBytes    int64
+	AfterBytes     int64
+	ReclaimedBytes int64
+}
+
+// compactFTSIndex merges FTS5 segments, vacuums free database pages, and
+// checkpoints the WAL. Callers hold the corpus write lock, so a large prune
+// cannot race another docs-puller writer while space is reclaimed.
+func compactFTSIndex(out string, f *ftsIndex) (ftsCompactionStats, error) {
+	var stats ftsCompactionStats
+	if info, err := os.Stat(ftsDBPath(out)); err == nil {
+		stats.BeforeBytes = info.Size()
+	}
+	ctx := context.Background()
+	if _, err := f.db.ExecContext(ctx, `INSERT INTO docs(docs) VALUES ('optimize')`); err != nil {
+		return stats, fmt.Errorf("optimize FTS5 segments: %w", err)
+	}
+	if _, err := f.db.ExecContext(ctx, `VACUUM`); err != nil {
+		return stats, fmt.Errorf("vacuum FTS5 database: %w", err)
+	}
+	var busy, logFrames, checkpointed int
+	if err := f.db.QueryRowContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logFrames, &checkpointed); err != nil {
+		return stats, fmt.Errorf("checkpoint compacted FTS5 database: %w", err)
+	}
+	if busy != 0 {
+		return stats, fmt.Errorf("checkpoint compacted FTS5 database: %d reader(s) kept %d of %d WAL frames busy", busy, logFrames-checkpointed, logFrames)
+	}
+	if info, err := os.Stat(ftsDBPath(out)); err == nil {
+		stats.AfterBytes = info.Size()
+	}
+	if stats.BeforeBytes > stats.AfterBytes {
+		stats.ReclaimedBytes = stats.BeforeBytes - stats.AfterBytes
+	}
+	return stats, nil
+}
+
 // liveFTSIndex wraps an ftsIndex with mtime-based reopen so the persistent
 // `serve` connection picks up out-of-process reindex/pull updates without a
 // server restart. Cost per search is one Stat (~µs); reopen happens only

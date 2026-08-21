@@ -23,18 +23,21 @@ import (
 const ingestLogFile = "_INGEST_LOG.jsonl"
 
 type logEntry struct {
-	StartedAt  string   `json:"started_at"`
-	FinishedAt string   `json:"finished_at"`
-	ElapsedMs  int64    `json:"elapsed_ms"`
-	Mode       string   `json:"mode"` // sitemap | llms-txt | gatsby-pagedata | from-file | pull-url | local | github-repo | git-repo
-	Args       []string `json:"args,omitempty"`
-	Sources    []string `json:"sources,omitempty"`
-	URLs       int      `json:"urls"`
-	Pulled     int      `json:"pulled"`
-	Unchanged  int      `json:"unchanged,omitempty"`
-	Skipped    int      `json:"skipped"`
-	Pruned     int      `json:"pruned,omitempty"`
-	Warned     int      `json:"warned,omitempty"`
+	StartedAt         string   `json:"started_at"`
+	FinishedAt        string   `json:"finished_at"`
+	ElapsedMs         int64    `json:"elapsed_ms"`
+	Mode              string   `json:"mode"` // sitemap | llms-txt | gatsby-pagedata | from-file | pull-url | local | github-repo | git-repo
+	Args              []string `json:"args,omitempty"`
+	Sources           []string `json:"sources,omitempty"`
+	URLs              int      `json:"urls"`
+	Pulled            int      `json:"pulled"`
+	Unchanged         int      `json:"unchanged,omitempty"`
+	Skipped           int      `json:"skipped"`
+	Pruned            int      `json:"pruned,omitempty"`
+	FTSCompacted      bool     `json:"fts_compacted,omitempty"`
+	FTSReclaimedBytes int64    `json:"fts_reclaimed_bytes,omitempty"`
+	FTSCompactError   string   `json:"fts_compact_error,omitempty"`
+	Warned            int      `json:"warned,omitempty"`
 }
 
 // appendIngestLog appends one entry to <out>/_INGEST_LOG.jsonl. Caller is

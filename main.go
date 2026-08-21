@@ -253,7 +253,8 @@ Usage:
                                              # ingest ~/code/refs/_cases/<slug>/*.md → refs-dissections
   docs-puller curation lint                  [--json]
   docs-puller refresh [--source-cache DIR]
-  docs-puller reindex [--out DIR]            # rebuild FTS5 search index
+  docs-puller reindex [--out DIR] [--reclaim-space]
+                                             # rebuild FTS5; optionally compact it
   docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
                                              # health summary for corpus + FTS5
   docs-puller list                           [--out DIR] [--json]
@@ -571,11 +572,13 @@ func cmdRefresh(args []string) {
 func cmdReindex(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("reindex", flag.ExitOnError)
+	reclaimSpace := fs.Bool("reclaim-space", false, "vacuum the rebuilt FTS5 database and truncate its WAL")
 	bindOpts(fs, &o)
 	fs.Parse(args)
 
 	start := time.Now()
 	var n int
+	var compacted ftsCompactionStats
 	if err := withWriteLock(o.out, func() error {
 		fmt.Fprintf(os.Stderr, "regenerating per-source _INDEX.md ...\n")
 		if err := regenerateIndex(o.out, nil); err != nil {
@@ -591,11 +594,22 @@ func cmdReindex(args []string) {
 			return err
 		}
 		n, _ = idx.totalDocs()
+		if *reclaimSpace {
+			var err error
+			compacted, err = compactFTSIndex(o.out, idx)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		die(err)
 	}
 	fmt.Printf("indexed %d docs in %s\n", n, time.Since(start).Round(time.Millisecond))
+	if *reclaimSpace {
+		fmt.Printf("reclaimed %s from FTS5 (%s -> %s)\n",
+			byteSize(compacted.ReclaimedBytes), byteSize(compacted.BeforeBytes), byteSize(compacted.AfterBytes))
+	}
 }
 
 // cmdList enumerates pulled sources with doc counts and last-pull timestamps.
@@ -1358,6 +1372,18 @@ func validateSourceReplacement(source string, existing, pruning int, allowLargeP
 	return fmt.Errorf("replace-source safety: source %q would prune %d of %d existing documents (%.1f%%); verify discovery completeness and rerun with --allow-large-prune to acknowledge the deletion", source, pruning, existing, ratio*100)
 }
 
+func shouldCompactFTSAfterPrune(pruned, remaining int) bool {
+	if pruned <= 0 {
+		return false
+	}
+	existing := pruned + max(remaining, 0)
+	if existing == 0 {
+		return false
+	}
+	ratio := float64(pruned) / float64(existing)
+	return pruned >= largePruneAbsoluteLimit || (pruned >= largePruneMinimum && ratio > largePruneRatio)
+}
+
 // replaceManifestForSource treats the fresh URL set as authoritative while
 // preserving last-known-good artifacts for URLs that were requested but
 // temporarily skipped. Only URLs absent from fresh are pruned; successful
@@ -1401,7 +1427,12 @@ func deletePrunedDocPaths(outRoot string, relPaths []string) error {
 	if err != nil {
 		return fmt.Errorf("resolve output root symlinks: %w", err)
 	}
-	paths := make([]string, 0, len(relPaths))
+	type deletePlan struct {
+		path        string
+		sourceRoot  string
+		cleanParent bool
+	}
+	plans := make([]deletePlan, 0, len(relPaths))
 	for _, rel := range relPaths {
 		logical, ok := cleanLogicalRelativePath(rel)
 		if !ok {
@@ -1426,13 +1457,39 @@ func deletePrunedDocPaths(outRoot string, relPaths []string) error {
 		if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("refusing to delete pruned path through a symlink outside output root %q", rel)
 		}
-		paths = append(paths, path)
+		sourceRoot := root
+		if source, _, ok := strings.Cut(logical, "/"); ok {
+			sourceRoot = filepath.Join(root, filepath.FromSlash(source))
+		}
+		plans = append(plans, deletePlan{
+			path:        path,
+			sourceRoot:  sourceRoot,
+			cleanParent: filepath.Clean(resolvedParent) == filepath.Clean(filepath.Dir(path)),
+		})
 	}
 	// Validate the complete plan before deleting the first file so one unsafe
 	// candidate cannot leave a partially applied replacement behind.
-	for _, path := range paths {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	for _, plan := range plans {
+		if err := os.Remove(plan.path); err != nil && !os.IsNotExist(err) {
 			return err
+		}
+		if !plan.cleanParent {
+			continue
+		}
+		for dir := filepath.Dir(plan.path); dir != root && dir != plan.sourceRoot; dir = filepath.Dir(dir) {
+			entries, err := os.ReadDir(dir)
+			if os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("inspect empty pruned directory %q: %w", dir, err)
+			}
+			if len(entries) != 0 {
+				break
+			}
+			if err := os.Remove(dir); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("remove empty pruned directory %q: %w", dir, err)
+			}
 		}
 	}
 	return nil
