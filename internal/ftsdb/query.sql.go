@@ -95,18 +95,19 @@ func (q *Queries) DropDocsPath(ctx context.Context) error {
 }
 
 const insertDoc = `-- name: InsertDoc :execresult
-INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub)
-VALUES(?, ?, ?, ?, ?, ?, ?)
+INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub, content_fingerprint)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertDocParams struct {
-	Path       string
-	Source     string
-	Title      *string
-	PathTokens string
-	Body       string
-	Url        *string
-	IsHub      int64
+	Path               string
+	Source             string
+	Title              *string
+	PathTokens         string
+	Body               string
+	Url                *string
+	IsHub              int64
+	ContentFingerprint string
 }
 
 func (q *Queries) InsertDoc(ctx context.Context, arg InsertDocParams) (sql.Result, error) {
@@ -118,23 +119,25 @@ func (q *Queries) InsertDoc(ctx context.Context, arg InsertDocParams) (sql.Resul
 		arg.Body,
 		arg.Url,
 		arg.IsHub,
+		arg.ContentFingerprint,
 	)
 }
 
 const insertDocWithRowID = `-- name: InsertDocWithRowID :exec
-INSERT INTO docs("rowid", path, source, title, path_tokens, body, url, is_hub)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO docs("rowid", path, source, title, path_tokens, body, url, is_hub, content_fingerprint)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertDocWithRowIDParams struct {
-	Rowid      int64
-	Path       string
-	Source     string
-	Title      *string
-	PathTokens string
-	Body       string
-	Url        *string
-	IsHub      int64
+	Rowid              int64
+	Path               string
+	Source             string
+	Title              *string
+	PathTokens         string
+	Body               string
+	Url                *string
+	IsHub              int64
+	ContentFingerprint string
 }
 
 func (q *Queries) InsertDocWithRowID(ctx context.Context, arg InsertDocWithRowIDParams) error {
@@ -147,6 +150,7 @@ func (q *Queries) InsertDocWithRowID(ctx context.Context, arg InsertDocWithRowID
 		arg.Body,
 		arg.Url,
 		arg.IsHub,
+		arg.ContentFingerprint,
 	)
 	return err
 }
@@ -176,26 +180,26 @@ func (q *Queries) LookupDocRowIDByPath(ctx context.Context, path string) (int64,
 	return rowid, err
 }
 
-const probeDocsIsHub = `-- name: ProbeDocsIsHub :many
+const probeDocsContentFingerprint = `-- name: ProbeDocsContentFingerprint :many
 
-SELECT is_hub FROM docs LIMIT 0
+SELECT content_fingerprint FROM docs LIMIT 0
 `
 
 // Static FTS cache queries for docs-puller. Dynamic ranking SELECTs stay in Go
 // because they compose tier-specific projections and optional source filters.
-func (q *Queries) ProbeDocsIsHub(ctx context.Context) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, probeDocsIsHub)
+func (q *Queries) ProbeDocsContentFingerprint(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, probeDocsContentFingerprint)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []int64{}
+	items := []string{}
 	for rows.Next() {
-		var is_hub int64
-		if err := rows.Scan(&is_hub); err != nil {
+		var content_fingerprint string
+		if err := rows.Scan(&content_fingerprint); err != nil {
 			return nil, err
 		}
-		items = append(items, is_hub)
+		items = append(items, content_fingerprint)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

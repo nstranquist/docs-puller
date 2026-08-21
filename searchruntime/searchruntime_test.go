@@ -453,6 +453,31 @@ func TestRunScanRanksAndLoadsURLs(t *testing.T) {
 	}
 }
 
+func TestRunScanCollapsesExactCopies(t *testing.T) {
+	root := t.TempDir()
+	body := "# Exact guide\n\nneedle body\n"
+	for _, rel := range []string{"vendor/guide.md", "workspace/repos/one/vendor/guide.md", "workspace/repos/two/vendor/guide.md"} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hits, _ := RunScan(ScanInput{
+		Query:   "needle",
+		Options: ScanOptions{Root: root, Limit: 10, TitleBoost: 5},
+		ListSources: func(string) ([]string, error) {
+			return []string{"vendor", "workspace"}, nil
+		},
+		ExtractTitle: func(string) string { return "Exact guide" },
+	})
+	if len(hits) != 1 || hits[0].Path != "vendor/guide.md" || hits[0].DuplicatesCollapsed != 2 {
+		t.Fatalf("scan duplicate collapse = %+v", hits)
+	}
+}
+
 func TestDedupeSnippetsAcross(t *testing.T) {
 	got := DedupeSnippetsAcross([]Hit{
 		{

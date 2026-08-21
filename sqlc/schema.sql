@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS docs (
     path_tokens TEXT NOT NULL,
     body TEXT NOT NULL,
     url TEXT,
-    is_hub INTEGER NOT NULL
+    is_hub INTEGER NOT NULL,
+    content_fingerprint TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS docs_path (

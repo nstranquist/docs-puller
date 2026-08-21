@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"os"
@@ -53,6 +54,180 @@ func TestFTSBuildQueryExpandsSynonyms(t *testing.T) {
 	// Queries without any synonym tokens keep the original implicit-AND form.
 	if got := ftsBuildQuery("rate limit", false); got != `"rate" "limit"` {
 		t.Errorf("ftsBuildQuery(rate limit) = %q, want plain quoted phrases", got)
+	}
+	if got := ftsBuildQuery("posthog javascript web sdk", false); !strings.Contains(got, `("sdk" OR "library" OR "libraries")`) {
+		t.Errorf("ftsBuildQuery(posthog javascript web sdk) = %q, want sdk/library expansion", got)
+	}
+}
+
+func TestOpenFTSIndexMigratesContentFingerprintSchema(t *testing.T) {
+	out := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(out, ".cache"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", ftsDBPath(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`
+		CREATE VIRTUAL TABLE docs USING fts5(
+			path UNINDEXED, source UNINDEXED, title, path_tokens, body,
+			url UNINDEXED, is_hub UNINDEXED, tokenize='porter unicode61'
+		);
+		CREATE TABLE docs_path(path TEXT PRIMARY KEY, rowid INTEGER NOT NULL);
+		INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub)
+		VALUES('old/guide.md', 'old', 'Old', 'old guide md', 'legacy body', '', 0);
+	`)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if count, err := idx.totalDocs(); err != nil || count != 0 {
+		t.Fatalf("migrated index count = %d, err=%v; want empty derived cache", count, err)
+	}
+	rows, err := idx.db.Query(`SELECT content_fingerprint FROM docs LIMIT 0`)
+	if err != nil {
+		t.Fatalf("migrated schema missing content_fingerprint: %v", err)
+	}
+	rows.Close()
+}
+
+func TestFTSExactContentCollapsePrefersCanonicalPathWithoutBodyLoad(t *testing.T) {
+	out := t.TempDir()
+	body := "# Shared deployment guide\n\nExact duplicate deployment instructions and examples.\n"
+	writeFTSDoc(t, filepath.Join(out, "vendor"), "guide.md", body)
+	writeFTSDoc(t, filepath.Join(out, "workspace"), "repos/one/vendor/guide.md", body)
+	writeFTSDoc(t, filepath.Join(out, "workspace"), "repos/two/vendor/guide.md", body)
+	writeFTSDoc(t, filepath.Join(out, "vendor"), "other.md", "# Shared deployment guide\n\nDifferent deployment instructions.\n")
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.searchWithOptions("shared deployment guide", "", 10, false, nil, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("hits = %+v, want one canonical duplicate group plus distinct doc", hits)
+	}
+	var canonical *searchHit
+	for i := range hits {
+		if hits[i].Path == "vendor/guide.md" {
+			canonical = &hits[i]
+		}
+		if strings.Contains(hits[i].Path, "workspace/repos/") {
+			t.Fatalf("workspace duplicate survived collapse: %+v", hits)
+		}
+	}
+	if canonical == nil || canonical.DuplicatesCollapsed != 2 || len(canonical.Snippets) != 0 {
+		t.Fatalf("canonical duplicate telemetry = %+v, want two collapsed and no snippets", canonical)
+	}
+}
+
+func TestFTSExactContentCollapsePreservesSameSourceAliases(t *testing.T) {
+	out := t.TempDir()
+	body := "# Narrowing\n\nTypeScript union narrowing rules.\n"
+	writeFTSDoc(t, filepath.Join(out, "typescript"), "Narrowing.md", body)
+	writeFTSDoc(t, filepath.Join(out, "typescript"), "handbook-v2/Narrowing.md", body)
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.searchWithOptions("typescript union narrowing", "", 10, false, nil, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("same-source aliases = %+v, want both official paths", hits)
+	}
+	for _, hit := range hits {
+		if hit.DuplicatesCollapsed != 0 {
+			t.Fatalf("same-source alias reported as duplicate: %+v", hit)
+		}
+	}
+}
+
+func TestConfigurationPayloadSourceIntent(t *testing.T) {
+	for _, query := range []string{"macos desktop wallpaper payload", "filevault payload"} {
+		got, ok := configurationPayloadSourceIntent(ftsScoringTokens(query, false))
+		if !ok || got != "apple-devicemanagement" {
+			t.Fatalf("configurationPayloadSourceIntent(%q) = %q, %v", query, got, ok)
+		}
+	}
+	for _, query := range []string{"macos command line", "temporal payload converter"} {
+		if got, ok := configurationPayloadSourceIntent(ftsScoringTokens(query, false)); ok {
+			t.Fatalf("configurationPayloadSourceIntent(%q) = %q, true; want unscoped", query, got)
+		}
+	}
+}
+
+func TestFTSConfigurationPayloadIntentLiftsAppleCanonical(t *testing.T) {
+	out := t.TempDir()
+	writeFTSDoc(t, filepath.Join(out, "apple-devicemanagement"), "desktop.md",
+		"# Desktop\n\nThe macOS configuration payload sets the desktop wallpaper.\n")
+	writeFTSDoc(t, filepath.Join(out, "posthog"), "desktop.md",
+		"# Download PostHog Desktop\n\n"+strings.Repeat("macOS desktop wallpaper payload download. ", 20))
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("macos desktop wallpaper payload", "", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || hits[0].Path != "apple-devicemanagement/desktop.md" {
+		t.Fatalf("payload intent hits = %+v, want Apple canonical first", hits)
+	}
+}
+
+func TestFTSSDKQueryLiftsMatchingLibraryRuntime(t *testing.T) {
+	out := t.TempDir()
+	source := filepath.Join(out, "posthog")
+	writeFTSDoc(t, source, "docs/libraries/node.md",
+		"# Node.js\n\nUse the PostHog server-side library with Node.\n")
+	writeFTSDoc(t, source, "docs/health-checks/sdk-health.md",
+		"# SDK health\n\n"+strings.Repeat("PostHog Node SDK health and support. ", 20))
+	writeFTSDoc(t, source, "docs/error-tracking/references.md",
+		"# SDK and API references\n\n"+strings.Repeat("PostHog Node SDK reference. ", 20))
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("posthog Node SDK", "", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || hits[0].Path != "posthog/docs/libraries/node.md" {
+		t.Fatalf("SDK runtime hits = %+v, want matching libraries basename first", hits)
 	}
 }
 
@@ -1048,19 +1223,24 @@ func TestFTSShortCanonicalTitleWinsOverLongVendorRedundant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 5 {
-		t.Fatalf("got %d hits, want 5", len(hits))
+	if len(hits) != 3 {
+		t.Fatalf("got %d hits, want three unique documents after exact-copy collapse", len(hits))
 	}
 	if !strings.HasSuffix(hits[0].Path, "functions.md") {
 		t.Errorf("rank 0 = %q (score %d) vs %q (score %d) — canonical short-title doc should win",
 			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
 	}
 	seenOther := false
+	collapsedWorkspaceCopies := 0
 	for _, hit := range hits[1:] {
 		seenOther = seenOther || hit.Source != "supabase"
+		collapsedWorkspaceCopies += hit.DuplicatesCollapsed
 	}
 	if !seenOther {
 		t.Fatal("leading-source lift removed every cross-source result")
+	}
+	if collapsedWorkspaceCopies != 4 {
+		t.Fatalf("collapsed workspace copies = %d, want 4", collapsedWorkspaceCopies)
 	}
 }
 
@@ -1119,11 +1299,17 @@ func TestFTSLeadingSourceIntentSurvivesCandidatePoolCrowding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 5 {
-		t.Fatalf("got %d hits, want 5", len(hits))
+	if len(hits) != 2 {
+		t.Fatalf("got %d hits, want intended source plus one collapsed noise group", len(hits))
 	}
 	if hits[0].Path != "supabase/guides/runtime.md" {
 		t.Fatalf("rank 0 = %q from %q, want intended-source body candidate", hits[0].Path, hits[0].Source)
+	}
+	// The global body tier fetches limit*5+10 = 35 copies before the
+	// source-scoped pass adds the canonical. One representative plus 34
+	// collapsed copies therefore records the bounded candidate-window count.
+	if hits[1].DuplicatesCollapsed != 34 {
+		t.Fatalf("noise duplicate telemetry = %d, want 34 collapsed candidate copies", hits[1].DuplicatesCollapsed)
 	}
 }
 
@@ -1185,6 +1371,38 @@ func TestFTSPathSegmentBoost(t *testing.T) {
 	}
 	if !strings.HasSuffix(hits[0].Path, "authentication/tokens.md") {
 		t.Errorf("rank 0 = %q (score %d) vs %q (score %d) — path-segment match should win",
+			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
+	}
+}
+
+// TestFTSExplicitPathSurfaceIntentPrefersRequestedInterface verifies that an
+// explicit API request cannot be displaced by a CLI page merely because the
+// CLI prose repeats more query terms. API and CLI are mutually exclusive
+// documentation surfaces when both are encoded as path segments.
+func TestFTSExplicitPathSurfaceIntentPrefersRequestedInterface(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "sentry")
+	writeFTSDoc(t, src, "api/crons.md",
+		"# Crons\n\nCreate and update cron monitors through the Sentry API.\n")
+	writeFTSDoc(t, src, "cli/crons.md",
+		"# Crons (CLI)\n\n"+
+			strings.Repeat("Create and update cron monitors through the Sentry CLI, which calls the Sentry API. ", 30))
+
+	idx, _ := openFTSIndex(out)
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := idx.search("create and update cron monitors through the Sentry API", "sentry", 5, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) < 2 {
+		t.Fatalf("got %d hits, want 2", len(hits))
+	}
+	if !strings.HasSuffix(hits[0].Path, "api/crons.md") {
+		t.Errorf("rank 0 = %q (score %d) vs %q (score %d) — explicit API path intent should win",
 			hits[0].Path, hits[0].Score, hits[1].Path, hits[1].Score)
 	}
 }

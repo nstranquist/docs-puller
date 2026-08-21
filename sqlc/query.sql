@@ -1,8 +1,8 @@
 -- Static FTS cache queries for docs-puller. Dynamic ranking SELECTs stay in Go
 -- because they compose tier-specific projections and optional source filters.
 
--- name: ProbeDocsIsHub :many
-SELECT is_hub FROM docs LIMIT 0;
+-- name: ProbeDocsContentFingerprint :many
+SELECT content_fingerprint FROM docs LIMIT 0;
 
 -- name: DropDocs :exec
 DROP TABLE IF EXISTS docs;
@@ -36,12 +36,12 @@ DELETE FROM docs;
 DELETE FROM docs_path;
 
 -- name: InsertDoc :execresult
-INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub)
-VALUES(?, ?, ?, ?, ?, ?, ?);
+INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub, content_fingerprint)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertDocWithRowID :exec
-INSERT INTO docs("rowid", path, source, title, path_tokens, body, url, is_hub)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO docs("rowid", path, source, title, path_tokens, body, url, is_hub, content_fingerprint)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertPath :exec
 INSERT INTO docs_path(path, "rowid") VALUES(?, ?);

@@ -13,15 +13,16 @@ import "context"
 // Hit mirrors the JSON shape emitted by `docs-puller search --json`. It is
 // the lingua franca for any consumer of the search pipeline.
 type Hit struct {
-	Path         string    `json:"path"`
-	Source       string    `json:"source"`
-	SourceFamily string    `json:"source_family,omitempty"`
-	SourceID     string    `json:"source_id,omitempty"`
-	DocsVersion  string    `json:"docs_version,omitempty"`
-	Title        string    `json:"title,omitempty"`
-	URL          string    `json:"url,omitempty"`
-	Score        int       `json:"score"`
-	Snippets     []Snippet `json:"snippets,omitempty"`
+	Path                string    `json:"path"`
+	Source              string    `json:"source"`
+	SourceFamily        string    `json:"source_family,omitempty"`
+	SourceID            string    `json:"source_id,omitempty"`
+	DocsVersion         string    `json:"docs_version,omitempty"`
+	Title               string    `json:"title,omitempty"`
+	URL                 string    `json:"url,omitempty"`
+	Score               int       `json:"score"`
+	DuplicatesCollapsed int       `json:"duplicates_collapsed,omitempty"`
+	Snippets            []Snippet `json:"snippets,omitempty"`
 }
 
 // Snippet is a single excerpt from a doc.

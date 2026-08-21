@@ -5,14 +5,15 @@
 package ftsdb
 
 type Doc struct {
-	Rowid      int64
-	Path       string
-	Source     string
-	Title      *string
-	PathTokens string
-	Body       string
-	Url        *string
-	IsHub      int64
+	Rowid              int64
+	Path               string
+	Source             string
+	Title              *string
+	PathTokens         string
+	Body               string
+	Url                *string
+	IsHub              int64
+	ContentFingerprint string
 }
 
 type DocsPath struct {

@@ -7,6 +7,7 @@ package searchruntime
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,6 +71,8 @@ type Hit struct {
 	Title               string    `json:"title,omitempty"`
 	URL                 string    `json:"url,omitempty"`
 	Score               int       `json:"score"`
+	DuplicatesCollapsed int       `json:"duplicates_collapsed,omitempty"`
+	ContentFingerprint  string    `json:"-"`
 	InProfile           bool      `json:"in_profile,omitempty"`
 	InProfileSub        bool      `json:"in_profile_sub,omitempty"`
 	Snippets            []Snippet `json:"snippets,omitempty"`
@@ -3977,10 +3980,87 @@ func RunScan(input ScanInput) ([]Hit, int) {
 		}
 		return all[i].Path < all[j].Path
 	})
+	all = CollapseExactContentHits(all)
 	if input.Options.Limit > 0 && len(all) > input.Options.Limit {
 		all = all[:input.Options.Limit]
 	}
 	return all, scanned
+}
+
+// CollapseExactContentHits provides the scan backend with the same exact-copy
+// semantics as FTS. The caller must sort hits first; the best-scoring group
+// position is retained while a shorter or published canonical path represents
+// the duplicate group.
+func CollapseExactContentHits(hits []Hit) []Hit {
+	if len(hits) < 2 {
+		return hits
+	}
+	byFingerprint := make(map[string][]int, len(hits))
+	out := make([]Hit, 0, len(hits))
+	for _, hit := range hits {
+		fingerprint := strings.TrimSpace(hit.ContentFingerprint)
+		if fingerprint == "" {
+			out = append(out, hit)
+			continue
+		}
+		index := -1
+		for _, candidateIndex := range byFingerprint[fingerprint] {
+			if ExactContentHitsCollapsible(hit, out[candidateIndex]) {
+				index = candidateIndex
+				break
+			}
+		}
+		if index < 0 {
+			byFingerprint[fingerprint] = append(byFingerprint[fingerprint], len(out))
+			out = append(out, hit)
+			continue
+		}
+		incumbent := out[index]
+		collapsed := incumbent.DuplicatesCollapsed + hit.DuplicatesCollapsed + 1
+		if canonicalHitLess(hit, incumbent) {
+			hit.Score = incumbent.Score
+			hit.DuplicatesCollapsed = collapsed
+			out[index] = hit
+			continue
+		}
+		out[index].DuplicatesCollapsed = collapsed
+	}
+	return out
+}
+
+// ExactContentHitsCollapsible preserves deliberate aliases within one normal
+// vendor source (for example, two TypeScript handbook paths with the same
+// page), while still collapsing copied content across sources and inside
+// aggregate workspace/corpus trees.
+func ExactContentHitsCollapsible(a, b Hit) bool {
+	return a.Source != b.Source || aggregateMirrorPath(a.Path) || aggregateMirrorPath(b.Path)
+}
+
+func aggregateMirrorPath(path string) bool {
+	path = filepath.ToSlash(strings.ToLower(path))
+	for _, marker := range []string{"/repos/dev-root/", "/corpus/", "/.claude/worktrees/", "/worktrees/"} {
+		if strings.Contains(path, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func canonicalHitLess(a, b Hit) bool {
+	aPublished := strings.HasPrefix(a.URL, "https://") || strings.HasPrefix(a.URL, "http://")
+	bPublished := strings.HasPrefix(b.URL, "https://") || strings.HasPrefix(b.URL, "http://")
+	if aPublished != bPublished {
+		return aPublished
+	}
+	aDepth := strings.Count(a.Path, "/")
+	bDepth := strings.Count(b.Path, "/")
+	if aDepth != bDepth {
+		return aDepth < bDepth
+	}
+	if len(a.Path) != len(b.Path) {
+		return len(a.Path) < len(b.Path)
+	}
+	return a.Path < b.Path
 }
 
 type scanSourceInput struct {
@@ -4056,7 +4136,11 @@ func scanFile(input scanFileInput) Hit {
 	if input.ExtractTitle != nil {
 		title = input.ExtractTitle(input.Path)
 	}
-	hit := Hit{Source: input.Source, Title: title}
+	fingerprint := sha256.New()
+	_, _ = fingerprint.Write([]byte(title))
+	_, _ = fingerprint.Write([]byte{0})
+	_, _ = fingerprint.Write(data)
+	hit := Hit{Source: input.Source, Title: title, ContentFingerprint: fmt.Sprintf("%x", fingerprint.Sum(nil))}
 	if input.Exact {
 		query := strings.TrimSpace(input.QueryLower)
 		if query == "" {

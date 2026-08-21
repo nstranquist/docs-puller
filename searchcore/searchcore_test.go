@@ -11,11 +11,11 @@ import (
 )
 
 func TestParseTopLevelArray(t *testing.T) {
-	hits, err := parseHits([]byte(`[{"path":"a.md","score":42}]`))
+	hits, err := parseHits([]byte(`[{"path":"a.md","score":42,"duplicates_collapsed":3}]`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 1 || hits[0].Path != "a.md" || hits[0].Score != 42 {
+	if len(hits) != 1 || hits[0].Path != "a.md" || hits[0].Score != 42 || hits[0].DuplicatesCollapsed != 3 {
 		t.Fatalf("unexpected: %+v", hits)
 	}
 }

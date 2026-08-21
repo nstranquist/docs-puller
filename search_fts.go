@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	_ "embed"
 	"fmt"
@@ -66,14 +67,15 @@ const (
 // hub pages with short titles aren't buried by BM25 length norm. Used by
 // both `search` and the helper `runTier`.
 type cand struct {
-	hit             searchHit
-	body            string
-	fromTitle       bool
-	fromPath        bool
-	fromRelaxed     bool
-	relaxedBodyRank int
-	exactTitle      bool
-	tieBreak        int
+	hit                searchHit
+	body               string
+	contentFingerprint string
+	fromTitle          bool
+	fromPath           bool
+	fromRelaxed        bool
+	relaxedBodyRank    int
+	exactTitle         bool
+	tieBreak           int
 }
 
 func ftsDBPath(out string) string {
@@ -236,13 +238,13 @@ func migrateFTSSchema(db *sql.DB) error {
 	}
 	// docs exists — verify it has the latest indexed columns. The cheapest
 	// probe is a no-op SELECT against an empty result; FTS5 errors on
-	// unknown columns. Probe for the *most recent* added column (is_hub) so
+	// unknown columns. Probe the most recently added column so
 	// adding future columns just needs the probe updated.
 	q := ftsdb.New(db)
-	if _, err := q.ProbeDocsIsHub(ctx); err == nil {
+	if _, err := q.ProbeDocsContentFingerprint(ctx); err == nil {
 		return nil // schema is current
 	}
-	fmt.Fprintln(os.Stderr, "fts5: schema migration — dropping docs/docs_path to add is_hub column (full rebuild required)")
+	fmt.Fprintln(os.Stderr, "fts5: schema migration — dropping docs/docs_path to add content fingerprinting (full rebuild required)")
 	if err := q.DropDocs(ctx); err != nil {
 		return err
 	}
@@ -689,12 +691,13 @@ func (w *ftsMemoryInserter) insert(doc ftsMemoryDoc, op string) error {
 }
 
 type ftsDocInsertPayload struct {
-	relPath string
-	src     string
-	title   string
-	body    string
-	url     string
-	isHub   int
+	relPath            string
+	src                string
+	title              string
+	body               string
+	url                string
+	isHub              int
+	contentFingerprint string
 }
 
 func makeFTSDocInsertPayload(relPath, absPath string, data []byte, meta ftsDocMeta) (ftsDocInsertPayload, bool) {
@@ -712,13 +715,19 @@ func makeFTSDocInsertPayload(relPath, absPath string, data []byte, meta ftsDocMe
 	} else {
 		isHub = isHubDoc(absPath)
 	}
+	title := ftsTitle(absPath, data, meta)
+	fingerprint := sha256.New()
+	_, _ = fingerprint.Write([]byte(title))
+	_, _ = fingerprint.Write([]byte{0})
+	_, _ = fingerprint.Write(data)
 	return ftsDocInsertPayload{
-		relPath: relPath,
-		src:     src,
-		title:   ftsTitle(absPath, data, meta),
-		body:    string(data),
-		url:     meta.URL,
-		isHub:   boolToInt(isHub),
+		relPath:            relPath,
+		src:                src,
+		title:              title,
+		body:               string(data),
+		url:                meta.URL,
+		isHub:              boolToInt(isHub),
+		contentFingerprint: fmt.Sprintf("%x", fingerprint.Sum(nil)),
 	}, true
 }
 
@@ -735,13 +744,14 @@ func insertFTSDoc(ctx context.Context, q *ftsdb.Queries, relPath, absPath string
 		return nil
 	}
 	res, err := q.InsertDoc(ctx, ftsdb.InsertDocParams{
-		Path:       payload.relPath,
-		Source:     payload.src,
-		Title:      &payload.title,
-		PathTokens: payload.relPath,
-		Body:       payload.body,
-		Url:        &payload.url,
-		IsHub:      int64(payload.isHub),
+		Path:               payload.relPath,
+		Source:             payload.src,
+		Title:              &payload.title,
+		PathTokens:         payload.relPath,
+		Body:               payload.body,
+		Url:                &payload.url,
+		IsHub:              int64(payload.isHub),
+		ContentFingerprint: payload.contentFingerprint,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "fts5 %s %s: %v\n", op, relPath, err)
@@ -763,14 +773,15 @@ func insertFTSDocWithRowID(ctx context.Context, q *ftsdb.Queries, rowID int64, r
 		return false, nil
 	}
 	if err := q.InsertDocWithRowID(ctx, ftsdb.InsertDocWithRowIDParams{
-		Rowid:      rowID,
-		Path:       payload.relPath,
-		Source:     payload.src,
-		Title:      &payload.title,
-		PathTokens: payload.relPath,
-		Body:       payload.body,
-		Url:        &payload.url,
-		IsHub:      int64(payload.isHub),
+		Rowid:              rowID,
+		Path:               payload.relPath,
+		Source:             payload.src,
+		Title:              &payload.title,
+		PathTokens:         payload.relPath,
+		Body:               payload.body,
+		Url:                &payload.url,
+		IsHub:              int64(payload.isHub),
+		ContentFingerprint: payload.contentFingerprint,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "fts5 %s %s: %v\n", op, relPath, err)
 		return false, nil
@@ -1076,7 +1087,10 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		return nil, nil
 	}
 	scoringTokens := ftsScoringTokens(query, exact)
-	strongSource, hasStrongSource := productSurfaceSourceIntent(scoringTokens)
+	strongSource, hasStrongSource := configurationPayloadSourceIntent(scoringTokens)
+	if !hasStrongSource {
+		strongSource, hasStrongSource = productSurfaceSourceIntent(scoringTokens)
+	}
 	if !hasStrongSource {
 		strongSource, hasStrongSource = leadingSourceIntent(scoringTokens)
 	}
@@ -1097,9 +1111,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    source — without that, "sentry releases cli" with "sentry" stripped
 	//    would flood the pool with Slack changelog pages whose title also
 	//    has "cli". Explicit --source filter wins over inferred.
-	const titleSQL = `SELECT path, source, title, url, body, bm25(docs, 1, 0, 0) AS rank
+	const titleSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 1, 0, 0) AS rank
 	                  FROM docs WHERE docs MATCH ?`
-	const titleSQLNoBody = `SELECT path, source, title, url, bm25(docs, 1, 0, 0) AS rank
+	const titleSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 1, 0, 0) AS rank
 	                        FROM docs WHERE docs MATCH ?`
 	titleQ, inferredSource := ftsBuildTitleQuery(query, exact)
 	titleSourceFilter := source
@@ -1133,9 +1147,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//     floor and depth-penalty rerank. The body-tier fetch ratio
 	//     (sqlLimit = limit*5 + 10) is the right baseline; bump slightly
 	//     so chrome-grade verbose hierarchies fit comfortably.
-	const pathSQL = `SELECT path, source, title, url, body, bm25(docs, 0, 1, 0) AS rank
+	const pathSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 0, 1, 0) AS rank
 	                 FROM docs WHERE docs MATCH ?`
-	const pathSQLNoBody = `SELECT path, source, title, url, bm25(docs, 0, 1, 0) AS rank
+	const pathSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 0, 1, 0) AS rank
 	                       FROM docs WHERE docs MATCH ?`
 	pathQ, pathInferredSource := ftsBuildPathQuery(query, exact)
 	pathSourceFilter := source
@@ -1154,9 +1168,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    encodes the topic ("clickhouse-introspection.md" should beat docs
 	//    that mention clickhouse and introspection only in body) but stays
 	//    below title since title is the strongest signal.
-	const bodySQL = `SELECT path, source, title, url, body, bm25(docs, 5, 3, 1) AS rank
+	const bodySQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 1) AS rank
 	                 FROM docs WHERE docs MATCH ?`
-	const bodySQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 1) AS rank
+	const bodySQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
 	                       FROM docs WHERE docs MATCH ?`
 	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, false, includeSnippets); err != nil {
 		return nil, err
@@ -1187,10 +1201,10 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if !exact {
 		relaxedQ, relaxedSource, relaxedTokens := ftsBuildRelaxedQuery(query, source)
 		if relaxedTokens >= 4 && relaxedQ != "" {
-			const relaxedSQL = `SELECT path, source, title, url, body, bm25(docs, 5, 3, 0) AS rank
-			                    FROM docs WHERE docs MATCH ?`
-			const relaxedSQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 0) AS rank
-			                          FROM docs WHERE docs MATCH ?`
+			const relaxedSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 0) AS rank
+				                    FROM docs WHERE docs MATCH ?`
+			const relaxedSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 0) AS rank
+				                          FROM docs WHERE docs MATCH ?`
 			relaxedLimit := limit*10 + 25
 			for _, sourceFilter := range ftsRelaxedSourceFilters(query, source, relaxedSource) {
 				scopedQ := ftsScopeRelaxedQuery(relaxedQ, sourceFilter)
@@ -1216,10 +1230,10 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 					// evidence and must not receive the reciprocal-rank fusion boost.
 					// Keep them in the title, path, strict-body, and relaxed-surface
 					// tiers; exclude them only from this semantic body pass.
-					const relaxedBodySQL = `SELECT path, source, title, url, body, bm25(docs, 5, 3, 1) AS rank
+					const relaxedBodySQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 1) AS rank
 					                        FROM docs WHERE docs MATCH ?
 					                        AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
-					const relaxedBodySQLNoBody = `SELECT path, source, title, url, bm25(docs, 5, 3, 1) AS rank
+					const relaxedBodySQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
 					                              FROM docs WHERE docs MATCH ?
 					                              AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
 					if err := f.runTier(candByPath, relaxedBodySQL, relaxedBodySQLNoBody, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, includeSnippets); err != nil {
@@ -1239,6 +1253,11 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	qLower := strings.TrimSpace(strings.ToLower(scoringQuery))
 	qTokens := ftsScoringTokens(scoringQuery, exact)
+	explicitPathSurface, hasExplicitPathSurface := explicitPathSurfaceIntent(qTokens)
+	queryNamesSDK := false
+	for _, token := range qTokens {
+		queryNamesSDK = queryNamesSDK || token == "sdk"
+	}
 	intendedSources := sourcesFromQueryTokens(qTokens)
 
 	profileBoost, profileSubBoost := profileBoostFromEnv()
@@ -1380,6 +1399,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 				c.hit.Score += searchBasenameExactBoost
 			}
 		}
+		if queryNamesSDK && strings.Contains("/"+pathSansSource+"/", "/libraries/") && relaxedBasenameConceptMatches > 0 {
+			c.hit.Score += searchSDKLibraryPathBoost
+		}
 		basenameTitle := strings.ReplaceAll(strings.ReplaceAll(basename, "-", " "), "_", " ")
 		titleMatchesBasename := titleLower != "" && titleLower == basenameTitle
 		if (titleTokenMatches >= 2 && basenameTokenMatches >= 2) ||
@@ -1463,6 +1485,14 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			c.hit.Score += maxScore + searchTitleExactBoost
 		}
 	}
+	// API and CLI are mutually exclusive documentation surfaces when the
+	// repository encodes them as path segments. Dense prose from the wrong
+	// interface must not displace a candidate from the interface the user
+	// explicitly requested. Lift only the strongest matching candidate and
+	// preserve every other lexical ordering decision.
+	if hasExplicitPathSurface {
+		promoteExplicitPathSurfaceCandidate(cands, explicitPathSurface)
+	}
 	// A strong, unambiguous product name is a ranking invariant. The body
 	// tier intentionally remains global so cross-source material is still
 	// discoverable, but an arbitrary number of duplicated workspace pages
@@ -1505,6 +1535,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		}
 		return cands[i].hit.Path < cands[j].hit.Path
 	})
+	cands = collapseExactContentCandidates(cands)
 	if limit > 0 && len(cands) > limit {
 		cands = cands[:limit]
 	}
@@ -1518,6 +1549,132 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 		hits[i] = c.hit
 	}
 	return hits, nil
+}
+
+// explicitPathSurfaceIntent returns a path-level documentation interface only
+// when the query names exactly one unambiguous surface. SDK and client are not
+// included: many projects place their canonical SDK/client guides under
+// runtime or library paths that do not repeat those words.
+func explicitPathSurfaceIntent(tokens []string) (string, bool) {
+	requested := map[string]bool{}
+	for _, token := range tokens {
+		switch token {
+		case "api", "apis":
+			requested["api"] = true
+		case "cli":
+			requested["cli"] = true
+		}
+	}
+	if len(requested) != 1 {
+		return "", false
+	}
+	for surface := range requested {
+		return surface, true
+	}
+	return "", false
+}
+
+func promoteExplicitPathSurfaceCandidate(cands []*cand, surface string) {
+	var best *cand
+	maxOther := 0
+	hasOther := false
+	for _, candidate := range cands {
+		if pathMatchesExplicitSurface(candidate.hit.Path, candidate.hit.Source, surface) {
+			if best == nil || candidate.hit.Score > best.hit.Score ||
+				(candidate.hit.Score == best.hit.Score && candidate.tieBreak > best.tieBreak) ||
+				(candidate.hit.Score == best.hit.Score && candidate.tieBreak == best.tieBreak && candidate.hit.Path < best.hit.Path) {
+				best = candidate
+			}
+			continue
+		}
+		if !hasOther || candidate.hit.Score > maxOther {
+			maxOther = candidate.hit.Score
+			hasOther = true
+		}
+	}
+	if best != nil && hasOther && best.hit.Score <= maxOther {
+		best.hit.Score += maxOther - best.hit.Score + 1
+	}
+}
+
+func pathMatchesExplicitSurface(path, source, surface string) bool {
+	relative := strings.ToLower(searchruntime.RelPathInSource(path, source))
+	relative = strings.ReplaceAll(relative, "\\", "/")
+	for _, segment := range strings.Split(relative, "/") {
+		segment = strings.TrimSuffix(strings.TrimSuffix(segment, ".mdx"), ".md")
+		switch surface {
+		case "api":
+			if segment == "api" || segment == "apis" {
+				return true
+			}
+		case "cli":
+			if segment == "cli" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// collapseExactContentCandidates prevents copied worktrees and nested corpus
+// snapshots from consuming the result window. The fingerprint includes both
+// the extracted title and body, so unrelated short files that happen to share
+// boilerplate are not merged. The duplicate group's best score keeps its
+// position, while the most canonical representative is exposed to callers.
+func collapseExactContentCandidates(cands []*cand) []*cand {
+	if len(cands) < 2 {
+		return cands
+	}
+	byFingerprint := make(map[string][]int, len(cands))
+	out := make([]*cand, 0, len(cands))
+	for _, candidate := range cands {
+		fingerprint := strings.TrimSpace(candidate.contentFingerprint)
+		if fingerprint == "" {
+			out = append(out, candidate)
+			continue
+		}
+		index := -1
+		for _, candidateIndex := range byFingerprint[fingerprint] {
+			if searchruntime.ExactContentHitsCollapsible(candidate.hit, out[candidateIndex].hit) {
+				index = candidateIndex
+				break
+			}
+		}
+		if index < 0 {
+			byFingerprint[fingerprint] = append(byFingerprint[fingerprint], len(out))
+			out = append(out, candidate)
+			continue
+		}
+
+		incumbent := out[index]
+		collapsed := incumbent.hit.DuplicatesCollapsed + candidate.hit.DuplicatesCollapsed + 1
+		if canonicalContentCandidateLess(candidate, incumbent) {
+			candidate.hit.Score = incumbent.hit.Score
+			candidate.tieBreak = incumbent.tieBreak
+			candidate.hit.DuplicatesCollapsed = collapsed
+			out[index] = candidate
+			continue
+		}
+		incumbent.hit.DuplicatesCollapsed = collapsed
+	}
+	return out
+}
+
+func canonicalContentCandidateLess(a, b *cand) bool {
+	aPublished := strings.HasPrefix(a.hit.URL, "https://") || strings.HasPrefix(a.hit.URL, "http://")
+	bPublished := strings.HasPrefix(b.hit.URL, "https://") || strings.HasPrefix(b.hit.URL, "http://")
+	if aPublished != bPublished {
+		return aPublished
+	}
+	aDepth := strings.Count(a.hit.Path, "/")
+	bDepth := strings.Count(b.hit.Path, "/")
+	if aDepth != bDepth {
+		return aDepth < bDepth
+	}
+	if len(a.hit.Path) != len(b.hit.Path) {
+		return len(a.hit.Path) < len(b.hit.Path)
+	}
+	return a.hit.Path < b.hit.Path
 }
 
 // runTier executes one FTS5 tier query and merges results into candByPath.
@@ -1559,16 +1716,17 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 	for rows.Next() {
 		rowRank++
 		var (
-			h    searchHit
-			body string
-			rank float64
+			h                  searchHit
+			body               string
+			contentFingerprint string
+			rank               float64
 		)
 		if includeBody {
-			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &body, &rank); err != nil {
+			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &contentFingerprint, &body, &rank); err != nil {
 				return err
 			}
 		} else {
-			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &rank); err != nil {
+			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &contentFingerprint, &rank); err != nil {
 				return err
 			}
 		}
@@ -1578,6 +1736,12 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 			// Already collected — keep the better raw score, OR the flags on.
 			if bm25Score > existing.hit.Score {
 				existing.hit.Score = bm25Score
+			}
+			if existing.contentFingerprint == "" {
+				existing.contentFingerprint = contentFingerprint
+			}
+			if includeBody && existing.body == "" {
+				existing.body = body
 			}
 			if fromTitle {
 				existing.fromTitle = true
@@ -1598,7 +1762,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		if fromRelaxedBody {
 			bodyRank = rowRank
 		}
-		candByPath[h.Path] = &cand{hit: h, body: body, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
+		candByPath[h.Path] = &cand{hit: h, body: body, contentFingerprint: contentFingerprint, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
 	}
 	return rows.Err()
 }

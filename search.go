@@ -181,6 +181,12 @@ const (
 	// "experiment" and docs/experiments/**), prefer that product manual over
 	// framework-specific tutorials and blog posts with denser prose.
 	searchPostHogTopicPathBoost = 150
+	// searchSDKLibraryPathBoost lifts a canonical runtime SDK page when the
+	// query names an SDK and the page lives under libraries/<runtime>. The
+	// basename must also match a query concept, so unrelated library pages do
+	// not receive the lift. Calibrated from "posthog Node SDK", where
+	// docs/libraries/node.md trailed broader SDK-health/reference pages by 20.
+	searchSDKLibraryPathBoost = 30
 	// searchTitleBasenameAlignmentBoost: small lift when a candidate matches
 	// at least two non-source query tokens in BOTH its title and path basename,
 	// or when a single matched token is backed by an exact title↔basename
@@ -317,18 +323,19 @@ var sourceKeywordPairs = map[string][]string{
 	// "claude" names both the Claude API/docs and Claude Code. Register it
 	// for both sources so global searches boost both but do not incorrectly
 	// hard-constrain a relaxed query to only one product.
-	"anthropic":   {"anthropic", "claude"},
-	"xai":         {"xai", "grok"},
-	"jupiter":     {"jupiter", "jup"},
-	"jupiter-cli": {"jup-cli"},
-	"hono":        {"hono"},
-	"drizzle":     {"drizzle"},
-	"cloudflare":  {"cloudflare", "wrangler"},
-	"react":       {"reactjs"}, // bare "react" too generic — matches react-native, expo, supabase react guides
-	"bun":         {"bun"},
-	"playwright":  {"playwright"},
-	"chrome":      {"chrome"},  // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
-	"blender":     {"blender"}, // official manual pages usually omit the product name; treat it as source intent so product-qualified queries still rank canonical short titles
+	"anthropic":              {"anthropic", "claude"},
+	"xai":                    {"xai", "grok"},
+	"jupiter":                {"jupiter", "jup"},
+	"jupiter-cli":            {"jup-cli"},
+	"hono":                   {"hono"},
+	"drizzle":                {"drizzle"},
+	"cloudflare":             {"cloudflare", "wrangler"},
+	"react":                  {"reactjs"}, // bare "react" too generic — matches react-native, expo, supabase react guides
+	"bun":                    {"bun"},
+	"playwright":             {"playwright"},
+	"chrome":                 {"chrome"},  // chrome extensions / DevTools queries — without this, "chrome" counted as a regular title-boost token, lifting sub-pages whose titles redundantly contain "Chrome Extensions" (e.g. `Manifest - Author | Chrome Extensions`) over canonical "Manifest file format"
+	"blender":                {"blender"}, // official manual pages usually omit the product name; treat it as source intent so product-qualified queries still rank canonical short titles
+	"apple-devicemanagement": {"mdm"},
 }
 
 // sourceKeywordPhrases captures multi-token source names whose individual
@@ -442,6 +449,24 @@ func productSurfaceSourceIntent(tokens []string) (string, bool) {
 	return onlySource(matched)
 }
 
+// configurationPayloadSourceIntent recognizes Apple device-management intent
+// when a query uses the generic word "payload" together with a concrete Apple
+// management concept. "payload" or "macOS" alone remain unscoped so API and
+// platform documentation from other sources can still win normal searches.
+func configurationPayloadSourceIntent(tokens []string) (string, bool) {
+	hasPayload := false
+	hasAppleManagementSignal := false
+	for _, token := range tokens {
+		switch token {
+		case "payload":
+			hasPayload = true
+		case "macos", "mdm", "filevault", "passcode", "restrictions", "wallpaper":
+			hasAppleManagementSignal = true
+		}
+	}
+	return "apple-devicemanagement", hasPayload && hasAppleManagementSignal
+}
+
 func isProductSurfaceMarker(token string) bool {
 	switch token {
 	case "api", "cli", "client", "sdk":
@@ -531,6 +556,7 @@ var synonymClasses = [][]string{
 	{"docs", "documentation"},                            // "claude docs" matches "documentation"
 	{"k8s", "kubernetes"},                                // "k8s deploy" → kubernetes pages
 	{"js", "javascript"},                                 // "js sdk" matches "javascript sdk"
+	{"sdk", "library", "libraries"},                      // "posthog javascript web sdk" → docs/libraries/js.md
 	{"ts", "typescript"},                                 // "ts client" matches "typescript client"
 	{"count", "counting"},                                // "how do I count tokens with Anthropic" → token-counting.md
 	{"deploy", "deployment"},                             // "deploy Azure Functions from the CLI" → functionapp/deployment.md

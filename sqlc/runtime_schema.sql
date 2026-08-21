@@ -6,6 +6,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS docs USING fts5(
     body,
     url UNINDEXED,
     is_hub UNINDEXED,
+    content_fingerprint UNINDEXED,
     tokenize='porter unicode61'
 );
 
