@@ -33,6 +33,7 @@ must name both the old and new behavior.
 - Preserve the reviewed snapshot bytes on Windows instead of converting their line endings during checkout.
 - Make local release recipes stop at the first failed command or pipeline stage.
 - Keep `status --check` focused on core corpus and index health. When ingest history is required, use `--check-ingest-log`.
+- Run site release checks with the exact pnpm version declared by the site package.
 
 ## v0.7.6 — 2026-08-19
 

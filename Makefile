@@ -126,13 +126,13 @@ extension-package: extension-check
 	npm run package --prefix vscode-extension
 
 site-check:
-	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required" >&2; exit 1; }
-	pnpm --dir site install --frozen-lockfile
-	pnpm --dir site run check
-	pnpm --dir site exec playwright install chromium
-	pnpm --dir site run test:e2e
-	pnpm --dir site audit --audit-level high
-	pnpm --dir site run deploy:dry-run
+	@command -v corepack >/dev/null 2>&1 || { echo "corepack is required" >&2; exit 1; }
+	cd site && corepack pnpm install --frozen-lockfile
+	cd site && corepack pnpm run check
+	cd site && corepack pnpm exec playwright install chromium
+	cd site && corepack pnpm run test:e2e
+	cd site && corepack pnpm audit --audit-level high
+	cd site && corepack pnpm run deploy:dry-run
 
 # Live, key-free replay of the public 24-query fixture.
 verify-public-sample: build
