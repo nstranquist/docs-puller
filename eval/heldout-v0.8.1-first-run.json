@@ -45,6 +45,58 @@
       "p99_ms": 1427.675
     }
   },
+  "derived_root_cleanup_and_repair_replay": {
+    "recorded_at": "2026-08-22T20:28:46Z",
+    "binary_sha256": "85c7ba19fa3e3ee78ffbb8d742f43b1e9897d6a976dbb6859459d1b192c6bec7",
+    "fts_documents": 28913,
+    "fts_sha256": "2d3d35c166d3af4a49d40f833e0f59a3b332e0839b8d9b85f707e1c2bb74974b",
+    "fts_size_bytes": 260538368,
+    "index_matches_corpus": true,
+    "content_fingerprints": {
+      "missing_before_reindex": 12184,
+      "missing_after_reindex": 0,
+      "complete_after_reindex": true
+    },
+    "authoritative_refresh": {
+      "derived_roots_skipped": 36,
+      "documents_pruned": 159515,
+      "fts_reclaimed_bytes": 1745104896
+    },
+    "evaluations": {
+      "v0_8_1_holdout": {
+        "n": 30,
+        "hit_at_1": 0.6666666666666666,
+        "hit_at_3": 0.9,
+        "hit_at_5": 0.9666666666666667,
+        "hit_at_10": 1,
+        "mrr": 0.7911111111111109,
+        "p99_ms": 79.758
+      },
+      "v0_6_frozen_holdout": {
+        "n": 35,
+        "hit_at_1": 0.4857142857142857,
+        "hit_at_3": 0.9142857142857143,
+        "hit_at_5": 0.9428571428571428,
+        "hit_at_10": 0.9714285714285714,
+        "mrr": 0.6907482993197277,
+        "p99_ms": 147.148
+      },
+      "tuned_regression": {
+        "n": 151,
+        "hit_at_1": 0.8543046357615894,
+        "hit_at_3": 0.9668874172185431,
+        "hit_at_5": 1,
+        "hit_at_10": 1,
+        "mrr": 0.9130242825607064,
+        "p99_ms": 160.512
+      }
+    },
+    "model_usage": {
+      "calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0
+    }
+  },
   "known_misses_at_5": [
     {
       "query": "remove unnecessary dependencies from a React Effect",
