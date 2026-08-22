@@ -16,6 +16,15 @@ docs-puller reindex --out "$corpus"
 docs-puller status --out "$corpus" --check
 ```
 
+If status reports documents without content fingerprints, an older
+docs-puller binary wrote to the v0.8.1 index. Search remains available, but
+exact-copy collapse is incomplete. Rebuild the derived index:
+
+```sh
+docs-puller reindex --out "$corpus" --reclaim-space
+docs-puller status --out "$corpus" --check
+```
+
 ## A pull reports low-content
 
 Open the recorded URL and the stored Markdown file. Verify that the page sends
