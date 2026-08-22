@@ -91,8 +91,9 @@ fingerprint and produced a complete 28,913-document index that matches the
 corpus. On that cleaned snapshot, the 30-query holdout reports 66.67% Hit@1,
 96.67% Hit@5, 100% Hit@10, 0.7911 MRR, and 80 ms p99. The frozen 35-query
 holdout still passes at 94.29% Hit@5 and 0.6907 MRR. The 151-query regression
-set reports 85.43% Hit@1, 100% Hit@5, 0.9130 MRR, and 161 ms p99. The repaired
-index SHA-256 is
+set reports 85.43% Hit@1, 100% Hit@5, 0.9130 MRR, and 161 ms p99. Across all
+12 fixture files, the 489-query replay reports 71.57% Hit@1, 93.66% Hit@5,
+and 0.8137 MRR. The repaired index SHA-256 is
 `2d3d35c166d3af4a49d40f833e0f59a3b332e0839b8d9b85f707e1c2bb74974b`.
 This replay also made zero model calls and used zero AI tokens.
 
