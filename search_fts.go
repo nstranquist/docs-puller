@@ -262,9 +262,10 @@ func (f *ftsIndex) close() error {
 }
 
 type ftsCompactionStats struct {
-	BeforeBytes    int64
-	AfterBytes     int64
-	ReclaimedBytes int64
+	BeforeBytes         int64
+	AfterBytes          int64
+	ReclaimedBytes      int64
+	FingerprintsRebuilt int
 }
 
 // compactFTSIndex merges FTS5 segments, vacuums free database pages, and
@@ -274,6 +275,16 @@ func compactFTSIndex(out string, f *ftsIndex) (ftsCompactionStats, error) {
 	var stats ftsCompactionStats
 	if info, err := os.Stat(ftsDBPath(out)); err == nil {
 		stats.BeforeBytes = info.Size()
+	}
+	missingFingerprints, err := f.missingContentFingerprints()
+	if err != nil {
+		return stats, fmt.Errorf("count missing FTS5 content fingerprints: %w", err)
+	}
+	if missingFingerprints > 0 {
+		if err := f.rebuild(out); err != nil {
+			return stats, fmt.Errorf("rebuild FTS5 content fingerprints: %w", err)
+		}
+		stats.FingerprintsRebuilt = missingFingerprints
 	}
 	ctx := context.Background()
 	if _, err := f.db.ExecContext(ctx, `INSERT INTO docs(docs) VALUES ('optimize')`); err != nil {
@@ -941,6 +952,14 @@ func (f *ftsIndex) rebuildFromMemory(docs []ftsMemoryDoc) error {
 func (f *ftsIndex) totalDocs() (int, error) {
 	n, err := f.q.CountDocs(context.Background())
 	return int(n), err
+}
+
+func (f *ftsIndex) missingContentFingerprints() (int, error) {
+	var n int
+	err := f.db.QueryRowContext(context.Background(),
+		`SELECT CAST(COUNT(*) AS INTEGER) FROM docs WHERE COALESCE(content_fingerprint, '') = ''`,
+	).Scan(&n)
+	return n, err
 }
 
 type ftsDocMeta struct {
@@ -1755,7 +1774,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		var (
 			h                  searchHit
 			body               string
-			contentFingerprint string
+			contentFingerprint sql.NullString
 			rank               float64
 		)
 		if includeBody {
@@ -1767,6 +1786,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 				return err
 			}
 		}
+		fingerprint := contentFingerprint.String
 		// BM25 returns negative-magnitude scores; flip + scale to int.
 		bm25Score := int(-rank * 10)
 		if existing, ok := candByPath[h.Path]; ok {
@@ -1775,7 +1795,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 				existing.hit.Score = bm25Score
 			}
 			if existing.contentFingerprint == "" {
-				existing.contentFingerprint = contentFingerprint
+				existing.contentFingerprint = fingerprint
 			}
 			if includeBody && existing.body == "" {
 				existing.body = body
@@ -1799,7 +1819,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		if fromRelaxedBody {
 			bodyRank = rowRank
 		}
-		candByPath[h.Path] = &cand{hit: h, body: body, contentFingerprint: contentFingerprint, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
+		candByPath[h.Path] = &cand{hit: h, body: body, contentFingerprint: fingerprint, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
 	}
 	return rows.Err()
 }

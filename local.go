@@ -99,32 +99,33 @@ type localBatchCollectResult struct {
 }
 
 type localBatchSummary struct {
-	Mode               string   `json:"mode"`
-	SourceCnt          int      `json:"source_count"`
-	Sources            []string `json:"sources"`
-	Walked             int      `json:"walked"`
-	Pulled             int      `json:"pulled"`
-	Skipped            int      `json:"skipped"`
-	Excluded           int      `json:"excluded"`
-	WriteCount         int      `json:"write_count"`
-	UnchangedCount     int      `json:"unchanged_write_count"`
-	ChangedPathCount   int      `json:"changed_path_count"`
-	PrunedPathCount    int      `json:"pruned_path_count"`
-	ElapsedMs          float64  `json:"elapsed_ms"`
-	CopyMs             float64  `json:"copy_ms"`
-	LockMs             float64  `json:"lock_ms"`
-	ManifestMs         float64  `json:"manifest_ms"`
-	IndexRegenMs       float64  `json:"index_regen_ms"`
-	FTSUpdateMs        float64  `json:"fts_update_ms"`
-	FTSCompactMs       float64  `json:"fts_compact_ms"`
-	FTSDocCount        int      `json:"fts_doc_count"`
-	FTSSizeBytes       int64    `json:"fts_size_bytes,omitempty"`
-	FTSSizeBeforeBytes int64    `json:"fts_size_before_bytes,omitempty"`
-	FTSReclaimedBytes  int64    `json:"fts_reclaimed_bytes,omitempty"`
-	FTSCompacted       bool     `json:"fts_compacted"`
-	FTSCompactError    string   `json:"fts_compact_error,omitempty"`
-	LogMs              float64  `json:"log_ms"`
-	FTSUpdated         bool     `json:"fts_updated"`
+	Mode                   string   `json:"mode"`
+	SourceCnt              int      `json:"source_count"`
+	Sources                []string `json:"sources"`
+	Walked                 int      `json:"walked"`
+	Pulled                 int      `json:"pulled"`
+	Skipped                int      `json:"skipped"`
+	Excluded               int      `json:"excluded"`
+	WriteCount             int      `json:"write_count"`
+	UnchangedCount         int      `json:"unchanged_write_count"`
+	ChangedPathCount       int      `json:"changed_path_count"`
+	PrunedPathCount        int      `json:"pruned_path_count"`
+	ElapsedMs              float64  `json:"elapsed_ms"`
+	CopyMs                 float64  `json:"copy_ms"`
+	LockMs                 float64  `json:"lock_ms"`
+	ManifestMs             float64  `json:"manifest_ms"`
+	IndexRegenMs           float64  `json:"index_regen_ms"`
+	FTSUpdateMs            float64  `json:"fts_update_ms"`
+	FTSCompactMs           float64  `json:"fts_compact_ms"`
+	FTSDocCount            int      `json:"fts_doc_count"`
+	FTSSizeBytes           int64    `json:"fts_size_bytes,omitempty"`
+	FTSSizeBeforeBytes     int64    `json:"fts_size_before_bytes,omitempty"`
+	FTSReclaimedBytes      int64    `json:"fts_reclaimed_bytes,omitempty"`
+	FTSFingerprintsRebuilt int      `json:"fts_fingerprints_rebuilt,omitempty"`
+	FTSCompacted           bool     `json:"fts_compacted"`
+	FTSCompactError        string   `json:"fts_compact_error,omitempty"`
+	LogMs                  float64  `json:"log_ms"`
+	FTSUpdated             bool     `json:"fts_updated"`
 }
 
 func shouldSkipLocalDir(name string) bool {
@@ -673,6 +674,7 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 		var prunedPaths []string
 		ftsCompacted := false
 		ftsReclaimedBytes := int64(0)
+		ftsFingerprintsRebuilt := 0
 		ftsCompactError := ""
 		if err := writeManifestsWithPolicy(o.out, results, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
 			return err
@@ -705,6 +707,7 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 			} else if remaining, countErr := idx.totalDocs(); countErr == nil && shouldCompactFTSAfterPrune(len(prunedPaths), remaining) {
 				compacted, compactErr := compactFTSIndex(o.out, idx)
 				ftsReclaimedBytes = compacted.ReclaimedBytes
+				ftsFingerprintsRebuilt = compacted.FingerprintsRebuilt
 				if compactErr != nil {
 					ftsCompactError = compactErr.Error()
 					fmt.Fprintf(os.Stderr, "fts5: compaction failed: %v\n", compactErr)
@@ -718,20 +721,21 @@ func ingest(walkRoot, source string, o pullOpts, urlFor func(rel string) string,
 			idx.close()
 		}
 		entry := logEntry{
-			StartedAt:         now,
-			FinishedAt:        time.Now().UTC().Format(time.RFC3339),
-			ElapsedMs:         time.Since(start).Milliseconds(),
-			Mode:              mode,
-			Args:              cmdArgs,
-			Sources:           []string{source},
-			URLs:              stats.copied,
-			Pulled:            stats.written,
-			Unchanged:         stats.unchanged,
-			Skipped:           stats.skipped,
-			Pruned:            len(prunedPaths),
-			FTSCompacted:      ftsCompacted,
-			FTSReclaimedBytes: ftsReclaimedBytes,
-			FTSCompactError:   ftsCompactError,
+			StartedAt:              now,
+			FinishedAt:             time.Now().UTC().Format(time.RFC3339),
+			ElapsedMs:              time.Since(start).Milliseconds(),
+			Mode:                   mode,
+			Args:                   cmdArgs,
+			Sources:                []string{source},
+			URLs:                   stats.copied,
+			Pulled:                 stats.written,
+			Unchanged:              stats.unchanged,
+			Skipped:                stats.skipped,
+			Pruned:                 len(prunedPaths),
+			FTSCompacted:           ftsCompacted,
+			FTSReclaimedBytes:      ftsReclaimedBytes,
+			FTSFingerprintsRebuilt: ftsFingerprintsRebuilt,
+			FTSCompactError:        ftsCompactError,
 		}
 		if err := appendIngestLog(o.out, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "ingest-log: append failed: %v\n", err)
@@ -1086,6 +1090,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	ftsSizeBytes := int64(0)
 	ftsSizeBeforeBytes := int64(0)
 	ftsReclaimedBytes := int64(0)
+	ftsFingerprintsRebuilt := 0
 	ftsCompacted := false
 	ftsCompactError := ""
 	ftsCompactMs := float64(0)
@@ -1138,6 +1143,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 					ftsCompactMs = durationMillis(time.Since(compactStart))
 					ftsSizeBeforeBytes = compacted.BeforeBytes
 					ftsReclaimedBytes = compacted.ReclaimedBytes
+					ftsFingerprintsRebuilt = compacted.FingerprintsRebuilt
 					if compactErr != nil {
 						ftsCompactError = compactErr.Error()
 						fmt.Fprintf(os.Stderr, "fts5: compaction failed: %v\n", compactErr)
@@ -1153,20 +1159,21 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 		}
 		summary.FTSUpdateMs = durationMillis(time.Since(ftsStart))
 		entry := logEntry{
-			StartedAt:         now,
-			FinishedAt:        time.Now().UTC().Format(time.RFC3339),
-			ElapsedMs:         time.Since(start).Milliseconds(),
-			Mode:              "local-batch",
-			Args:              cmdArgs,
-			Sources:           allSources,
-			URLs:              stats.walked,
-			Pulled:            stats.written,
-			Unchanged:         stats.unchanged,
-			Skipped:           stats.skipped,
-			Pruned:            len(prunedPaths),
-			FTSCompacted:      ftsCompacted,
-			FTSReclaimedBytes: ftsReclaimedBytes,
-			FTSCompactError:   ftsCompactError,
+			StartedAt:              now,
+			FinishedAt:             time.Now().UTC().Format(time.RFC3339),
+			ElapsedMs:              time.Since(start).Milliseconds(),
+			Mode:                   "local-batch",
+			Args:                   cmdArgs,
+			Sources:                allSources,
+			URLs:                   stats.walked,
+			Pulled:                 stats.written,
+			Unchanged:              stats.unchanged,
+			Skipped:                stats.skipped,
+			Pruned:                 len(prunedPaths),
+			FTSCompacted:           ftsCompacted,
+			FTSReclaimedBytes:      ftsReclaimedBytes,
+			FTSFingerprintsRebuilt: ftsFingerprintsRebuilt,
+			FTSCompactError:        ftsCompactError,
 		}
 		logStart := time.Now()
 		if err := appendIngestLog(o.out, entry); err != nil {
@@ -1179,32 +1186,33 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	}
 	summary.LockMs = durationMillis(time.Since(lockStart))
 	return localBatchSummary{
-		Mode:               "local-batch",
-		SourceCnt:          len(allSources),
-		Sources:            allSources,
-		Walked:             stats.walked,
-		Pulled:             stats.copied,
-		Skipped:            stats.skipped,
-		Excluded:           stats.excluded,
-		WriteCount:         stats.written,
-		UnchangedCount:     stats.unchanged,
-		ElapsedMs:          durationMillis(time.Since(start)),
-		CopyMs:             summary.CopyMs,
-		LockMs:             summary.LockMs,
-		ManifestMs:         summary.ManifestMs,
-		IndexRegenMs:       summary.IndexRegenMs,
-		FTSUpdateMs:        summary.FTSUpdateMs,
-		FTSCompactMs:       ftsCompactMs,
-		FTSDocCount:        ftsDocCount,
-		FTSSizeBytes:       ftsSizeBytes,
-		FTSSizeBeforeBytes: ftsSizeBeforeBytes,
-		FTSReclaimedBytes:  ftsReclaimedBytes,
-		FTSCompacted:       ftsCompacted,
-		FTSCompactError:    ftsCompactError,
-		LogMs:              summary.LogMs,
-		ChangedPathCount:   summary.ChangedPathCount,
-		PrunedPathCount:    summary.PrunedPathCount,
-		FTSUpdated:         ftsUpdated,
+		Mode:                   "local-batch",
+		SourceCnt:              len(allSources),
+		Sources:                allSources,
+		Walked:                 stats.walked,
+		Pulled:                 stats.copied,
+		Skipped:                stats.skipped,
+		Excluded:               stats.excluded,
+		WriteCount:             stats.written,
+		UnchangedCount:         stats.unchanged,
+		ElapsedMs:              durationMillis(time.Since(start)),
+		CopyMs:                 summary.CopyMs,
+		LockMs:                 summary.LockMs,
+		ManifestMs:             summary.ManifestMs,
+		IndexRegenMs:           summary.IndexRegenMs,
+		FTSUpdateMs:            summary.FTSUpdateMs,
+		FTSCompactMs:           ftsCompactMs,
+		FTSDocCount:            ftsDocCount,
+		FTSSizeBytes:           ftsSizeBytes,
+		FTSSizeBeforeBytes:     ftsSizeBeforeBytes,
+		FTSReclaimedBytes:      ftsReclaimedBytes,
+		FTSFingerprintsRebuilt: ftsFingerprintsRebuilt,
+		FTSCompacted:           ftsCompacted,
+		FTSCompactError:        ftsCompactError,
+		LogMs:                  summary.LogMs,
+		ChangedPathCount:       summary.ChangedPathCount,
+		PrunedPathCount:        summary.PrunedPathCount,
+		FTSUpdated:             ftsUpdated,
 	}, nil
 }
 

@@ -52,16 +52,18 @@ type statusProfile struct {
 }
 
 type statusFTS struct {
-	Path          string `json:"path"`
-	Exists        bool   `json:"exists"`
-	Ready         bool   `json:"ready"`
-	Docs          int    `json:"docs"`
-	SizeBytes     int64  `json:"size_bytes,omitempty"`
-	WALSizeBytes  int64  `json:"wal_size_bytes,omitempty"`
-	SHMSizeBytes  int64  `json:"shm_size_bytes,omitempty"`
-	ModifiedAt    string `json:"modified_at,omitempty"`
-	MatchesCorpus bool   `json:"matches_corpus"`
-	Error         string `json:"error,omitempty"`
+	Path                        string `json:"path"`
+	Exists                      bool   `json:"exists"`
+	Ready                       bool   `json:"ready"`
+	Docs                        int    `json:"docs"`
+	SizeBytes                   int64  `json:"size_bytes,omitempty"`
+	WALSizeBytes                int64  `json:"wal_size_bytes,omitempty"`
+	SHMSizeBytes                int64  `json:"shm_size_bytes,omitempty"`
+	ModifiedAt                  string `json:"modified_at,omitempty"`
+	MatchesCorpus               bool   `json:"matches_corpus"`
+	ContentFingerprintsComplete bool   `json:"content_fingerprints_complete"`
+	MissingContentFingerprints  int    `json:"missing_content_fingerprints,omitempty"`
+	Error                       string `json:"error,omitempty"`
 }
 
 type statusEmbeddings struct {
@@ -328,6 +330,13 @@ func collectStatusFTS(out string, totalDocs int) statusFTS {
 	status.Docs = n
 	status.Ready = n > 0
 	status.MatchesCorpus = totalDocs == 0 || n == totalDocs
+	missingFingerprints, err := idx.missingContentFingerprints()
+	if err != nil {
+		status.Error = err.Error()
+		return status
+	}
+	status.MissingContentFingerprints = missingFingerprints
+	status.ContentFingerprintsComplete = missingFingerprints == 0
 	return status
 }
 
@@ -486,6 +495,8 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings, includ
 		warnings = append(warnings, "FTS5 index has zero docs; run `docs-puller reindex`")
 	} else if !status.FTS.MatchesCorpus {
 		warnings = append(warnings, fmt.Sprintf("FTS5 index has %d docs but indexable corpus has %d; run `docs-puller reindex`", status.FTS.Docs, status.IndexableDocs))
+	} else if status.FTS.MissingContentFingerprints > 0 {
+		warnings = append(warnings, fmt.Sprintf("FTS5 index has %d docs without content fingerprints; run `docs-puller reindex`", status.FTS.MissingContentFingerprints))
 	}
 	if includeEmbeddings {
 		if status.Embeddings.Exists && status.Embeddings.Error != "" {
