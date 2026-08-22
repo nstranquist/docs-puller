@@ -134,6 +134,37 @@ func TestCollectDocsStatusReportsOperationalState(t *testing.T) {
 	}
 }
 
+func TestCollectDocsStatusWarnsWhenContentFingerprintsAreIncomplete(t *testing.T) {
+	out := t.TempDir()
+	writeFTSDoc(t, filepath.Join(out, "kb"), "guide.md", "# Guide\n\nlegacy writer compatibility\n")
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.rebuild(out); err != nil {
+		idx.close()
+		t.Fatal(err)
+	}
+	if _, err := idx.db.Exec(`UPDATE docs SET content_fingerprint = NULL WHERE path = 'kb/guide.md'`); err != nil {
+		idx.close()
+		t.Fatal(err)
+	}
+	if err := idx.close(); err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := collectDocsStatus(out, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.FTS.ContentFingerprintsComplete || status.FTS.MissingContentFingerprints != 1 {
+		t.Fatalf("fingerprint status = %+v, want one missing fingerprint", status.FTS)
+	}
+	if !warningContains(status.Warnings, "without content fingerprints") {
+		t.Fatalf("missing fingerprint warning in %v", status.Warnings)
+	}
+}
+
 func TestCollectDocsStatusIndexableDocsMatchesFTSWhitespaceOnlyDocs(t *testing.T) {
 	out := t.TempDir()
 	src := filepath.Join(out, "kb")

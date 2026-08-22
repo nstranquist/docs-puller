@@ -529,6 +529,17 @@ func TestPullLocalBatchCLIAcknowledgesLargePrune(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	legacyIdx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacyIdx.db.Exec(`UPDATE docs SET content_fingerprint = NULL WHERE path = 'replace/doc-0.md'`); err != nil {
+		legacyIdx.close()
+		t.Fatal(err)
+	}
+	if err := legacyIdx.close(); err != nil {
+		t.Fatal(err)
+	}
 	for i := 1; i < 6; i++ {
 		if err := os.Remove(filepath.Join(source, fmt.Sprintf("doc-%d.md", i))); err != nil {
 			t.Fatal(err)
@@ -560,6 +571,18 @@ func TestPullLocalBatchCLIAcknowledgesLargePrune(t *testing.T) {
 	}
 	if !summary.FTSCompacted || summary.FTSCompactError != "" {
 		t.Fatalf("authorized large prune did not compact FTS5: %+v", summary)
+	}
+	if summary.FTSFingerprintsRebuilt != 1 {
+		t.Fatalf("authorized large prune rebuilt %d missing fingerprints, want 1: %+v", summary.FTSFingerprintsRebuilt, summary)
+	}
+	idx, err := openFTSIndexReadOnly(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missing, missingErr := idx.missingContentFingerprints()
+	idx.close()
+	if missingErr != nil || missing != 0 {
+		t.Fatalf("post-compaction missing fingerprints = %d, err=%v; want 0", missing, missingErr)
 	}
 }
 

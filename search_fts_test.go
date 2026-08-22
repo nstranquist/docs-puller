@@ -101,6 +101,32 @@ func TestOpenFTSIndexMigratesContentFingerprintSchema(t *testing.T) {
 	rows.Close()
 }
 
+func TestFTSSearchToleratesLegacyNullContentFingerprint(t *testing.T) {
+	out := t.TempDir()
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if _, err := idx.db.Exec(`
+		INSERT INTO docs(path, source, title, path_tokens, body, url, is_hub)
+		VALUES('legacy/guide.md', 'legacy', 'Legacy guide', 'legacy guide md', 'legacy body', '', 0)
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if missing, err := idx.missingContentFingerprints(); err != nil || missing != 1 {
+		t.Fatalf("missing content fingerprints = %d, err=%v; want 1", missing, err)
+	}
+
+	hits, err := idx.searchWithOptions("legacy body", "legacy", 5, false, nil, false, false)
+	if err != nil {
+		t.Fatalf("search legacy row with NULL fingerprint: %v", err)
+	}
+	if len(hits) != 1 || hits[0].Path != "legacy/guide.md" {
+		t.Fatalf("legacy NULL-fingerprint hits = %+v, want legacy/guide.md", hits)
+	}
+}
+
 func TestFTSExactContentCollapsePrefersCanonicalPathWithoutBodyLoad(t *testing.T) {
 	out := t.TempDir()
 	body := "# Shared deployment guide\n\nExact duplicate deployment instructions and examples.\n"
