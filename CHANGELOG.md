@@ -26,6 +26,7 @@ must name both the old and new behavior.
 - Remove the two resolved agent friction records after their regressions pass.
 - Honor authoritative replacement for `pull-local-batch --replace-source`, including fail-closed large-prune checks, empty-source pruning, FTS deletion, and prune telemetry.
 - Accept `pull-local-batch --allow-large-prune` only with authoritative replacement. Large approved prunes now remove empty directories, compact FTS5 automatically, and report reclaimed bytes; `reindex --reclaim-space` provides the same explicit maintenance path.
+- Keep FTS5 search available when an older docs-puller binary writes rows without v0.8.1 content fingerprints. `status --check` now reports the incomplete index. Large-prune compaction rebuilds the missing fingerprints and records the repaired count.
 - Reuse unchanged local-batch artifacts when a temporary staging root changes, and skip nested docs-puller held-out corpus snapshots.
 - Map SDK queries to library paths and lift a matching `libraries/<runtime>` page without hiding unrelated results.
 - Route macOS configuration-payload intent to Apple device-management docs without treating general macOS searches as MDM searches.

@@ -42,8 +42,12 @@ Verify the selected archive with `checksums.txt` before you run it. See the
   now has zero documents.
 - `pull-local-batch --allow-large-prune` now accepts an approved replacement
   plan instead of failing during flag parsing. Approved large prunes remove
-  empty directories, compact FTS5, and report reclaimed bytes. Use
+  empty directories, compact FTS5, repair content fingerprints that an older
+  binary did not write, and report reclaimed bytes and repaired rows. Use
   `reindex --reclaim-space` to compact an existing derived index explicitly.
+- FTS5 search now tolerates rows without a v0.8.1 content fingerprint instead
+  of dropping to scan mode. `status --check` reports the incomplete index and
+  directs the user to `reindex` for full exact-copy collapse.
 - Local batch refreshes reuse unchanged files when a temporary staging root
   changes. They also skip docs-puller's own held-out corpus snapshots to prevent
   recursive ingestion.
