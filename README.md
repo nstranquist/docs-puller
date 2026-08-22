@@ -66,16 +66,29 @@ mirror.
 
 | Benchmark | Queries | Mode | Hit@1 | Hit@5 | MRR | Measured | Replay boundary |
 | --- | ---: | --- | ---: | ---: | ---: | --- | --- |
-| Full fixture suite | 459 | BM25 / FTS5 only | 71.5% | 93.5% | 0.810 | 2026-08-18 | Public fixture; local corpus |
-| Tuned regression fixture | 151 | BM25 / FTS5 only | 86.1% | 100% | 0.916 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
-| Independent v0.8.1 holdout | 30 | BM25 / FTS5 only | 60.0% | 96.7% | 0.754 | 2026-08-21 | Frozen public fixture; first run on a hashed local FTS snapshot |
-| Frozen v0.6 regression | 35 | BM25 / FTS5 only | 48.6% | 94.3% | 0.686 | 2026-08-21 | Public fixture; immutable local corpus snapshot |
+| Full fixture suite | 489 | BM25 / FTS5 only | 71.6% | 93.7% | 0.814 | 2026-08-22 | Public fixtures; cleaned local corpus snapshot |
+| Tuned regression fixture | 151 | BM25 / FTS5 only | 85.4% | 100% | 0.913 | 2026-08-22 | Public fixture; cleaned local corpus snapshot |
+| Independent v0.8.1 holdout — first run | 30 | BM25 / FTS5 only | 60.0% | 96.7% | 0.754 | 2026-08-21 | Frozen public fixture; immutable first run on a hashed local FTS snapshot |
+| Independent v0.8.1 holdout — cleaned replay | 30 | BM25 / FTS5 only | 66.7% | 96.7% | 0.791 | 2026-08-22 | Same frozen fixture; cleaned local corpus snapshot |
+| Frozen v0.6 regression | 35 | BM25 / FTS5 only | 48.6% | 94.3% | 0.691 | 2026-08-22 | Public fixture; current regression replay |
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
 The right-hand column is the claim boundary. Treat results on the local mirror
-as maintainer measurements until you rebuild an equivalent corpus. The final
+as maintainer measurements until you rebuild an equivalent corpus. The v0.8.1
 holdout was frozen before its first scored run. Earlier holdouts were promoted
-to tuning data and are not presented as independent results.
+to tuning data and are not presented as independent results. The full-suite row
+uses the current replay of each fixture; it does not count the immutable first
+run as a second fixture.
+
+For the 2026-08-22 replay, the crawler excluded 36 derived worktree and proof
+roots. The authoritative refresh then pruned 159,515 documents and reclaimed
+1,745,104,896 bytes from FTS5. A one-time reindex repaired 12,184 rows written
+without content fingerprints. The resulting index contains all 28,913
+indexable documents in the 29,368-document corpus and has SHA-256
+`2d3d35c166d3af4a49d40f833e0f59a3b332e0839b8d9b85f707e1c2bb74974b`.
+The structured first-run and replay evidence is in
+[`eval/heldout-v0.8.1-first-run.json`](eval/heldout-v0.8.1-first-run.json).
+These evaluations made zero model calls and used zero AI tokens.
 
 The sample corpus is the honest floor: 24 reviewed public pages from SQLite,
 Go, and PostgreSQL. Anyone can replay the exact tracked bytes end-to-end in a
