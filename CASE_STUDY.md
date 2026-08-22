@@ -95,20 +95,27 @@ used zero model tokens.
 | Evaluation | Queries | Hit@1 | Hit@5 | MRR | Evidence boundary |
 | --- | ---: | ---: | ---: | ---: | --- |
 | Public sample | 24 | 95.8% | 100% | 0.979 | Anyone can replay the tracked snapshot; a separate live pull detects drift. |
-| Full fixture suite | 459 | 71.5% | 93.5% | 0.810 | Operator-measured on the maintainer's local mirror. |
-| Final frozen holdout | 35 | 45.7% | 94.3% | 0.674 | Fixture is public; exact corpus mirror is not. |
-| Tuned main regression set | 151 | 85.4% | 100% | 0.909 | Public fixture replayed on an immutable local corpus snapshot. |
+| Full fixture suite | 489 | 71.6% | 93.7% | 0.814 | Public fixtures replayed on the cleaned local corpus snapshot. |
+| Independent v0.8.1 holdout — first run | 30 | 60.0% | 96.7% | 0.754 | Frozen public fixture; immutable first run on a hashed local snapshot. |
+| Independent v0.8.1 holdout — cleaned replay | 30 | 66.7% | 96.7% | 0.791 | Same frozen fixture replayed after operational cleanup. |
+| Frozen v0.6 regression | 35 | 48.6% | 94.3% | 0.691 | Former holdout retained as a current regression check. |
+| Tuned main regression set | 151 | 85.4% | 100% | 0.913 | Public fixture replayed on the cleaned local corpus snapshot. |
 
 A refreshed Stripe corpus exposed a real drift regression before release. The
 final fix changed the 459-query aggregate from 71.0% to 71.5% Hit@1, from
 93.2% to 93.5% Hit@5, and from 0.806 to 0.810 MRR. The same change restored the
 final holdout from 42.9% to 45.7% Hit@1 without reducing its 94.3% Hit@5.
 
-The current local dogfood snapshot covered 87 sources and 59,663 documents.
-The SQLite index matched all 59,207 indexable documents after refresh. The
-151-query regression replay measured 33.7 ms median and 239 ms p99; the frozen
-35-query holdout measured 65.4 ms median and 131 ms p99. These are local
-operational measurements, not external adoption evidence.
+The current local dogfood snapshot covers 87 sources and 29,368 documents. The
+SQLite index matches all 28,913 indexable documents after the crawler excluded
+36 derived worktree and proof roots. The authoritative refresh pruned 159,515
+documents and reclaimed 1,745,104,896 bytes. A one-time reindex also repaired
+12,184 rows written without content fingerprints. On the repaired snapshot,
+the 151-query regression replay measured 21.0 ms median and 161 ms p99. The
+frozen 35-query regression measured 32.8 ms median and 147 ms p99. These are
+local operational measurements, not external adoption evidence. The hashed
+evidence is in
+[`eval/heldout-v0.8.1-first-run.json`](eval/heldout-v0.8.1-first-run.json).
 
 ## Adopter journey
 
