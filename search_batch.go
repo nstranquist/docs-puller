@@ -43,7 +43,7 @@ func cmdSearchBatch(args []string) {
 	}
 
 	fs := flag.NewFlagSet("search-batch", flag.ExitOnError)
-	queriesPath := fs.String("queries", "", "JSON array of query strings or objects with query/q fields")
+	queriesInput := fs.String("queries", "", "inline JSON array or path to a JSON file of query strings or objects with query/q fields")
 	fs.StringVar(&o.out, "out", o.out, "output root dir")
 	fs.StringVar(&o.source, "source", "", "limit to one source")
 	fs.IntVar(&o.limit, "limit", o.limit, "max results to return per query")
@@ -59,13 +59,13 @@ func cmdSearchBatch(args []string) {
 	fs.StringVar(&o.queryRunContext, "run-context", strings.TrimSpace(os.Getenv("DOCS_PULLER_RUN_CONTEXT")), "with --log-query: operator|agent|mcp|production|eval|test|benchmark|batch (or DOCS_PULLER_RUN_CONTEXT)")
 	fs.Parse(args)
 
-	if *queriesPath == "" {
+	if *queriesInput == "" {
 		fmt.Fprintln(os.Stderr, "search-batch: --queries required")
 		os.Exit(2)
 	}
 
 	inputStart := time.Now()
-	queries, err := loadSearchBatchQueries(*queriesPath)
+	queries, err := loadSearchBatchQueries(*queriesInput)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "search-batch: %v\n", err)
 		os.Exit(2)
@@ -149,10 +149,15 @@ func runSearchBatch(o searchOpts, queries []searchBatchQuery) (searchBatchRespon
 	}, nil
 }
 
-func loadSearchBatchQueries(path string) ([]searchBatchQuery, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+func loadSearchBatchQueries(input string) ([]searchBatchQuery, error) {
+	trimmed := strings.TrimSpace(input)
+	data := []byte(trimmed)
+	if !strings.HasPrefix(trimmed, "[") {
+		var err error
+		data, err = os.ReadFile(input)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var objects []searchBatchQuery
