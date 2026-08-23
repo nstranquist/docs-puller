@@ -1038,6 +1038,22 @@ func TestLoadSearchBatchQueriesAcceptsStringsAndObjects(t *testing.T) {
 	if objectQueries[0].Query != "alpha" || objectQueries[1].Q != "beta" || objectQueries[1].Source != "demo" {
 		t.Fatalf("object queries parsed incorrectly: %+v", objectQueries)
 	}
+
+	inlineStringQueries, err := loadSearchBatchQueries(` ["gamma","delta"] `)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := []string{inlineStringQueries[0].Query, inlineStringQueries[1].Query}; !reflect.DeepEqual(got, []string{"gamma", "delta"}) {
+		t.Fatalf("inline string queries = %v", got)
+	}
+
+	inlineObjectQueries, err := loadSearchBatchQueries(`[{"query":"gamma"},{"q":"delta","source":"demo"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inlineObjectQueries[0].Query != "gamma" || inlineObjectQueries[1].Q != "delta" || inlineObjectQueries[1].Source != "demo" {
+		t.Fatalf("inline object queries parsed incorrectly: %+v", inlineObjectQueries)
+	}
 }
 
 // TestWaitForFTSReadyTimesOutOnMissingDir confirms the pre-flight wait
