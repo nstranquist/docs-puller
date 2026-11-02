@@ -318,6 +318,8 @@ func TestResolveTarget(t *testing.T) {
 			"react-navigation", "getting-started.md"},
 		{"https://redux-toolkit.js.org/tutorials/quick-start",
 			"redux", "tutorials/quick-start.md"},
+		{"https://redux.js.org/toolkit/rtk-query/overview",
+			"redux", "toolkit/rtk-query/overview.md"},
 		{"https://react-hook-form.com/docs/useform",
 			"react-hook-form", "useform.md"},
 		{"https://zod.dev/api?id=objects",

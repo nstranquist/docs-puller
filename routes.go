@@ -34,6 +34,9 @@ var targetRoutes = []targetRoute{
 	simpleRoute("rnfirebase.io", "react-native-firebase", relTrimmedPath),
 	prefixedRoute("reactnavigation.org", "react-navigation", "/docs", relAfterPrefix),
 	simpleRoute("redux-toolkit.js.org", "redux", relTrimmedPath),
+	// Redux Toolkit moved under redux.js.org/toolkit (with Redux core, React
+	// Redux, and Reselect); redux-toolkit.js.org/sitemap.xml now 404s.
+	simpleRoute("redux.js.org", "redux", relTrimmedPath),
 	prefixedRoute("react-hook-form.com", "react-hook-form", "/docs", relAfterPrefix),
 	simpleRoute("zod.dev", "zod", relTrimmedPath),
 	simpleRoute("turbo.build", "turbo", relTrimmedPath),
