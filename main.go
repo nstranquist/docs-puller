@@ -533,14 +533,8 @@ func cmdPullURL(args []string) {
 func cmdInit(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	source := fs.String("source", "", "replay the newest recorded pull for this source from the ingest log (drops --max)")
-	dryRun := fs.Bool("dry-run", false, "with --source: print the replay command and exit")
 	bindOpts(fs, &o)
 	fs.Parse(args)
-	if *source != "" {
-		cmdRefreshSource(o.out, *source, *dryRun)
-		return
-	}
 	srcDir := filepath.Join(o.sourceCache, "supabase-src")
 
 	if _, err := os.Stat(srcDir); err == nil {

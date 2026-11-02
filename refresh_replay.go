@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,13 +31,131 @@ var replayableModes = map[string]bool{
 	"git-repo":        true,
 }
 
-// latestReplayableIngest returns the newest ingest entry that touched source
-// and can be replayed. entries must be newest first (as readIngestLog returns).
+// latestReplayableIngest picks the recipe to replay for source. entries
+// must be newest first. It prefers the newest owning *discovery* recipe
+// (llms.txt, sitemap, page-data, DocC, repo, local dir, or a remote --from
+// index), because only discovery finds pages added upstream. It falls back to
+// the newest owning URL-list recipe. It skips recipes whose local input is
+// relative (unknown cwd) or no longer exists (test temp dirs).
+//
+// Why discovery first: a 2026-08-04 batch refresh replayed small curated or
+// fixture URL lists (inputs/*-fixture.txt) over full-site sources. A
+// newest-wins rule would then keep claude-code, bun, clickhouse, and others
+// pinned to a handful of pages forever.
 func latestReplayableIngest(entries []logEntry, source string) (logEntry, bool) {
-	for _, e := range entries {
+	var fallback *logEntry
+	for i := range entries {
+		e := entries[i]
 		if !replayableModes[e.Mode] || len(e.Args) == 0 || e.Args[0] != "pull" {
 			continue
 		}
+		if !localInputsReplayable(e.Args) || !ingestOwnsSource(e, source) {
+			continue
+		}
+		if isDiscoveryRecipe(e) {
+			return e, true
+		}
+		if fallback == nil {
+			fallback = &entries[i]
+		}
+	}
+	if fallback != nil {
+		return *fallback, true
+	}
+	return logEntry{}, false
+}
+
+// isDiscoveryRecipe reports a pull that enumerates the upstream site or tree
+// itself rather than a fixed URL list.
+func isDiscoveryRecipe(e logEntry) bool {
+	if e.Mode != "from-file" {
+		return true
+	}
+	return strings.Contains(flagValue(e.Args, "from"), "://")
+}
+
+// ingestOwnsSource reports whether e is the pull that defines source, not a
+// pull that only spilled a few cross-links into it. Vendor llms.txt files
+// link to github.com, so a Temporal pull records sources [github temporal];
+// replaying it would refresh Temporal, not the github corpus.
+func ingestOwnsSource(e logEntry, source string) bool {
+	if len(e.Sources) == 1 {
+		return e.Sources[0] == source
+	}
+	return primarySource(e.Args) == source
+}
+
+// primarySource derives the source a recorded pull targets: --name for the
+// modes that honor it, else the routed source of the input URL.
+func primarySource(args []string) string {
+	if v := flagValue(args, "name"); v != "" {
+		for _, f := range []string{"local", "github-repo", "git-repo", "docc"} {
+			if flagValue(args, f) != "" {
+				return v
+			}
+		}
+	}
+	for _, f := range []string{"llms-txt", "sitemap", "gatsby-pagedata", "docc", "from"} {
+		raw := flagValue(args, f)
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || u.Host == "" {
+			return ""
+		}
+		if src, _ := resolveTarget(u); src != "" {
+			return src
+		}
+		return hostToSource(u.Host)
+	}
+	return ""
+}
+
+// flagValue returns the value of --name / -name / --name=v in args.
+func flagValue(args []string, name string) string {
+	for i, a := range args {
+		if !strings.HasPrefix(a, "-") {
+			continue
+		}
+		key, val, hasEq := strings.Cut(strings.TrimLeft(a, "-"), "=")
+		if key != name {
+			continue
+		}
+		if hasEq {
+			return val
+		}
+		if i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// localInputsReplayable reports whether every --from/--local filesystem
+// input is an absolute path that still exists. A relative recipe only worked
+// from its original cwd; a missing one was usually a test temp dir.
+func localInputsReplayable(args []string) bool {
+	for _, f := range []string{"from", "local"} {
+		v := flagValue(args, f)
+		if v == "" || strings.Contains(v, "://") {
+			continue
+		}
+		if !filepath.IsAbs(v) {
+			return false
+		}
+		if _, err := os.Stat(v); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// latestIngestForSource returns the newest ingest entry of any mode that
+// touched source. It lets refresh name the right command for sources that a
+// non-replayable ingest (pull-article, crawl-refs, crawl-nicos, ...) owns.
+func latestIngestForSource(entries []logEntry, source string) (logEntry, bool) {
+	for _, e := range entries {
 		for _, s := range e.Sources {
 			if s == source {
 				return e, true
@@ -44,6 +163,23 @@ func latestReplayableIngest(entries []logEntry, source string) (logEntry, bool) 
 		}
 	}
 	return logEntry{}, false
+}
+
+func firstArg(args []string) string {
+	if len(args) == 0 {
+		return "?"
+	}
+	return args[0]
+}
+
+func otherSources(sources []string, skip string) []string {
+	out := make([]string, 0, len(sources))
+	for _, s := range sources {
+		if s != skip {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // replayArgs turns recorded pull args into refresh args. It drops --max: a
@@ -75,7 +211,15 @@ func cmdRefreshSource(out, source string, dryRun bool) {
 	}
 	e, ok := latestReplayableIngest(entries, source)
 	if !ok {
-		die(fmt.Errorf("refresh: no replayable pull recorded for source %q in %s/%s; pull it once with `docs-puller pull ...`", source, out, ingestLogFile))
+		if last, found := latestIngestForSource(entries, source); found {
+			if replayableModes[last.Mode] && localInputsReplayable(last.Args) {
+				die(fmt.Errorf("refresh: source %q has no owning pull; it only collects cross-links from other pulls (latest: %s via %s). Refresh those sources instead",
+					source, strings.Join(otherSources(last.Sources, source), ", "), last.Mode))
+			}
+			die(fmt.Errorf("refresh: source %q was last ingested by `%s` (mode %s), which refresh cannot replay; rerun: docs-puller %s",
+				source, firstArg(last.Args), last.Mode, strings.Join(replayArgs(last.Args, out), " ")))
+		}
+		die(fmt.Errorf("refresh: no pull recorded for source %q in %s/%s; pull it once with `docs-puller pull ...`", source, out, ingestLogFile))
 	}
 	if abs, err := filepath.Abs(out); err == nil {
 		out = abs // the replay must not depend on the caller's cwd
@@ -86,6 +230,9 @@ func cmdRefreshSource(out, source string, dryRun bool) {
 		capNote = fmt.Sprintf(", %d dropped to --max", e.Capped)
 	}
 	fmt.Fprintf(os.Stderr, "refresh %s: replaying %s pull from %s (%d URLs%s)\n", source, e.Mode, e.StartedAt, e.URLs, capNote)
+	if len(e.Sources) > 1 {
+		fmt.Fprintf(os.Stderr, "  note: this pull also refreshes %s\n", strings.Join(otherSources(e.Sources, source), ", "))
+	}
 	fmt.Fprintf(os.Stderr, "  docs-puller %s\n", strings.Join(args, " "))
 	if dryRun {
 		return

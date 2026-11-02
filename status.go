@@ -213,10 +213,9 @@ func collectDocsStatus(out string, staleAfter time.Duration) (docsStatus, error)
 
 	status.FTS = collectStatusFTS(out, status.IndexableDocs)
 	status.Embeddings = collectStatusEmbeddings(out)
-	status.IngestLog = collectStatusIngestLog(out)
-	if entries, err := readIngestLog(out, 0); err == nil {
-		status.CappedSources = collectCappedSources(entries)
-	}
+	var ingestEntries []logEntry
+	status.IngestLog, ingestEntries = collectStatusIngestLog(out)
+	status.CappedSources = collectCappedSources(ingestEntries)
 	status.Pins = collectStatusPins(out)
 	status.Warnings = buildStatusWarnings(status)
 	return status, nil
@@ -433,26 +432,28 @@ func collectStatusFlatIndexes(out string) []statusFlatIndex {
 	return indexes
 }
 
-func collectStatusIngestLog(out string) statusIngestLog {
+// collectStatusIngestLog also returns the parsed entries (newest first) so
+// callers derive per-source facts without reading the log a second time.
+func collectStatusIngestLog(out string) (statusIngestLog, []logEntry) {
 	path := filepath.Join(out, ingestLogFile)
 	status := statusIngestLog{Path: path}
 	if _, err := os.Stat(path); err == nil {
 		status.Exists = true
 	} else if !os.IsNotExist(err) {
 		status.Error = err.Error()
-		return status
+		return status, nil
 	}
 	entries, err := readIngestLog(out, 0)
 	if err != nil {
 		status.Error = err.Error()
-		return status
+		return status, nil
 	}
 	status.Entries = len(entries)
 	if len(entries) > 0 {
 		last := entries[0]
 		status.Last = &last
 	}
-	return status
+	return status, entries
 }
 
 func collectStatusPins(out string) statusPins {
