@@ -6,6 +6,15 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Added
+
+- `refresh --source NAME [--dry-run]` re-runs the newest recorded pull for a source from `_INGEST_LOG.jsonl`, without `--max`. Before, `refresh` only fast-forwarded the Supabase source cache, so a stale source had no fix path. The `claude-code` mirror stayed at a 5-URL test fixture from May until November.
+- `status` reports sources whose last pull was cut short by `--max` as partial mirrors, with the exact refresh command. When there are stale sources, it also prints the refresh command.
+
+### Fixed
+
+- `--max` no longer truncates silently. `--sitemap`, `--llms-txt`, `--gatsby-pagedata`, and `--from` pulls print how many matching URLs the cap dropped, and record the count as `capped`/`cap_hit` in the ingest log. DocC crawls stopped by `--max` print a warning and record `cap_hit`. Old behavior: `llms.txt → 200 URLs` with no notice that 228 matched. New behavior: `WARNING: --max 200 dropped 28 of 228 matching URLs`.
+
 ## v0.8.1 — 2026-08-21
 
 ### Changed

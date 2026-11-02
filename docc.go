@@ -1001,6 +1001,7 @@ type doccCrawlOpts struct {
 	rootURL             string
 	filter              string
 	maxNodes            int
+	capHit              *int32 // when non-nil, set to 1 if maxNodes stopped the crawl early
 	concurrency         int
 	followSeeAlso       bool
 	followRelationships bool
@@ -1074,6 +1075,9 @@ func crawlDocC(opts doccCrawlOpts) ([]doccCrawlResult, error) {
 		}
 		if opts.maxNodes > 0 && len(visited) >= opts.maxNodes {
 			atomic.StoreInt32(&stopped, 1)
+			if opts.capHit != nil {
+				atomic.StoreInt32(opts.capHit, 1)
+			}
 			mu.Unlock()
 			return false
 		}
@@ -1227,7 +1231,9 @@ func runDocC(rootURL, filter, nameOverride string, maxNodes int, followSeeAlso, 
 	fmt.Fprintf(os.Stderr, "docc crawl: %s (filter=%q max=%d concurrency=%d)\n",
 		rootURL, filter, maxNodes, o.concurrency)
 
+	var capHit int32
 	crawlRes, err := crawlDocC(doccCrawlOpts{
+		capHit:              &capHit,
 		rootURL:             rootURL,
 		filter:              filter,
 		maxNodes:            maxNodes,
@@ -1237,6 +1243,9 @@ func runDocC(rootURL, filter, nameOverride string, maxNodes int, followSeeAlso, 
 	})
 	if err != nil {
 		die(err)
+	}
+	if capHit == 1 {
+		fmt.Fprintf(os.Stderr, "WARNING: --max %d stopped the DocC crawl before the frontier was exhausted; this pull is a partial mirror. Rerun without --max for full coverage.\n", maxNodes)
 	}
 
 	// Group by bundle → source name. A user can pin to one source via --name.
@@ -1333,6 +1342,7 @@ func runDocC(rootURL, filter, nameOverride string, maxNodes int, followSeeAlso, 
 			Pulled:     pulled,
 			Skipped:    skipped,
 			Warned:     warned,
+			CapHit:     capHit == 1,
 		}
 		if err := appendIngestLog(o.out, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "ingest-log: append failed: %v\n", err)

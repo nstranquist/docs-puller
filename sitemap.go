@@ -136,6 +136,16 @@ type sitemapIndex struct {
 // sitemap. Server's Accept-Language is ignored when ?hl= is set, so
 // English-only requires dropping locale-query URLs at the sitemap level.
 func filterURLs(urls []string, prefix string, maxN int) []string {
+	kept, _ := filterURLsCounted(urls, prefix, maxN)
+	return kept
+}
+
+// filterURLsCounted is filterURLs that also reports how many URLs matched
+// the filter (after locale dedupe) before the --max cap applied. Callers use
+// matched-len(kept) to warn loudly about cap truncation: a silent --max once
+// left the claude-code mirror 28 pages short while its log line read
+// "llms.txt → 200 URLs" as if that were the whole site.
+func filterURLsCounted(urls []string, prefix string, maxN int) (kept []string, matched int) {
 	// Don't reuse the input slice's backing array — `out := urls; out = out[:0]`
 	// would mutate the caller's data and break callers that pass the same
 	// slice to filterURLs twice.
@@ -151,10 +161,11 @@ func filterURLs(urls []string, prefix string, maxN int) []string {
 		filtered = urls
 	}
 	deduped := dedupeLocaleVariants(filtered)
+	matched = len(deduped)
 	if maxN > 0 && len(deduped) > maxN {
 		deduped = deduped[:maxN]
 	}
-	return deduped
+	return deduped, matched
 }
 
 // dedupeLocaleVariants groups URLs by canonical path (scheme+host+path) and

@@ -39,6 +39,8 @@ type logEntry struct {
 	FTSFingerprintsRebuilt int      `json:"fts_fingerprints_rebuilt,omitempty"`
 	FTSCompactError        string   `json:"fts_compact_error,omitempty"`
 	Warned                 int      `json:"warned,omitempty"`
+	Capped                 int      `json:"capped,omitempty"`  // URLs matching --filter that --max dropped
+	CapHit                 bool     `json:"cap_hit,omitempty"` // --max truncated this pull (set even when the drop count is unknown, e.g. DocC crawls)
 }
 
 // appendIngestLog appends one entry to <out>/_INGEST_LOG.jsonl. Caller is

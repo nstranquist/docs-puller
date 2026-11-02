@@ -252,7 +252,8 @@ Usage:
   docs-puller crawl-refs                     [--cases-root DIR] [--source NAME] [--out DIR]
                                              # ingest ~/code/refs/_cases/<slug>/*.md → refs-dissections
   docs-puller curation lint                  [--json]
-  docs-puller refresh [--source-cache DIR]
+  docs-puller refresh [--source-cache DIR]   # fast-forward supabase source cache
+  docs-puller refresh --source NAME [--dry-run]  # replay NAME's last recorded pull, uncapped
   docs-puller reindex [--out DIR] [--reclaim-space]
                                              # rebuild FTS5; optionally compact it
   docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
@@ -339,6 +340,7 @@ type pullOpts struct {
 	concurrency     int
 	replaceSource   bool // prune manifest entries (and files) not in this run per source
 	allowLargePrune bool // explicit acknowledgement for destructive replacement plans
+	cappedURLs      int  // URLs that matched --filter but were dropped by --max (recorded in the ingest log)
 }
 
 func defaultOpts() pullOpts {
@@ -451,7 +453,7 @@ func cmdPull(args []string) {
 		// stackoverflow, vendor's pkg.<host>, etc.). Always pass through
 		// filterURLs so hash-heavy llms.txt files dedupe to one fetch per
 		// canonical path even when no explicit filter/max is needed.
-		urls = filterURLs(urls, *filter, *maxN)
+		urls, o.cappedURLs = applyURLCap(urls, *filter, *maxN)
 	case *sitemap != "":
 		mode = "sitemap"
 		fmt.Fprintf(os.Stderr, "loading sitemap %s ...\n", *sitemap)
@@ -459,7 +461,7 @@ func cmdPull(args []string) {
 		if err != nil {
 			die(err)
 		}
-		urls = filterURLs(urls, *filter, *maxN)
+		urls, o.cappedURLs = applyURLCap(urls, *filter, *maxN)
 		fmt.Fprintf(os.Stderr, "sitemap → %d URLs (filter=%q max=%d)\n", len(urls), *filter, *maxN)
 	case *llmsTxt != "":
 		mode = "llms-txt"
@@ -468,7 +470,7 @@ func cmdPull(args []string) {
 		if err != nil {
 			die(err)
 		}
-		urls = filterURLs(urls, *filter, *maxN)
+		urls, o.cappedURLs = applyURLCap(urls, *filter, *maxN)
 		fmt.Fprintf(os.Stderr, "llms.txt → %d URLs (filter=%q max=%d)\n", len(urls), *filter, *maxN)
 	case *gatsbyPageData != "":
 		mode = "gatsby-pagedata"
@@ -482,7 +484,7 @@ func cmdPull(args []string) {
 		if err != nil {
 			die(err)
 		}
-		urls = filterURLs(urls, *filter, *maxN)
+		urls, o.cappedURLs = applyURLCap(urls, *filter, *maxN)
 		fmt.Fprintf(os.Stderr, "gatsby page-data → %d URLs (filter=%q max=%d)\n", len(urls), *filter, *maxN)
 	}
 	if len(urls) == 0 {
@@ -490,6 +492,18 @@ func cmdPull(args []string) {
 		os.Exit(1)
 	}
 	run(urls, o, mode, os.Args[1:])
+}
+
+// applyURLCap filters and caps urls, and warns on stderr when --max dropped
+// URLs that matched the filter. It returns the kept URLs and the drop count.
+func applyURLCap(urls []string, filter string, maxN int) ([]string, int) {
+	kept, matched := filterURLsCounted(urls, filter, maxN)
+	dropped := matched - len(kept)
+	if dropped > 0 {
+		fmt.Fprintf(os.Stderr, "WARNING: --max %d dropped %d of %d matching URLs; this pull is a partial mirror. Rerun without --max (or with --max %d) for full coverage.\n",
+			maxN, dropped, matched, matched)
+	}
+	return kept, dropped
 }
 
 func cmdPullURL(args []string) {
@@ -519,8 +533,14 @@ func cmdPullURL(args []string) {
 func cmdInit(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
+	source := fs.String("source", "", "replay the newest recorded pull for this source from the ingest log (drops --max)")
+	dryRun := fs.Bool("dry-run", false, "with --source: print the replay command and exit")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	if *source != "" {
+		cmdRefreshSource(o.out, *source, *dryRun)
+		return
+	}
 	srcDir := filepath.Join(o.sourceCache, "supabase-src")
 
 	if _, err := os.Stat(srcDir); err == nil {
@@ -551,8 +571,14 @@ func cmdInit(args []string) {
 func cmdRefresh(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("refresh", flag.ExitOnError)
+	source := fs.String("source", "", "replay the newest recorded pull for this source from the ingest log (drops --max)")
+	dryRun := fs.Bool("dry-run", false, "with --source: print the replay command and exit")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	if *source != "" {
+		cmdRefreshSource(o.out, *source, *dryRun)
+		return
+	}
 	srcDir := filepath.Join(o.sourceCache, "supabase-src")
 	if _, err := os.Stat(srcDir); err != nil {
 		die(fmt.Errorf("no supabase source cache at %s — clone it first", srcDir))
@@ -932,6 +958,8 @@ func run(urls []string, o pullOpts, mode string, cmdArgs []string) {
 			Unchanged:  unchanged,
 			Skipped:    skipped,
 			Warned:     warned,
+			Capped:     o.cappedURLs,
+			CapHit:     o.cappedURLs > 0,
 		}
 		if err := appendIngestLog(o.out, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "ingest-log: append failed: %v\n", err)

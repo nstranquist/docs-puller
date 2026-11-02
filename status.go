@@ -19,20 +19,21 @@ import (
 )
 
 type docsStatus struct {
-	Out            string             `json:"out"`
-	SourceCount    int                `json:"source_count"`
-	TotalDocs      int                `json:"total_docs"`
-	IndexableDocs  int                `json:"indexable_docs"`
-	LastPullNewest string             `json:"last_pull_newest,omitempty"`
-	LastPullOldest string             `json:"last_pull_oldest,omitempty"`
-	Profile        statusProfile      `json:"profile"`
-	FTS            statusFTS          `json:"fts"`
-	Embeddings     statusEmbeddings   `json:"embeddings"`
-	IngestLog      statusIngestLog    `json:"ingest_log"`
-	Pins           statusPins         `json:"pins"`
-	StaleSources   []statusSourceInfo `json:"stale_sources,omitempty"`
-	DupPathSources []statusSourceInfo `json:"dup_path_sources,omitempty"`
-	Warnings       []string           `json:"warnings,omitempty"`
+	Out            string               `json:"out"`
+	SourceCount    int                  `json:"source_count"`
+	TotalDocs      int                  `json:"total_docs"`
+	IndexableDocs  int                  `json:"indexable_docs"`
+	LastPullNewest string               `json:"last_pull_newest,omitempty"`
+	LastPullOldest string               `json:"last_pull_oldest,omitempty"`
+	Profile        statusProfile        `json:"profile"`
+	FTS            statusFTS            `json:"fts"`
+	Embeddings     statusEmbeddings     `json:"embeddings"`
+	IngestLog      statusIngestLog      `json:"ingest_log"`
+	Pins           statusPins           `json:"pins"`
+	StaleSources   []statusSourceInfo   `json:"stale_sources,omitempty"`
+	DupPathSources []statusSourceInfo   `json:"dup_path_sources,omitempty"`
+	CappedSources  []statusCappedSource `json:"capped_sources,omitempty"`
+	Warnings       []string             `json:"warnings,omitempty"`
 }
 
 type statusSourceInfo struct {
@@ -213,6 +214,9 @@ func collectDocsStatus(out string, staleAfter time.Duration) (docsStatus, error)
 	status.FTS = collectStatusFTS(out, status.IndexableDocs)
 	status.Embeddings = collectStatusEmbeddings(out)
 	status.IngestLog = collectStatusIngestLog(out)
+	if entries, err := readIngestLog(out, 0); err == nil {
+		status.CappedSources = collectCappedSources(entries)
+	}
 	status.Pins = collectStatusPins(out)
 	status.Warnings = buildStatusWarnings(status)
 	return status, nil
@@ -522,6 +526,16 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings, includ
 			continue
 		}
 		warnings = append(warnings, fmt.Sprintf("source %s last pulled %d hours ago", src.Name, src.AgeHours))
+	}
+	if len(status.StaleSources) > 0 {
+		warnings = append(warnings, "refresh a stale source with `docs-puller refresh --source NAME` (replays its last recorded pull without --max)")
+	}
+	for _, src := range status.CappedSources {
+		dropped := "an unknown number of"
+		if src.Capped > 0 {
+			dropped = fmt.Sprintf("%d", src.Capped)
+		}
+		warnings = append(warnings, fmt.Sprintf("source %s is a partial mirror: its last pull (%s) dropped %s matching URLs to --max; run `docs-puller refresh --source %s`", src.Name, src.PulledAt, dropped, src.Name))
 	}
 	for _, src := range status.DupPathSources {
 		warnings = append(warnings, fmt.Sprintf("source %s has %d duplicate-path manifest entr%s (older URL variants of the same file); the next pull of that source prunes them", src.Name, src.DupPathEntries, map[bool]string{true: "y", false: "ies"}[src.DupPathEntries == 1]))
