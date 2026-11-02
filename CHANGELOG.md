@@ -6,17 +6,13 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+## v0.8.1 — 2026-11-02
+
 ### Added
 
 - `refresh --source NAME [--dry-run]` re-runs a recorded pull for a source from `_INGEST_LOG.jsonl`, without `--max`. It picks the newest *discovery* recipe that owns the source (llms.txt, sitemap, page-data, DocC, repo, local dir, or a remote `--from` index). It falls back to the newest URL-list recipe, and skips recipes whose local input is relative or missing. A pull owns a source when it is the only source recorded, or the source of its `--name` or input URL. Cross-link spillover sources such as `github` are reported, not replayed. Sources ingested by other commands (`pull-article`, `crawl-refs`, `pull-local-batch`, `pull-url`) report the command to rerun. Before, `refresh` only fast-forwarded the Supabase source cache, so a stale source had no fix path. The `claude-code` mirror stayed at a 5-URL test fixture from May until November.
 - `refresh --stale [--stale-days N] [--dry-run]` replays every source that `status` reports as stale or as a partial mirror. Sources that share one recipe replay once. Failures do not stop the batch, and the exit code is non-zero when any replay failed. Sources that cannot replay are listed with the reason: owned by another command (`ndev docs crawl-nicos`, `pull-article`, `crawl-refs`), cross-link spillover, or a local input that is missing, relative, or a symlink to an unmounted volume.
 - `status` reports sources whose last pull was cut short by `--max` as partial mirrors, with the exact refresh command. When there are stale sources, it also prints the refresh command.
-
-### Fixed
-
-- `--max` no longer truncates silently. `--sitemap`, `--llms-txt`, `--gatsby-pagedata`, and `--from` pulls print how many matching URLs the cap dropped, and record the count as `capped`/`cap_hit` in the ingest log. DocC crawls stopped by `--max` print a warning and record `cap_hit`. Old behavior: `llms.txt → 200 URLs` with no notice that 228 matched. New behavior: `WARNING: --max 200 dropped 28 of 228 matching URLs`.
-
-## v0.8.1 — 2026-08-21
 
 ### Changed
 
@@ -42,6 +38,7 @@ must name both the old and new behavior.
 - Route macOS configuration-payload intent to Apple device-management docs without treating general macOS searches as MDM searches.
 - Prefer an API or CLI path when the query explicitly requests that interface, without changing queries that do not name either surface.
 - Refresh the reviewed public-demo index lock for the content-fingerprint schema. The 24 reviewed document bytes and corpus digest are unchanged; two clean rebuilds produce the new byte-identical index digest.
+- `--max` no longer truncates silently. `--sitemap`, `--llms-txt`, `--gatsby-pagedata`, and `--from` pulls print how many matching URLs the cap dropped, and record the count as `capped`/`cap_hit` in the ingest log. DocC crawls stopped by `--max` print a warning and record `cap_hit`. Old behavior: `llms.txt → 200 URLs` with no notice that 228 matched. New behavior: `WARNING: --max 200 dropped 28 of 228 matching URLs`.
 
 ## v0.8.0 — 2026-08-21
 
