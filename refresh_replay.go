@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 // Source replay: `docs-puller refresh --source NAME` re-runs the newest
@@ -132,6 +134,27 @@ func flagValue(args []string, name string) string {
 	return ""
 }
 
+// localInputPath returns the --from/--local filesystem input of args, if any.
+func localInputPath(args []string) string {
+	for _, f := range []string{"local", "from"} {
+		if v := flagValue(args, f); v != "" && !strings.Contains(v, "://") {
+			return v
+		}
+	}
+	return ""
+}
+
+// describeLocalInput explains why a recorded local input cannot replay.
+func describeLocalInput(path string) string {
+	if !filepath.IsAbs(path) {
+		return fmt.Sprintf("a relative path (%s) from an unknown cwd", path)
+	}
+	if target, err := os.Readlink(path); err == nil {
+		return fmt.Sprintf("a symlink to a missing target (%s -> %s; unmounted volume?)", path, target)
+	}
+	return fmt.Sprintf("missing (%s)", path)
+}
+
 // localInputsReplayable reports whether every --from/--local filesystem
 // input is an absolute path that still exists. A relative recipe only worked
 // from its original cwd; a missing one was usually a test temp dir.
@@ -203,28 +226,38 @@ func replayArgs(recorded []string, out string) []string {
 	return append(args, "--out", out)
 }
 
-// cmdRefreshSource implements `refresh --source NAME [--dry-run]`.
-func cmdRefreshSource(out, source string, dryRun bool) {
-	entries, err := readIngestLog(out, 0)
-	if err != nil {
-		die(fmt.Errorf("refresh: read ingest log: %w", err))
-	}
+// resolveReplay returns the entry and uncapped args that refresh replays for
+// source, or an error that names the right fix for a non-replayable source.
+func resolveReplay(entries []logEntry, source, out string) (logEntry, []string, error) {
 	e, ok := latestReplayableIngest(entries, source)
 	if !ok {
 		if last, found := latestIngestForSource(entries, source); found {
-			if replayableModes[last.Mode] && localInputsReplayable(last.Args) {
-				die(fmt.Errorf("refresh: source %q has no owning pull; it only collects cross-links from other pulls (latest: %s via %s). Refresh those sources instead",
-					source, strings.Join(otherSources(last.Sources, source), ", "), last.Mode))
+			if strings.Contains(strings.Join(last.Args, " "), "ndev-crawl-nicos") {
+				return logEntry{}, nil, fmt.Errorf("source %q is owned by `ndev docs crawl-nicos`; rerun that", source)
 			}
-			die(fmt.Errorf("refresh: source %q was last ingested by `%s` (mode %s), which refresh cannot replay; rerun: docs-puller %s",
-				source, firstArg(last.Args), last.Mode, strings.Join(replayArgs(last.Args, out), " ")))
+			if replayableModes[last.Mode] && last.Args[0] == "pull" && !localInputsReplayable(last.Args) {
+				return logEntry{}, nil, fmt.Errorf("source %q: the local input of its last pull is %s; restore it or pull from a new path", source, describeLocalInput(localInputPath(last.Args)))
+			}
+			if replayableModes[last.Mode] && localInputsReplayable(last.Args) {
+				return logEntry{}, nil, fmt.Errorf("source %q has no owning pull; it only collects cross-links from other pulls (latest: %s via %s). Refresh those sources instead",
+					source, strings.Join(otherSources(last.Sources, source), ", "), last.Mode)
+			}
+			return logEntry{}, nil, fmt.Errorf("source %q was last ingested by `%s` (mode %s), which refresh cannot replay; rerun: docs-puller %s",
+				source, firstArg(last.Args), last.Mode, strings.Join(replayArgs(last.Args, out), " "))
 		}
-		die(fmt.Errorf("refresh: no pull recorded for source %q in %s/%s; pull it once with `docs-puller pull ...`", source, out, ingestLogFile))
+		return logEntry{}, nil, fmt.Errorf("no pull recorded for source %q in %s/%s; pull it once with `docs-puller pull ...`", source, out, ingestLogFile)
 	}
+	return e, replayArgs(e.Args, out), nil
+}
+
+func absOut(out string) string {
 	if abs, err := filepath.Abs(out); err == nil {
-		out = abs // the replay must not depend on the caller's cwd
+		return abs // the replay must not depend on the caller's cwd
 	}
-	args := replayArgs(e.Args, out)
+	return out
+}
+
+func describeReplay(source string, e logEntry, args []string) {
 	capNote := ""
 	if e.CapHit || e.Capped > 0 {
 		capNote = fmt.Sprintf(", %d dropped to --max", e.Capped)
@@ -234,18 +267,133 @@ func cmdRefreshSource(out, source string, dryRun bool) {
 		fmt.Fprintf(os.Stderr, "  note: this pull also refreshes %s\n", strings.Join(otherSources(e.Sources, source), ", "))
 	}
 	fmt.Fprintf(os.Stderr, "  docs-puller %s\n", strings.Join(args, " "))
+}
+
+func runReplay(args []string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate own binary: %w", err)
+	}
+	cmd := exec.Command(self, args...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+// cmdRefreshSource implements `refresh --source NAME [--dry-run]`.
+func cmdRefreshSource(out, source string, dryRun bool) {
+	out = absOut(out)
+	entries, err := readIngestLog(out, 0)
+	if err != nil {
+		die(fmt.Errorf("refresh: read ingest log: %w", err))
+	}
+	e, args, err := resolveReplay(entries, source, out)
+	if err != nil {
+		die(fmt.Errorf("refresh: %w", err))
+	}
+	describeReplay(source, e, args)
 	if dryRun {
 		return
 	}
-	self, err := os.Executable()
-	if err != nil {
-		die(fmt.Errorf("refresh: locate own binary: %w", err))
-	}
-	cmd := exec.Command(self, args...)
-	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
-	if err := cmd.Run(); err != nil {
+	if err := runReplay(args); err != nil {
 		die(fmt.Errorf("refresh %s: %w", source, err))
 	}
+}
+
+// refreshPlan is one deduplicated replay in a batch refresh.
+type refreshPlan struct {
+	Sources []string // stale or partial sources this replay covers
+	Entry   logEntry
+	Args    []string
+}
+
+// planStaleRefresh resolves a replay for every source that is stale or a
+// partial mirror. Sources that share one recipe replay once. Sources that
+// cannot replay come back in skipped with the reason.
+func planStaleRefresh(entries []logEntry, sources []string, out string) (plans []refreshPlan, skipped map[string]string) {
+	skipped = map[string]string{}
+	byArgs := map[string]int{}
+	for _, src := range sources {
+		e, args, err := resolveReplay(entries, src, out)
+		if err != nil {
+			skipped[src] = err.Error()
+			continue
+		}
+		key := strings.Join(args, "\x00")
+		if i, ok := byArgs[key]; ok {
+			plans[i].Sources = append(plans[i].Sources, src)
+			continue
+		}
+		byArgs[key] = len(plans)
+		plans = append(plans, refreshPlan{Sources: []string{src}, Entry: e, Args: args})
+	}
+	return plans, skipped
+}
+
+// cmdRefreshStale implements `refresh --stale [--stale-days N] [--dry-run]`:
+// replay every source that status reports as stale or as a partial mirror.
+// Failures do not stop the batch; the exit code is non-zero if any replay
+// failed. This is the one command a scheduler runs to keep the corpus fresh.
+func cmdRefreshStale(out string, staleDays int, dryRun bool) {
+	out = absOut(out)
+	if staleDays <= 0 {
+		die(fmt.Errorf("refresh: --stale-days must be positive"))
+	}
+	status, err := collectDocsStatus(out, time.Duration(staleDays)*24*time.Hour)
+	if err != nil {
+		die(fmt.Errorf("refresh: collect status: %w", err))
+	}
+	seen := map[string]bool{}
+	var sources []string
+	for _, s := range status.StaleSources {
+		if !seen[s.Name] {
+			seen[s.Name] = true
+			sources = append(sources, s.Name)
+		}
+	}
+	for _, s := range status.CappedSources {
+		if !seen[s.Name] {
+			seen[s.Name] = true
+			sources = append(sources, s.Name)
+		}
+	}
+	entries, err := readIngestLog(out, 0)
+	if err != nil {
+		die(fmt.Errorf("refresh: read ingest log: %w", err))
+	}
+	plans, skipped := planStaleRefresh(entries, sources, out)
+	fmt.Fprintf(os.Stderr, "refresh --stale: %d stale or partial sources (older than %d days) -> %d replays, %d not replayable\n",
+		len(sources), staleDays, len(plans), len(skipped))
+	for _, src := range sortedKeys(skipped) {
+		fmt.Fprintf(os.Stderr, "  skip %s: %s\n", src, skipped[src])
+	}
+	var failed []string
+	for i, p := range plans {
+		fmt.Fprintf(os.Stderr, "[%d/%d] ", i+1, len(plans))
+		describeReplay(strings.Join(p.Sources, "+"), p.Entry, p.Args)
+		if dryRun {
+			continue
+		}
+		if err := runReplay(p.Args); err != nil {
+			fmt.Fprintf(os.Stderr, "  FAILED %s: %v\n", strings.Join(p.Sources, "+"), err)
+			failed = append(failed, strings.Join(p.Sources, "+"))
+		}
+	}
+	if dryRun {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "refresh --stale: %d replayed, %d failed, %d skipped\n", len(plans)-len(failed), len(failed), len(skipped))
+	if len(failed) > 0 {
+		die(fmt.Errorf("refresh --stale: failed: %s", strings.Join(failed, ", ")))
+	}
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // statusCappedSource is a source whose newest pull was truncated by --max.

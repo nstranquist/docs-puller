@@ -529,7 +529,7 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings, includ
 		warnings = append(warnings, fmt.Sprintf("source %s last pulled %d hours ago", src.Name, src.AgeHours))
 	}
 	if len(status.StaleSources) > 0 {
-		warnings = append(warnings, "refresh a stale source with `docs-puller refresh --source NAME` (replays its last recorded pull without --max)")
+		warnings = append(warnings, "refresh stale sources with `docs-puller refresh --stale` (or one with `refresh --source NAME`); add --dry-run to preview")
 	}
 	for _, src := range status.CappedSources {
 		dropped := "an unknown number of"

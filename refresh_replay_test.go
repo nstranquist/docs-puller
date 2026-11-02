@@ -149,3 +149,30 @@ func TestReplayPrefersDiscoveryOverNewerURLList(t *testing.T) {
 		t.Fatal("a recipe whose input file is gone must not replay")
 	}
 }
+
+func TestPlanStaleRefreshDedupesAndSkips(t *testing.T) {
+	entries := []logEntry{ // newest first
+		{Mode: "llms-txt", Sources: []string{"a"}, Args: []string{"pull", "--llms-txt", "https://a.dev/llms.txt", "--max", "5"}},
+		{Mode: "pull-article", Sources: []string{"articles"}, Args: []string{"pull-article", "https://x/post"}},
+		{Mode: "github-repo", Sources: []string{"m1", "m2"}, Args: []string{"pull", "--github-repo", "o/r", "--name", "m1"}},
+	}
+	plans, skipped := planStaleRefresh(entries, []string{"a", "articles", "m1", "nope"}, "/corpus")
+	if len(plans) != 2 {
+		t.Fatalf("plans = %+v, want 2", plans)
+	}
+	if got := plans[0].Args; !reflect.DeepEqual(got, []string{"pull", "--llms-txt", "https://a.dev/llms.txt", "--out", "/corpus"}) {
+		t.Fatalf("plan[0] args = %v", got)
+	}
+	if _, ok := skipped["articles"]; !ok {
+		t.Fatalf("articles should be skipped: %v", skipped)
+	}
+	if _, ok := skipped["nope"]; !ok {
+		t.Fatalf("unknown source should be skipped: %v", skipped)
+	}
+	// Two stale sources sharing one recipe replay once.
+	entries = append(entries, logEntry{Mode: "sitemap", Sources: []string{"b"}, Args: []string{"pull", "--sitemap", "https://b.dev/sitemap.xml"}})
+	plans, _ = planStaleRefresh([]logEntry{entries[3], {Mode: "sitemap", Sources: []string{"b"}, Args: []string{"pull", "--sitemap", "https://b.dev/sitemap.xml", "--max", "9"}}}, []string{"b", "b"}, "/corpus")
+	if len(plans) != 1 || len(plans[0].Sources) != 2 {
+		t.Fatalf("shared recipe should replay once: %+v", plans)
+	}
+}

@@ -253,7 +253,8 @@ Usage:
                                              # ingest ~/code/refs/_cases/<slug>/*.md → refs-dissections
   docs-puller curation lint                  [--json]
   docs-puller refresh [--source-cache DIR]   # fast-forward supabase source cache
-  docs-puller refresh --source NAME [--dry-run]  # replay NAME's last recorded pull, uncapped
+  docs-puller refresh --source NAME [--dry-run]  # replay NAME's discovery pull, uncapped
+  docs-puller refresh --stale [--stale-days N] [--dry-run]  # replay every stale/partial source
   docs-puller reindex [--out DIR] [--reclaim-space]
                                              # rebuild FTS5; optionally compact it
   docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
@@ -566,9 +567,18 @@ func cmdRefresh(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("refresh", flag.ExitOnError)
 	source := fs.String("source", "", "replay the newest recorded pull for this source from the ingest log (drops --max)")
-	dryRun := fs.Bool("dry-run", false, "with --source: print the replay command and exit")
+	stale := fs.Bool("stale", false, "replay every stale or partial-mirror source (see status); failures do not stop the batch")
+	staleDays := fs.Int("stale-days", 30, "with --stale: a source is stale when its newest page is older than this many days")
+	dryRun := fs.Bool("dry-run", false, "with --source/--stale: print the replay plan and exit")
 	bindOpts(fs, &o)
 	fs.Parse(args)
+	if *source != "" && *stale {
+		die(fmt.Errorf("refresh: use --source or --stale, not both"))
+	}
+	if *stale {
+		cmdRefreshStale(o.out, *staleDays, *dryRun)
+		return
+	}
 	if *source != "" {
 		cmdRefreshSource(o.out, *source, *dryRun)
 		return
