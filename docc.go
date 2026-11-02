@@ -1091,7 +1091,17 @@ func crawlDocC(opts doccCrawlOpts) ([]doccCrawlResult, error) {
 		visited[e.jsonURL] = true
 		mu.Unlock()
 		atomic.AddInt64(&pending, 1)
-		work <- e
+		// Never block a worker on a full channel: if every worker blocked
+		// sending children, no one would drain the channel and the crawl
+		// would hang (it did on uncapped Apple archives > concurrency*64
+		// nodes). An overflow send runs in its own goroutine. That is safe
+		// because pending already counts the item, so the closer cannot
+		// close work while this send waits.
+		select {
+		case work <- e:
+		default:
+			go func() { work <- e }()
+		}
 		return true
 	}
 

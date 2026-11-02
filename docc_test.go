@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // loadDocCFixture parses a real DocC JSON file from testdata/docc.
@@ -326,5 +328,57 @@ func TestCrawlExpansion(t *testing.T) {
 		if !strings.HasSuffix(u, ".json") {
 			t.Errorf("enqueued URL missing .json suffix: %s", u)
 		}
+	}
+}
+
+// TestCrawlDocCLargeFanoutDoesNotDeadlock guards the bounded-channel
+// deadlock: workers enqueue children with a send on a channel of
+// concurrency*64 slots. When every worker blocked on a full channel, no one
+// drained it and the crawl hung forever. --max 500 had hidden this (500 <
+// 512 slots) until `refresh` replayed an uncapped Apple DocC crawl.
+func TestCrawlDocCLargeFanoutDoesNotDeadlock(t *testing.T) {
+	const fanout = 40 // depth 2 -> 1 + 40 + 1600 nodes, far above 2*64 slots
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rel := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, doccDataPrefix), ".json")
+		node := map[string]any{
+			"identifier": map[string]string{"url": "doc://com.example.example" + rel},
+			"metadata":   map[string]string{"title": rel},
+		}
+		if depth := strings.Count(strings.TrimPrefix(rel, "/documentation/example"), "/"); depth < 2 {
+			ids := make([]string, 0, fanout)
+			refs := map[string]any{}
+			for i := 0; i < fanout; i++ {
+				childRel := fmt.Sprintf("%s/n%d", rel, i)
+				id := "doc://com.example.example" + childRel
+				ids = append(ids, id)
+				refs[id] = map[string]string{"url": server.URL + childRel, "title": childRel}
+			}
+			node["topicSections"] = []map[string]any{{"title": "Topics", "identifiers": ids}}
+			node["references"] = refs
+		}
+		_ = json.NewEncoder(w).Encode(node)
+	}))
+	defer server.Close()
+
+	type outcome struct {
+		n   int
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		got, err := crawlDocC(doccCrawlOpts{rootURL: server.URL + "/documentation/example", concurrency: 2})
+		done <- outcome{len(got), err}
+	}()
+	select {
+	case o := <-done:
+		if o.err != nil {
+			t.Fatalf("crawlDocC: %v", o.err)
+		}
+		if want := 1 + fanout + fanout*fanout; o.n != want {
+			t.Fatalf("crawled %d nodes, want %d", o.n, want)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("crawlDocC deadlocked on a large fan-out archive")
 	}
 }

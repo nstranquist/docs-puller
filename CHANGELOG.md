@@ -38,6 +38,7 @@ must name both the old and new behavior.
 - Route macOS configuration-payload intent to Apple device-management docs without treating general macOS searches as MDM searches.
 - Prefer an API or CLI path when the query explicitly requests that interface, without changing queries that do not name either surface.
 - Refresh the reviewed public-demo index lock for the content-fingerprint schema. The 24 reviewed document bytes and corpus digest are unchanged; two clean rebuilds produce the new byte-identical index digest.
+- DocC crawls no longer deadlock on large archives. Workers sent child pages into a bounded channel (concurrency × 64 slots) with a blocking send. When every worker blocked on a full channel, no one drained it and the crawl hung with zero CPU. `--max 500` hid the bug (500 < 512 slots) until an uncapped `refresh` of Apple Device Management hung. An overflow send now runs in its own goroutine.
 - `--max` no longer truncates silently. `--sitemap`, `--llms-txt`, `--gatsby-pagedata`, and `--from` pulls print how many matching URLs the cap dropped, and record the count as `capped`/`cap_hit` in the ingest log. DocC crawls stopped by `--max` print a warning and record `cap_hit`. Old behavior: `llms.txt → 200 URLs` with no notice that 228 matched. New behavior: `WARNING: --max 200 dropped 28 of 228 matching URLs`.
 
 ## v0.8.0 — 2026-08-21
