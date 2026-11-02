@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
         with:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -58,7 +58,7 @@ jobs:
         run: test ! -f public-sample-result.json || jq '.summary' public-sample-result.json
       - name: Upload replay evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-sample-${{ github.run_id }}
           path: |
@@ -67,7 +67,7 @@ jobs:
           if-no-files-found: ignore
       - name: Manage upstream drift issue
         if: always()
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           EVALUATION_OUTCOME: ${{ steps.evaluation.outcome }}
           LOCK_OUTCOME: ${{ steps.lock.outcome }}
