@@ -9,7 +9,7 @@ Markdown and searches them on your machine.
 
 ## Install with Go
 
-Requirement: Go 1.26.6 or later.
+Requirement: Go 1.26.10 or later.
 
 ```sh
 go install github.com/nstranquist/docs-puller@v0.8.1

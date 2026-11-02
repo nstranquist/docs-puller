@@ -146,7 +146,7 @@ Mintlify appeared instead. Treat that as the current visibility, not a target.
 
 ## Install
 
-Requirements: Go 1.26.6 or later.
+Requirements: Go 1.26.10 or later.
 
 ```sh
 go install github.com/nstranquist/docs-puller@latest

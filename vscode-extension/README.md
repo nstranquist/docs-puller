@@ -46,7 +46,7 @@ It refuses to send a token over non-loopback HTTP.
 
 ## Build and test from source
 
-Node.js 22 and Go 1.26.6 are required.
+Node.js 22 and Go 1.26.10 are required.
 
 ```sh
 npm ci
