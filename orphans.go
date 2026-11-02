@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Orphan files: .md files under a source that no manifest entry covers.
@@ -19,10 +20,18 @@ import (
 // 4,661 translated pages, and 7 other sources held 5,114 more (mostly a
 // crawled copy of a deleted nicos-tools worktree).
 
+// orphanMinAge is how old an unmanaged file must be before it counts as an
+// orphan. A running pull writes page files before it takes the corpus write
+// lock and records them in the manifest, so a fresh unmanaged file may belong
+// to a pull in flight. Pruning it would break that pull's manifest.
+const orphanMinAge = time.Hour
+
 // sourceOrphanFiles returns the orphan .md files of one source, relative to
-// the source dir and sorted. ok is false when the source has no manifest.json
-// (then nothing is known to be managed, so nothing counts as an orphan).
-func sourceOrphanFiles(out, src string) (orphans []string, ok bool) {
+// the source dir and sorted. Files modified within minAge are skipped (see
+// orphanMinAge). ok is false when the source has no manifest.json (then
+// nothing is known to be managed, so nothing counts as an orphan).
+func sourceOrphanFiles(out, src string, minAge time.Duration) (orphans []string, ok bool) {
+	cutoff := time.Now().Add(-minAge)
 	srcDir := filepath.Join(out, src)
 	if _, err := os.Stat(filepath.Join(srcDir, manifestFile)); err != nil {
 		return nil, false
@@ -49,9 +58,13 @@ func sourceOrphanFiles(out, src string) (orphans []string, ok bool) {
 		if err != nil {
 			return nil
 		}
-		if rel = filepath.ToSlash(rel); !managed[rel] {
-			orphans = append(orphans, rel)
+		if rel = filepath.ToSlash(rel); managed[rel] {
+			return nil
 		}
+		if info, err := d.Info(); err != nil || info.ModTime().After(cutoff) {
+			return nil // possibly a pull in flight
+		}
+		orphans = append(orphans, rel)
 		return nil
 	})
 	sort.Strings(orphans)
@@ -61,14 +74,14 @@ func sourceOrphanFiles(out, src string) (orphans []string, ok bool) {
 // pruneOrphanFiles deletes every orphan file in every source and removes the
 // directories that become empty. It returns the deleted count per source.
 // The caller must hold the corpus write lock.
-func pruneOrphanFiles(out string) (map[string]int, error) {
+func pruneOrphanFiles(out string, minAge time.Duration) (map[string]int, error) {
 	sources, err := listSources(out)
 	if err != nil {
 		return nil, err
 	}
 	pruned := map[string]int{}
 	for _, src := range sources {
-		orphans, ok := sourceOrphanFiles(out, src)
+		orphans, ok := sourceOrphanFiles(out, src, minAge)
 		if !ok || len(orphans) == 0 {
 			continue
 		}

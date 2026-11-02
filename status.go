@@ -271,7 +271,7 @@ func collectStatusSource(out, src string, staleAfter time.Duration) statusSource
 	if m, err := loadOrMigrateManifest(srcDir); err == nil {
 		info.DupPathEntries = dedupeManifestPaths(&m)
 	}
-	if orphans, ok := sourceOrphanFiles(out, src); ok {
+	if orphans, ok := sourceOrphanFiles(out, src, orphanMinAge); ok {
 		info.OrphanFiles = len(orphans)
 	}
 	if staleAfter <= 0 {

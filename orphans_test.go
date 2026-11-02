@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeOrphanFixture(t *testing.T) string {
@@ -39,23 +40,31 @@ func writeOrphanFixture(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(out, "vendor", manifestFile), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Age every fixture file past orphanMinAge, as real orphans are.
+	old := time.Now().Add(-2 * orphanMinAge)
+	_ = filepath.Walk(out, func(p string, info os.FileInfo, err error) error {
+		if err == nil {
+			_ = os.Chtimes(p, old, old)
+		}
+		return nil
+	})
 	return out
 }
 
 func TestSourceOrphanFiles(t *testing.T) {
 	out := writeOrphanFixture(t)
-	got, ok := sourceOrphanFiles(out, "vendor")
+	got, ok := sourceOrphanFiles(out, "vendor", orphanMinAge)
 	if !ok || !reflect.DeepEqual(got, []string{"zh/deep/x.md", "zh/guide.md"}) {
 		t.Fatalf("orphans = %v ok=%v", got, ok)
 	}
-	if _, ok := sourceOrphanFiles(out, "unmanaged"); ok {
+	if _, ok := sourceOrphanFiles(out, "unmanaged", orphanMinAge); ok {
 		t.Fatal("a source without manifest.json must not report orphans")
 	}
 }
 
 func TestPruneOrphanFilesRemovesFilesAndEmptyDirs(t *testing.T) {
 	out := writeOrphanFixture(t)
-	pruned, err := pruneOrphanFiles(out)
+	pruned, err := pruneOrphanFiles(out, orphanMinAge)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,5 +93,25 @@ func TestStatusWarnsOnOrphanFiles(t *testing.T) {
 	joined := strings.Join(buildStatusWarningsWithOptions(status, false, false), "\n")
 	if !strings.Contains(joined, "source vendor has 2 files that no manifest entry covers") || !strings.Contains(joined, "reindex --prune-orphans") {
 		t.Fatalf("missing orphan warning:\n%s", joined)
+	}
+}
+
+func TestOrphanDetectionSparesFreshFiles(t *testing.T) {
+	out := writeOrphanFixture(t)
+	inFlight := filepath.Join(out, "vendor", "new-page.md") // written by a pull still fetching
+	if err := os.WriteFile(inFlight, []byte("# new\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := sourceOrphanFiles(out, "vendor", orphanMinAge)
+	for _, rel := range got {
+		if rel == "new-page.md" {
+			t.Fatalf("a fresh unmanaged file must not count as an orphan: %v", got)
+		}
+	}
+	if _, err := pruneOrphanFiles(out, orphanMinAge); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(inFlight); err != nil {
+		t.Fatalf("prune deleted an in-flight file: %v", err)
 	}
 }

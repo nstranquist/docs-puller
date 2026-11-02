@@ -604,6 +604,7 @@ func cmdReindex(args []string) {
 	fs := flag.NewFlagSet("reindex", flag.ExitOnError)
 	reclaimSpace := fs.Bool("reclaim-space", false, "vacuum the rebuilt FTS5 database and truncate its WAL")
 	pruneOrphans := fs.Bool("prune-orphans", false, "first delete .md files that no manifest entry covers (left by interrupted or superseded pulls)")
+	orphanAge := fs.Duration("orphan-min-age", orphanMinAge, "with --prune-orphans: only delete unmanaged files older than this (protects pulls in flight)")
 	bindOpts(fs, &o)
 	fs.Parse(args)
 
@@ -612,7 +613,7 @@ func cmdReindex(args []string) {
 	var compacted ftsCompactionStats
 	if err := withWriteLock(o.out, func() error {
 		if *pruneOrphans {
-			pruned, err := pruneOrphanFiles(o.out)
+			pruned, err := pruneOrphanFiles(o.out, *orphanAge)
 			total := 0
 			for _, src := range sortedIntKeys(pruned) {
 				fmt.Fprintf(os.Stderr, "pruned %d orphan files from %s\n", pruned[src], src)

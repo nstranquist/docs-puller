@@ -8,7 +8,7 @@ must name both the old and new behavior.
 
 ### Added
 
-- `status` reports orphan files: `.md` files under a source that no manifest entry covers. A pull writes pages as it fetches but records them only at the end, so an interrupted pull leaves orphans, and so can pages that upstream renamed or removed. `reindex` walks the disk, so orphans stayed searchable as stale content. `reindex --prune-orphans` deletes them before the rebuild. Sources without `manifest.json` are never touched. On the local corpus this found 5,114 orphan files in 7 sources, mostly a crawled copy of a deleted worktree, plus 4,661 left by an interrupted ClickHouse pull.
+- `status` reports orphan files: `.md` files under a source that no manifest entry covers. A pull writes pages as it fetches but records them only at the end, so an interrupted pull leaves orphans, and so can pages that upstream renamed or removed. `reindex` walks the disk, so orphans stayed searchable as stale content. `reindex --prune-orphans` deletes them before the rebuild. Sources without `manifest.json` are never touched. Files modified within `--orphan-min-age` (default 1h) are spared, because a running pull writes pages before it takes the write lock, and pruning them would break that pull's manifest. On the local corpus this found 5,114 orphan files in 7 sources, mostly a crawled copy of a deleted worktree, plus 4,661 left by an interrupted ClickHouse pull.
 
 ### Fixed
 
