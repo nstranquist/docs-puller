@@ -22,7 +22,7 @@ three-document corpus. It does not change your normal corpus and does not need
 an API key.
 
 ```sh
-go install github.com/nstranquist/docs-puller@v0.8.1
+go install github.com/nstranquist/docs-puller@v0.8.2
 docs-puller demo
 ```
 
@@ -74,7 +74,7 @@ mirror.
 | Sample corpus (no API key) | 24 | BM25 / FTS5 only | 95.8% | 100% | 0.979 | 2026-08-20 | Tracked public snapshot; separate live drift replay |
 
 The right-hand column is the claim boundary. Treat results on the local mirror
-as maintainer measurements until you rebuild an equivalent corpus. The v0.8.1
+as maintainer measurements until you rebuild an equivalent corpus. The v0.8.2
 holdout was frozen before its first scored run. Earlier holdouts were promoted
 to tuning data and are not presented as independent results. The full-suite row
 uses the current replay of each fixture; it does not count the immutable first
@@ -130,7 +130,7 @@ This repository is the canonical source for the CLI and its public Go packages.
 Downstream tools should consume the executable contract instead of copying this
 source tree. `docs-puller version --json` reports the build identity, supported
 commands, and stable capabilities for adapters such as `ndev docs`; release
-automation can fail closed with `docs-puller version --expect v0.8.1`.
+automation can fail closed with `docs-puller version --expect v0.8.2`.
 
 ## For AI assistants
 
@@ -335,7 +335,7 @@ bearer token is set (`--auth-token`, `--auth-token-file`, or `$DOCS_SERVE_TOKEN`
 The server picks up out-of-process `pull`/`reindex` runs automatically — no
 restart needed.
 
-`vscode-extension/` ships a VS Code client for the same endpoint. The v0.8.1
+`vscode-extension/` ships a VS Code client for the same endpoint. The v0.8.2
 GitHub release includes a checksummed `docs-puller-search-0.3.0.vsix`. The
 extension is not published in the VS Code Marketplace. It supports bearer
 tokens through VS Code SecretStorage and confines returned paths to the local

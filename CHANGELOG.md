@@ -4,7 +4,13 @@ Notable user-facing changes are recorded per public release. Retrieval-quality
 claims must include the measured fixture and metric delta; behavioral defaults
 must name both the old and new behavior.
 
-## Unreleased
+## v0.8.2 — 2026-11-02
+
+### Security
+
+- Build with Go 1.26.10 (was 1.26.6) and `golang.org/x/net` v0.62.0 (was v0.58.0). `govulncheck` found 13 reachable advisories in the Go 1.26.6 standard library (`net/http`, `crypto/tls`, `crypto/x509`, `net/textproto`) and in `x/net`; it now reports none. `golang.org/x/sys` is v0.49.0.
+- The public demo site moves to Astro 7.4.4, shadcn 4.23.0, and Wrangler 4.156.0, with refreshed transitive dependencies. `pnpm audit --audit-level high` reported 2 critical advisories (including Astro's AVIF image RCE, fixed in 7.2.8) and failed the v0.8.1 release build, so v0.8.1 shipped no binaries. It now reports no high or critical advisories.
+- The VS Code extension lockfile now resolves `js-yaml`, `markdown-it`, `qs`, and `undici` past their high-severity advisories.
 
 ### Added
 
