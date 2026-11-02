@@ -27,7 +27,7 @@
     "deploy": "pnpm check && wrangler deploy"
   },
   "dependencies": {
-    "@astrojs/react": "6.0.4",
+    "@astrojs/react": "7.1.2",
     "@base-ui/react": "1.9.0",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
