@@ -769,15 +769,17 @@ func cmdSearch(args []string) {
 	resolveSearchVersionPolicy(query, &o)
 
 	hits, scanned, mode := dispatchSearch(query, o, nil)
-	if shouldLogSearchQuery(o) {
-		if err := appendSearchQueryLog(o.out, newSearchQueryLogEntry(query, scanned, hits, mode, o)); err != nil {
-			fmt.Fprint(os.Stderr, searchruntime.QueryLogAppendFailedWarning(err))
-		}
-	}
+	// Print results before recording telemetry, so the caller never waits on
+	// bookkeeping.
 	if o.json {
 		emitSearchJSON(query, scanned, hits, mode, o)
 	} else {
 		emitSearchText(query, scanned, hits, mode, o)
+	}
+	if shouldLogSearchQuery(o) {
+		if err := appendSearchQueryLog(o.out, newSearchQueryLogEntry(query, scanned, hits, mode, o)); err != nil {
+			fmt.Fprint(os.Stderr, searchruntime.QueryLogAppendFailedWarning(err))
+		}
 	}
 }
 

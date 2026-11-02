@@ -21,11 +21,26 @@ import (
 //
 // Returns a release closure the caller MUST defer.
 func acquireWriteLock(out string) (release func(), err error) {
+	return acquireCacheLock(out, ".write-lock")
+}
+
+// acquireQueryLogLock serializes appends to the search query log only. It is
+// separate from the corpus write lock on purpose: a pull holds that lock for
+// its whole manifest + FTS finalize (minutes for large sources), and search
+// used to append telemetry under it, so every search hung until the pull
+// finished, with its results already computed but not yet printed.
+func acquireQueryLogLock(out string) (release func(), err error) {
+	return acquireCacheLock(out, ".query-log.lock")
+}
+
+// acquireCacheLock blocks until it holds an exclusive flock on
+// <out>/.cache/<name>.
+func acquireCacheLock(out, name string) (release func(), err error) {
 	cacheDir := filepath.Join(out, ".cache")
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return nil, err
 	}
-	path := filepath.Join(cacheDir, ".write-lock")
+	path := filepath.Join(cacheDir, name)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return nil, searchruntime.WriteLockOpenError(err)

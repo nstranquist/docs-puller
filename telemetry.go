@@ -154,25 +154,28 @@ func cmdTelemetrySummary(args []string) {
 }
 
 func appendSearchQueryLog(out string, e queryLogEntry) error {
-	return withWriteLock(out, func() error {
-		path := searchruntime.SearchTelemetryQueryLogPath(out)
-		cacheDir := filepath.Dir(path)
-		if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-			return searchruntime.SearchTelemetryQueryLogCreateDirError(cacheDir, err)
-		}
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return searchruntime.SearchTelemetryQueryLogAppendOpenError(path, err)
-		}
-		if err := json.NewEncoder(f).Encode(e); err != nil {
-			closeErr := f.Close()
-			return searchruntime.SearchTelemetryQueryLogEncodeError(err, closeErr)
-		}
-		if err := f.Close(); err != nil {
-			return searchruntime.SearchTelemetryQueryLogCloseError(err)
-		}
-		return nil
-	})
+	release, err := acquireQueryLogLock(out)
+	if err != nil {
+		return err
+	}
+	defer release()
+	path := searchruntime.SearchTelemetryQueryLogPath(out)
+	cacheDir := filepath.Dir(path)
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return searchruntime.SearchTelemetryQueryLogCreateDirError(cacheDir, err)
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return searchruntime.SearchTelemetryQueryLogAppendOpenError(path, err)
+	}
+	if err := json.NewEncoder(f).Encode(e); err != nil {
+		closeErr := f.Close()
+		return searchruntime.SearchTelemetryQueryLogEncodeError(err, closeErr)
+	}
+	if err := f.Close(); err != nil {
+		return searchruntime.SearchTelemetryQueryLogCloseError(err)
+	}
+	return nil
 }
 
 func readSearchQueryLog(out string, limit int) ([]queryLogEntry, error) {

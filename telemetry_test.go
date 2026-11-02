@@ -182,3 +182,28 @@ func TestEvalSuiteHasErrors(t *testing.T) {
 		t.Fatalf("unexpected eval-suite error detection")
 	}
 }
+
+func TestQueryLogAppendDoesNotWaitForCorpusWriteLock(t *testing.T) {
+	out := t.TempDir()
+	held := make(chan struct{})
+	releaseLock := make(chan struct{})
+	go func() {
+		_ = withWriteLock(out, func() error { // a pull finalizing
+			close(held)
+			<-releaseLock
+			return nil
+		})
+	}()
+	<-held
+	defer close(releaseLock)
+	done := make(chan error, 1)
+	go func() { done <- appendSearchQueryLog(out, queryLogEntry{Query: "q"}) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("search telemetry waited for the corpus write lock")
+	}
+}
