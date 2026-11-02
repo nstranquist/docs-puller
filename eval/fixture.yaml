@@ -791,4 +791,5 @@ queries:
   - q: what are the rules for writing typescript that narrows a union type
     expect:
       - typescript/handbook-v2/Narrowing.md
+      - typescript/Narrowing.md # same page; the current typescript recipe stores the handbook flat
     note: NL paraphrase, runs against the typescript handbook
