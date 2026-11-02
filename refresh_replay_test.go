@@ -61,10 +61,11 @@ func TestLatestReplayableIngestPicksNewestPullForSource(t *testing.T) {
 
 func TestCollectCappedSourcesUsesNewestEntryPerSource(t *testing.T) {
 	entries := []logEntry{ // newest first
-		{Sources: []string{"healed"}, StartedAt: "t3"},
-		{Sources: []string{"partial"}, Capped: 28, CapHit: true, StartedAt: "t2"},
-		{Sources: []string{"docc"}, CapHit: true, StartedAt: "t2"},
-		{Sources: []string{"healed"}, Capped: 9, CapHit: true, StartedAt: "t1"},
+		{Mode: "pull-url", Sources: []string{"partial"}, StartedAt: "t4"}, // one page does not heal a partial mirror
+		{Mode: "llms-txt", Sources: []string{"healed"}, StartedAt: "t3"},
+		{Mode: "llms-txt", Sources: []string{"partial"}, Capped: 28, CapHit: true, StartedAt: "t2"},
+		{Mode: "docc", Sources: []string{"docc"}, CapHit: true, StartedAt: "t2"},
+		{Mode: "llms-txt", Sources: []string{"healed"}, Capped: 9, CapHit: true, StartedAt: "t1"},
 	}
 	got := collectCappedSources(entries)
 	want := []statusCappedSource{{Name: "partial", Capped: 28, PulledAt: "t2"}, {Name: "docc", PulledAt: "t2"}}
@@ -174,5 +175,42 @@ func TestPlanStaleRefreshDedupesAndSkips(t *testing.T) {
 	plans, _ = planStaleRefresh([]logEntry{entries[3], {Mode: "sitemap", Sources: []string{"b"}, Args: []string{"pull", "--sitemap", "https://b.dev/sitemap.xml", "--max", "9"}}}, []string{"b", "b"}, "/corpus")
 	if len(plans) != 1 || len(plans[0].Sources) != 2 {
 		t.Fatalf("shared recipe should replay once: %+v", plans)
+	}
+}
+
+func TestCapNote(t *testing.T) {
+	if got := capNote(logEntry{Capped: 28, CapHit: true}); got != ", 28 dropped to --max" {
+		t.Fatalf("known count: %q", got)
+	}
+	if got := capNote(logEntry{CapHit: true}); got != ", cut short by --max" {
+		t.Fatalf("unknown count (DocC): %q", got)
+	}
+	if got := capNote(logEntry{}); got != "" {
+		t.Fatalf("uncapped: %q", got)
+	}
+}
+
+func TestStatusCappedSourcesIgnoreDeletedSources(t *testing.T) {
+	out := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(out, "kept"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(out, "kept", "a.md"), []byte("# A\n\nbody text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range []logEntry{
+		{Mode: "llms-txt", Sources: []string{"gone"}, Capped: 3, CapHit: true, StartedAt: "t1"},
+		{Mode: "llms-txt", Sources: []string{"kept"}, Capped: 2, CapHit: true, StartedAt: "t2"},
+	} {
+		if err := appendIngestLog(out, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	status, err := collectDocsStatus(out, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(status.CappedSources) != 1 || status.CappedSources[0].Name != "kept" {
+		t.Fatalf("CappedSources = %+v, want only kept", status.CappedSources)
 	}
 }

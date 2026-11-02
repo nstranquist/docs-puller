@@ -566,7 +566,7 @@ func cmdInit(args []string) {
 func cmdRefresh(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("refresh", flag.ExitOnError)
-	source := fs.String("source", "", "replay the newest recorded pull for this source from the ingest log (drops --max)")
+	source := fs.String("source", "", "replay the recorded pull that owns this source (newest discovery recipe first) without --max")
 	stale := fs.Bool("stale", false, "replay every stale or partial-mirror source (see status); failures do not stop the batch")
 	staleDays := fs.Int("stale-days", 30, "with --stale: a source is stale when its newest page is older than this many days")
 	dryRun := fs.Bool("dry-run", false, "with --source/--stale: print the replay plan and exit")

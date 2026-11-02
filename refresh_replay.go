@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
-// Source replay: `docs-puller refresh --source NAME` re-runs the newest
-// recorded pull for NAME from _INGEST_LOG.jsonl.
+// Source replay: `docs-puller refresh --source NAME` re-runs the recorded
+// pull that owns NAME (newest discovery recipe first, see
+// latestReplayableIngest) from _INGEST_LOG.jsonl, without --max.
+// `refresh --stale` does the same for every stale or partial-mirror source.
 //
 // Why: status already flagged stale sources by age, but gave no way to fix
 // them. Nobody remembered how a source was first pulled, so sources stayed
@@ -258,15 +260,22 @@ func absOut(out string) string {
 }
 
 func describeReplay(source string, e logEntry, args []string) {
-	capNote := ""
-	if e.CapHit || e.Capped > 0 {
-		capNote = fmt.Sprintf(", %d dropped to --max", e.Capped)
-	}
-	fmt.Fprintf(os.Stderr, "refresh %s: replaying %s pull from %s (%d URLs%s)\n", source, e.Mode, e.StartedAt, e.URLs, capNote)
+	fmt.Fprintf(os.Stderr, "refresh %s: replaying %s pull from %s (%d URLs%s)\n", source, e.Mode, e.StartedAt, e.URLs, capNote(e))
 	if len(e.Sources) > 1 {
 		fmt.Fprintf(os.Stderr, "  note: this pull also refreshes %s\n", strings.Join(otherSources(e.Sources, source), ", "))
 	}
 	fmt.Fprintf(os.Stderr, "  docs-puller %s\n", strings.Join(args, " "))
+}
+
+// capNote describes how --max truncated a recorded pull, if it did.
+func capNote(e logEntry) string {
+	switch {
+	case e.Capped > 0:
+		return fmt.Sprintf(", %d dropped to --max", e.Capped)
+	case e.CapHit:
+		return ", cut short by --max"
+	}
+	return ""
 }
 
 func runReplay(args []string) error {
@@ -403,14 +412,19 @@ type statusCappedSource struct {
 	PulledAt string `json:"pulled_at"`
 }
 
-// collectCappedSources reports sources whose newest ingest dropped URLs to
-// --max. Entries must be newest first.
+// collectCappedSources reports sources whose newest owning pull dropped URLs
+// to --max. Entries must be newest first. Only replayable pulls that own a
+// source count: a later one-page pull-url, or a cross-link spill from another
+// vendor's pull, does not make a partial mirror whole.
 func collectCappedSources(entries []logEntry) []statusCappedSource {
 	seen := map[string]bool{}
 	var capped []statusCappedSource
 	for _, e := range entries {
+		if !replayableModes[e.Mode] {
+			continue
+		}
 		for _, s := range e.Sources {
-			if seen[s] {
+			if seen[s] || !ingestOwnsSource(e, s) {
 				continue
 			}
 			seen[s] = true

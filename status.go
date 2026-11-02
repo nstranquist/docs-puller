@@ -215,7 +215,15 @@ func collectDocsStatus(out string, staleAfter time.Duration) (docsStatus, error)
 	status.Embeddings = collectStatusEmbeddings(out)
 	var ingestEntries []logEntry
 	status.IngestLog, ingestEntries = collectStatusIngestLog(out)
-	status.CappedSources = collectCappedSources(ingestEntries)
+	present := make(map[string]bool, len(sources))
+	for _, src := range sources {
+		present[src] = true
+	}
+	for _, c := range collectCappedSources(ingestEntries) {
+		if present[c.Name] { // a deleted source is not a partial mirror
+			status.CappedSources = append(status.CappedSources, c)
+		}
+	}
 	status.Pins = collectStatusPins(out)
 	status.Warnings = buildStatusWarnings(status)
 	return status, nil
