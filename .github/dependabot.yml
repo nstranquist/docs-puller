@@ -3,20 +3,41 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: npm
     directory: /vscode-extension
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
+    groups:
+      vscode-extension-production-dependencies:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+      vscode-extension-development-dependencies:
+        dependency-type: development
+        update-types: ["minor", "patch"]
   - package-ecosystem: npm
     directory: /site
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
+    groups:
+      site-production-dependencies:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+      site-development-dependencies:
+        dependency-type: development
+        update-types: ["minor", "patch"]
