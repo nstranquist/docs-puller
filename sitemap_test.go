@@ -283,3 +283,30 @@ func TestHTTPGetDoesNotRetryOn404(t *testing.T) {
 		t.Errorf("hits = %d, want 1 (no retry on 404)", got)
 	}
 }
+
+func TestDropPathLocaleTwins(t *testing.T) {
+	in := []string{
+		"https://clickhouse.com/docs/guide",
+		"https://clickhouse.com/docs/zh/guide",
+		"https://clickhouse.com/docs/pt-BR/guide",
+		"https://clickhouse.com/docs/ja/only-in-japanese",
+		"https://example.com/docs/go/intro", // locale-like word list miss
+		"https://example.com/docs/intro",
+		"https://example.com/docs/it/tools", // "it" with no twin is kept
+	}
+	got := dropPathLocaleTwins(in)
+	want := []string{
+		"https://clickhouse.com/docs/guide",
+		"https://clickhouse.com/docs/ja/only-in-japanese",
+		"https://example.com/docs/go/intro",
+		"https://example.com/docs/intro",
+		"https://example.com/docs/it/tools",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v\nwant %v", got, want)
+	}
+	kept, matched := filterURLsCounted(in, "https://clickhouse.com/docs", 0)
+	if len(kept) != 2 || matched != 2 {
+		t.Fatalf("filterURLsCounted kept=%v matched=%d, want 2 English+ja-only", kept, matched)
+	}
+}

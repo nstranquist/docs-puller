@@ -8,6 +8,7 @@ must name both the old and new behavior.
 
 ### Fixed
 
+- Sitemap, llms.txt, page-data, and `--from` pulls drop translated copies addressed by a locale path segment (for example `/docs/zh/guide` when `/docs/guide` is also listed). A URL is dropped only when its untranslated twin is in the same set, so single-language pages stay. Old behavior: the uncapped ClickHouse sitemap matched 24,951 URLs, about 21,000 of them translations in 8 languages. Before `refresh` dropped `--max`, the cap had hidden this.
 - DocC crawls no longer deadlock on large archives. Workers sent child pages into a bounded channel (concurrency × 64 slots) with a blocking send. When every worker blocked on a full channel, no one drained it and the crawl hung with zero CPU. `--max 500` hid the bug (500 < 512 slots) until an uncapped `refresh` of Apple Device Management hung. v0.8.1 is affected: its `refresh` drops `--max`, so a large DocC source hangs. An overflow send now runs in its own goroutine.
 - `status` partial-mirror warnings now count only replayable pulls that own the source. Before, a later one-page `pull-url`, or another vendor's pull that spilled cross-links into the source, cleared the warning while the mirror was still partial. Sources that were deleted from the corpus no longer report as partial mirrors.
 - `refresh` output says `cut short by --max` when the drop count is unknown (DocC), instead of `0 dropped to --max`. The `--source` flag help now describes owning-recipe selection instead of "the newest recorded pull".

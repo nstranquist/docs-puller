@@ -160,12 +160,66 @@ func filterURLsCounted(urls []string, prefix string, maxN int) (kept []string, m
 	} else {
 		filtered = urls
 	}
-	deduped := dedupeLocaleVariants(filtered)
+	deduped := dropPathLocaleTwins(dedupeLocaleVariants(filtered))
 	matched = len(deduped)
 	if maxN > 0 && len(deduped) > maxN {
 		deduped = deduped[:maxN]
 	}
 	return deduped, matched
+}
+
+// pathLocales are locale path segments used by docs i18n (Docusaurus, Mintlify,
+// Nextra, ...). Compared case-insensitively.
+var pathLocales = map[string]bool{
+	"ar": true, "bn": true, "cs": true, "da": true, "de": true, "el": true, "es": true,
+	"fa": true, "fi": true, "fr": true, "he": true, "hi": true, "hu": true, "id": true,
+	"it": true, "ja": true, "jp": true, "ko": true, "nl": true, "pl": true, "pt": true,
+	"pt-br": true, "pt-pt": true, "ro": true, "ru": true, "sv": true, "th": true,
+	"tr": true, "uk": true, "vi": true, "zh": true, "zh-cn": true, "zh-tw": true,
+	"zh-hans": true, "zh-hant": true, "es-419": true,
+}
+
+// dropPathLocaleTwins removes translated copies addressed by a path segment,
+// such as https://x/docs/zh/guide when https://x/docs/guide is also present.
+// A URL is dropped only when its untranslated twin is in the same set, so a
+// page that exists only in one language is kept, and a path word that looks
+// like a locale code cannot drop a page without a twin. Without this, an
+// uncapped ClickHouse sitemap pull was 24,951 URLs, about 21,000 of them
+// translations of the English pages.
+func dropPathLocaleTwins(urls []string) []string {
+	present := make(map[string]bool, len(urls))
+	for _, u := range urls {
+		present[u] = true
+	}
+	out := urls[:0:0]
+	for _, u := range urls {
+		if twin, ok := pathLocaleTwin(u); ok && present[twin] {
+			continue
+		}
+		out = append(out, u)
+	}
+	return out
+}
+
+// pathLocaleTwin returns u with its first locale path segment removed.
+func pathLocaleTwin(u string) (string, bool) {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return "", false
+	}
+	segs := strings.Split(parsed.Path, "/")
+	for i, seg := range segs {
+		if seg != "" && pathLocales[strings.ToLower(seg)] {
+			rest := append(append([]string{}, segs[:i]...), segs[i+1:]...)
+			twin := *parsed
+			twin.Path = strings.Join(rest, "/")
+			if twin.Path == "" {
+				twin.Path = "/"
+			}
+			return twin.String(), true
+		}
+	}
+	return "", false
 }
 
 // dedupeLocaleVariants groups URLs by canonical path (scheme+host+path) and
