@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -160,7 +161,7 @@ func filterURLsCounted(urls []string, prefix string, maxN int) (kept []string, m
 	} else {
 		filtered = urls
 	}
-	deduped := dropPathLocaleTwins(dedupeLocaleVariants(filtered))
+	deduped := dropPathVersionTwins(dropPathLocaleTwins(dedupeLocaleVariants(filtered)))
 	matched = len(deduped)
 	if maxN > 0 && len(deduped) > maxN {
 		deduped = deduped[:maxN]
@@ -220,6 +221,64 @@ func pathLocaleTwin(u string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// pathVersionRE matches a docs-version path segment: 0.85, 3.2.x, v58.0.0,
+// v2, or next (the unreleased line).
+var pathVersionRE = regexp.MustCompile(`^(?:v?\d+(?:\.\d+){0,3}(?:\.x)?|next)$`)
+
+// dropPathVersionTwins removes copies of a page published for other docs
+// versions, such as https://x/docs/0.85/intro or https://x/docs/next/intro
+// when https://x/docs/intro is also listed, or /versions/v58.0.0/sdk/camera
+// when /versions/latest/sdk/camera is listed. A URL is dropped only when its
+// twin (version segment removed, or replaced by "latest") is in the same set,
+// so pages that exist only under a version stay. Without this, an uncapped
+// React Native sitemap pull was 2,670 URLs for 225 current pages, and Expo
+// added about 950 old-SDK copies.
+func dropPathVersionTwins(urls []string) []string {
+	present := make(map[string]bool, len(urls))
+	for _, u := range urls {
+		present[u] = true
+	}
+	out := urls[:0:0]
+	for _, u := range urls {
+		if hasPresentVersionTwin(u, present) {
+			continue
+		}
+		out = append(out, u)
+	}
+	return out
+}
+
+func hasPresentVersionTwin(u string, present map[string]bool) bool {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+	segs := strings.Split(parsed.Path, "/")
+	for i, seg := range segs {
+		if seg == "" || !pathVersionRE.MatchString(strings.ToLower(seg)) {
+			continue
+		}
+		for _, replacement := range []string{"", "latest"} {
+			var rest []string
+			rest = append(rest, segs[:i]...)
+			if replacement != "" {
+				rest = append(rest, replacement)
+			}
+			rest = append(rest, segs[i+1:]...)
+			twin := *parsed
+			twin.Path = strings.Join(rest, "/")
+			if twin.Path == "" {
+				twin.Path = "/"
+			}
+			if t := twin.String(); t != u && present[t] {
+				return true
+			}
+		}
+		return false // only the first version-like segment is considered
+	}
+	return false
 }
 
 // dedupeLocaleVariants groups URLs by canonical path (scheme+host+path) and

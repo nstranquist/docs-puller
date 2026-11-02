@@ -4,6 +4,12 @@ Notable user-facing changes are recorded per public release. Retrieval-quality
 claims must include the measured fixture and metric delta; behavioral defaults
 must name both the old and new behavior.
 
+## Unreleased
+
+### Fixed
+
+- Sitemap, llms.txt, page-data, and `--from` pulls drop copies of a page published for other docs versions (for example `/docs/0.85/intro` or `/docs/next/intro` when `/docs/intro` is listed, or `/versions/v58.0.0/x` when `/versions/latest/x` is listed). A URL is dropped only when its unversioned or `latest` twin is in the same set. Old behavior: an uncapped React Native sitemap pull was 2,670 URLs for 225 current pages, and Expo added about 950 old-SDK copies. New behavior: 247 and 714 URLs.
+
 ## v0.8.2 — 2026-11-02
 
 ### Security

@@ -310,3 +310,29 @@ func TestDropPathLocaleTwins(t *testing.T) {
 		t.Fatalf("filterURLsCounted kept=%v matched=%d, want 2 English+ja-only", kept, matched)
 	}
 }
+
+func TestDropPathVersionTwins(t *testing.T) {
+	in := []string{
+		"https://reactnative.dev/docs/intro",
+		"https://reactnative.dev/docs/0.85/intro",
+		"https://reactnative.dev/docs/next/intro",
+		"https://reactnative.dev/docs/0.70/removed-api", // only exists under a version: keep
+		"https://docs.expo.dev/versions/latest/sdk/camera",
+		"https://docs.expo.dev/versions/v58.0.0/sdk/camera",
+		"https://docs.expo.dev/versions/v55.0.0/sdk/old-only", // no latest twin: keep
+		"https://api.example.com/docs/v1/users",               // no unversioned twin: keep
+		"https://example.com/blog/2024/post",                  // year segment, no twin: keep
+	}
+	got := dropPathVersionTwins(in)
+	want := []string{
+		"https://reactnative.dev/docs/intro",
+		"https://reactnative.dev/docs/0.70/removed-api",
+		"https://docs.expo.dev/versions/latest/sdk/camera",
+		"https://docs.expo.dev/versions/v55.0.0/sdk/old-only",
+		"https://api.example.com/docs/v1/users",
+		"https://example.com/blog/2024/post",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v\nwant %v", got, want)
+	}
+}
