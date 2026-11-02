@@ -33,6 +33,7 @@ type docsStatus struct {
 	StaleSources   []statusSourceInfo   `json:"stale_sources,omitempty"`
 	DupPathSources []statusSourceInfo   `json:"dup_path_sources,omitempty"`
 	CappedSources  []statusCappedSource `json:"capped_sources,omitempty"`
+	OrphanSources  []statusSourceInfo   `json:"orphan_sources,omitempty"`
 	Warnings       []string             `json:"warnings,omitempty"`
 }
 
@@ -45,6 +46,7 @@ type statusSourceInfo struct {
 	AgeHours       int    `json:"age_hours,omitempty"`
 	MissingFresh   bool   `json:"missing_freshness,omitempty"`
 	DupPathEntries int    `json:"dup_path_entries,omitempty"`
+	OrphanFiles    int    `json:"orphan_files,omitempty"`
 }
 
 type statusProfile struct {
@@ -194,6 +196,9 @@ func collectDocsStatus(out string, staleAfter time.Duration) (docsStatus, error)
 		if info.DupPathEntries > 0 {
 			status.DupPathSources = append(status.DupPathSources, info)
 		}
+		if info.OrphanFiles > 0 {
+			status.OrphanSources = append(status.OrphanSources, info)
+		}
 	}
 	sort.Slice(status.DupPathSources, func(i, j int) bool {
 		if status.DupPathSources[i].DupPathEntries != status.DupPathSources[j].DupPathEntries {
@@ -265,6 +270,9 @@ func collectStatusSource(out, src string, staleAfter time.Duration) statusSource
 	}
 	if m, err := loadOrMigrateManifest(srcDir); err == nil {
 		info.DupPathEntries = dedupeManifestPaths(&m)
+	}
+	if orphans, ok := sourceOrphanFiles(out, src); ok {
+		info.OrphanFiles = len(orphans)
 	}
 	if staleAfter <= 0 {
 		return info
@@ -545,6 +553,9 @@ func buildStatusWarningsWithOptions(status docsStatus, includeEmbeddings, includ
 			dropped = fmt.Sprintf("%d", src.Capped)
 		}
 		warnings = append(warnings, fmt.Sprintf("source %s is a partial mirror: its last pull (%s) dropped %s matching URLs to --max; run `docs-puller refresh --source %s`", src.Name, src.PulledAt, dropped, src.Name))
+	}
+	for _, src := range status.OrphanSources {
+		warnings = append(warnings, fmt.Sprintf("source %s has %d file%s that no manifest entry covers (left by an interrupted or superseded pull; still searchable); run `docs-puller reindex --prune-orphans`", src.Name, src.OrphanFiles, map[bool]string{true: "", false: "s"}[src.OrphanFiles == 1]))
 	}
 	for _, src := range status.DupPathSources {
 		warnings = append(warnings, fmt.Sprintf("source %s has %d duplicate-path manifest entr%s (older URL variants of the same file); the next pull of that source prunes them", src.Name, src.DupPathEntries, map[bool]string{true: "y", false: "ies"}[src.DupPathEntries == 1]))

@@ -255,7 +255,7 @@ Usage:
   docs-puller refresh [--source-cache DIR]   # fast-forward supabase source cache
   docs-puller refresh --source NAME [--dry-run]  # replay NAME's discovery pull, uncapped
   docs-puller refresh --stale [--stale-days N] [--dry-run]  # replay every stale/partial source
-  docs-puller reindex [--out DIR] [--reclaim-space]
+  docs-puller reindex [--out DIR] [--reclaim-space] [--prune-orphans]
                                              # rebuild FTS5; optionally compact it
   docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
                                              # health summary for corpus + FTS5
@@ -603,6 +603,7 @@ func cmdReindex(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("reindex", flag.ExitOnError)
 	reclaimSpace := fs.Bool("reclaim-space", false, "vacuum the rebuilt FTS5 database and truncate its WAL")
+	pruneOrphans := fs.Bool("prune-orphans", false, "first delete .md files that no manifest entry covers (left by interrupted or superseded pulls)")
 	bindOpts(fs, &o)
 	fs.Parse(args)
 
@@ -610,6 +611,18 @@ func cmdReindex(args []string) {
 	var n int
 	var compacted ftsCompactionStats
 	if err := withWriteLock(o.out, func() error {
+		if *pruneOrphans {
+			pruned, err := pruneOrphanFiles(o.out)
+			total := 0
+			for _, src := range sortedIntKeys(pruned) {
+				fmt.Fprintf(os.Stderr, "pruned %d orphan files from %s\n", pruned[src], src)
+				total += pruned[src]
+			}
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "pruned %d orphan files in total\n", total)
+		}
 		fmt.Fprintf(os.Stderr, "regenerating per-source _INDEX.md ...\n")
 		if err := regenerateIndex(o.out, nil); err != nil {
 			return err

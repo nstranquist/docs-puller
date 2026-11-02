@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Added
+
+- `status` reports orphan files: `.md` files under a source that no manifest entry covers. A pull writes pages as it fetches but records them only at the end, so an interrupted pull leaves orphans, and so can pages that upstream renamed or removed. `reindex` walks the disk, so orphans stayed searchable as stale content. `reindex --prune-orphans` deletes them before the rebuild. Sources without `manifest.json` are never touched. On the local corpus this found 5,114 orphan files in 7 sources, mostly a crawled copy of a deleted worktree, plus 4,661 left by an interrupted ClickHouse pull.
+
 ### Fixed
 
 - Sitemap, llms.txt, page-data, and `--from` pulls drop translated copies addressed by a locale path segment (for example `/docs/zh/guide` when `/docs/guide` is also listed). A URL is dropped only when its untranslated twin is in the same set, so single-language pages stay. Old behavior: the uncapped ClickHouse sitemap matched 24,951 URLs, about 21,000 of them translations in 8 languages. Before `refresh` dropped `--max`, the cap had hidden this.
