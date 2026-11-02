@@ -2310,3 +2310,79 @@ func TestFTSBlenderAutomaticWeightsRewriteRanksParenting(t *testing.T) {
 		t.Fatalf("automatic-weights hits = %+v, want parenting guide first", hits)
 	}
 }
+
+func TestFTSUpsertBatchRepairsOrphansAndAddsNewPaths(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "s")
+	for _, name := range []string{"a.md", "b.md", "c.md"} {
+		writeFTSDoc(t, src, name, "# "+name+"\n\nalpha\n")
+	}
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	// Orphan two FTS rows: keep the docs row, drop its docs_path mapping.
+	for _, p := range []string{"s/a.md", "s/b.md"} {
+		if err := idx.q.DeletePathByPath(context.Background(), p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFTSDoc(t, src, "new1.md", "# new1\n\nbeta\n")
+	writeFTSDoc(t, src, "new2.md", "# new2\n\nbeta\n")
+	paths := []string{"s/a.md", "s/b.md", "s/c.md", "s/new1.md", "s/new2.md", "s/new1.md"}
+	if err := idx.upsertPaths(out, paths); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"s/a.md", "s/b.md", "s/c.md", "s/new1.md", "s/new2.md"} {
+		var rows, mapped int
+		if err := idx.db.QueryRow(`SELECT count(*) FROM docs WHERE path = ?`, p).Scan(&rows); err != nil {
+			t.Fatal(err)
+		}
+		if err := idx.db.QueryRow(`SELECT count(*) FROM docs_path WHERE path = ?`, p).Scan(&mapped); err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 || mapped != 1 {
+			t.Errorf("%s: %d FTS rows and %d mappings, want exactly 1 each", p, rows, mapped)
+		}
+	}
+}
+
+// TestFTSUpsertManyNewPathsScansOnce guards the per-path full-scan bug: each
+// new page used to trigger its own DELETE scan of the FTS table, so adding N
+// pages to an index of M docs cost O(N*M).
+func TestFTSUpsertManyNewPathsScansOnce(t *testing.T) {
+	out := t.TempDir()
+	src := filepath.Join(out, "s")
+	for i := 0; i < 300; i++ {
+		writeFTSDoc(t, src, fmt.Sprintf("old%04d.md", i), fmt.Sprintf("# old %d\n\nalpha beta gamma %d\n", i, i))
+	}
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for i := 0; i < 2000; i++ {
+		name := fmt.Sprintf("new%04d.md", i)
+		writeFTSDoc(t, src, name, fmt.Sprintf("# new %d\n\ndelta %d\n", i, i))
+		paths = append(paths, "s/"+name)
+	}
+	before := ftsOrphanScans.Load()
+	if err := idx.upsertPaths(out, paths); err != nil {
+		t.Fatal(err)
+	}
+	if scans := ftsOrphanScans.Load() - before; scans != 1 {
+		t.Fatalf("upserting 2000 new paths made %d full FTS scans, want 1", scans)
+	}
+	n, _ := idx.totalDocs()
+	if n != 2300 {
+		t.Fatalf("totalDocs = %d, want 2300", n)
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -600,21 +601,86 @@ func (f *ftsIndex) upsertPaths(out string, paths []string) error {
 		q:         q,
 	}
 
+	// Pass 1: delete the old row of every mapped path by rowid (primary-key
+	// lookup). Collect paths without a docs_path mapping: almost always new
+	// pages, occasionally an FTS row orphaned by an interrupted write.
+	var canonical, unmapped []string
+	seen := make(map[string]bool, len(paths))
 	for _, relPath := range paths {
 		relPath = canonicalLogicalPath(relPath)
-		if _, _, ok := splitFTSPath(relPath); !ok {
+		if _, _, ok := splitFTSPath(relPath); !ok || seen[relPath] {
 			continue
 		}
-
-		if _, err := deleteFTSPath(ctx, tx, q, relPath); err != nil {
+		seen[relPath] = true
+		canonical = append(canonical, relPath)
+		oldRowID, err := q.LookupDocRowIDByPath(ctx, relPath)
+		switch err {
+		case nil:
+			if err := q.DeleteDocByRowID(ctx, oldRowID); err != nil {
+				return err
+			}
+			if err := q.DeletePathByPath(ctx, relPath); err != nil {
+				return err
+			}
+		case sql.ErrNoRows:
+			unmapped = append(unmapped, relPath)
+		default:
 			return err
 		}
-
+	}
+	// Pass 2: clear possible orphan FTS rows for all unmapped paths in ONE
+	// scan. path is UNINDEXED in the FTS5 table, so each per-path DELETE was
+	// a full-table scan: a pull adding 2,447 new Lucide pages spent 23
+	// minutes here while holding the corpus write lock.
+	if err := deleteUnmappedFTSPaths(ctx, tx, unmapped); err != nil {
+		return err
+	}
+	for _, relPath := range canonical {
 		if err := inserter.insert(relPath, "upsert"); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
+}
+
+// ftsOrphanScans counts full FTS-table scans made by deleteUnmappedFTSPaths.
+// Tests assert one scan per upsert batch, not one per path.
+var ftsOrphanScans atomic.Int64
+
+// deleteUnmappedFTSPaths removes FTS rows whose path is in paths, using one
+// scan of the FTS table joined against a temp table.
+func deleteUnmappedFTSPaths(ctx context.Context, tx *sql.Tx, paths []string) error {
+	if len(paths) > 0 {
+		ftsOrphanScans.Add(1)
+	}
+	switch len(paths) {
+	case 0:
+		return nil
+	case 1:
+		_, err := tx.ExecContext(ctx, `DELETE FROM docs WHERE path = ?`, paths[0])
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `CREATE TEMP TABLE IF NOT EXISTS fts_unmapped_paths (path TEXT PRIMARY KEY)`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fts_unmapped_paths`); err != nil {
+		return err
+	}
+	stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO fts_unmapped_paths (path) VALUES (?)`)
+	if err != nil {
+		return err
+	}
+	for _, p := range paths {
+		if _, err := stmt.ExecContext(ctx, p); err != nil {
+			stmt.Close()
+			return err
+		}
+	}
+	if err := stmt.Close(); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `DELETE FROM docs WHERE path IN (SELECT path FROM fts_unmapped_paths)`)
+	return err
 }
 
 // deleteFTSPath returns true only when it had to scan the UNINDEXED FTS path
