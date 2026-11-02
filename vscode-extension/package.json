@@ -77,9 +77,9 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.144.0",
     "@vscode/vsce": "4.1.0",
-    "prettier": "3.9.6",
+    "prettier": "3.9.10",
     "typescript": "^5.4.0"
   }
 }
