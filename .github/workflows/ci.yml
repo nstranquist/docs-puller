@@ -168,7 +168,7 @@ jobs:
           test "$index_a" = "$index_b"
           jq -n --arg index_digest "$index_a" \
             '{ok:true, builds:2, index_digest:$index_digest}' > demo-index-reproducibility.json
-          "${RUNNER_TEMP}/demo-bin/docs-puller-host" status --out "${RUNNER_TEMP}/demo-corpus-a" --check
+          "${RUNNER_TEMP}/demo-bin/docs-puller-host" status --out "${RUNNER_TEMP}/demo-corpus-a" --stale-days 0 --check
           "${RUNNER_TEMP}/demo-bin/docs-puller-host" eval \
             --fixture eval/sample-corpus/fixture.yaml \
             --out "${RUNNER_TEMP}/demo-corpus-a" \

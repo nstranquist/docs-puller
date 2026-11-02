@@ -162,7 +162,7 @@ verify-public-snapshot: build
 	index_a=$$(jq -er .index_digest "$$snapshot_root/a.json"); \
 	index_b=$$(jq -er .index_digest "$$snapshot_root/b.json"); \
 	test "$$index_a" = "$$index_b"; \
-	./bin/docs-puller status --out "$$snapshot_root/a" --check; \
+	./bin/docs-puller status --out "$$snapshot_root/a" --stale-days 0 --check; \
 	DOCS_PULLER_QUERY_LOG=0 ./bin/docs-puller eval \
 		--fixture eval/sample-corpus/fixture.yaml \
 		--out "$$snapshot_root/a" --json \
