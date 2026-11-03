@@ -1477,7 +1477,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			if len(parts) >= 2 {
 				topic := normalizeFTSSurface(parts[1])
 				for _, tok := range qTokens {
-					if ftsSurfaceMatchesRelaxedConcept(topic, tok) {
+					if ftsSurfaceMatchesQueryConcept(topic, tok, qTokens) {
 						c.hit.Score += searchPostHogTopicPathBoost
 						break
 					}
@@ -1489,19 +1489,19 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 			if sourceMatches, isSource := sourceKeywords[tok]; isSource && sourceMatches[c.hit.Source] {
 				continue
 			}
-			conceptMatched := ftsSurfaceMatchesRelaxedConcept(normalizedTitle, tok)
+			conceptMatched := ftsSurfaceMatchesQueryConcept(normalizedTitle, tok, qTokens)
 			if strings.Contains(pathSansSource, tok) {
 				pathTokenMatches++
 				c.hit.Score += searchPathBoost
 				conceptMatched = true
 			}
-			if ftsSurfaceMatchesRelaxedConcept(normalizedPath, tok) {
+			if ftsSurfaceMatchesQueryConcept(normalizedPath, tok, qTokens) {
 				conceptMatched = true
 			}
 			if conceptMatched {
 				surfaceConceptMatches++
 			}
-			if ftsSurfaceMatchesRelaxedConcept(normalizedBasename, tok) {
+			if ftsSurfaceMatchesQueryConcept(normalizedBasename, tok, qTokens) {
 				relaxedBasenameConceptMatches++
 			}
 			if strings.Contains(basename, tok) {
@@ -1521,7 +1521,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 				c.hit.Score += searchBasenameExactBoost
 			}
 		}
-		if queryNamesSDK && strings.Contains("/"+pathSansSource+"/", "/libraries/") && relaxedBasenameConceptMatches > 0 {
+		if queryNamesSDK && !sdkNamesProduct(qTokens) && strings.Contains("/"+pathSansSource+"/", "/libraries/") && relaxedBasenameConceptMatches > 0 {
 			c.hit.Score += searchSDKLibraryPathBoost
 		}
 		basenameTitle := strings.ReplaceAll(strings.ReplaceAll(basename, "-", " "), "_", " ")
@@ -1963,7 +1963,7 @@ func ftsBuildRelaxedQuery(q, source string) (query, sourceFilter string, tokenCo
 
 	parts := make([]string, 0, len(tokens))
 	for _, token := range tokens {
-		parts = append(parts, expandRelaxedSynonyms(token))
+		parts = append(parts, expandRelaxedSynonyms(token, tokens))
 	}
 	return `{title path_tokens} : (` + strings.Join(parts, " OR ") + `)`, sourceFilter, len(tokens)
 }
@@ -1998,8 +1998,8 @@ func ftsScopeRelaxedQuery(query, source string) string {
 	return `path_tokens:("` + strings.Join(sourceTokens, " ") + `") AND (` + query + `)`
 }
 
-func expandRelaxedSynonyms(token string) string {
-	terms := relaxedConceptTerms(token)
+func expandRelaxedSynonyms(token string, queryTokens []string) string {
+	terms := relaxedConceptTermsFor(token, queryTokens)
 	quoted := make([]string, 0, len(terms))
 	for _, term := range terms {
 		quoted = append(quoted, `"`+term+`"`)
@@ -2011,8 +2011,12 @@ func expandRelaxedSynonyms(token string) string {
 }
 
 func relaxedConceptTerms(token string) []string {
+	return relaxedConceptTermsFor(token, nil)
+}
+
+func relaxedConceptTermsFor(token string, queryTokens []string) []string {
 	terms := []string{token}
-	terms = appendUniqueStrings(terms, synonymsByToken[token]...)
+	terms = appendUniqueStrings(terms, synonymsForQueryToken(token, queryTokens)...)
 	terms = appendUniqueStrings(terms, relaxedSynonymsByToken[token]...)
 	if phrase, ok := phraseSynonyms[token]; ok {
 		terms = appendUniqueStrings(terms, phrase)
@@ -2032,11 +2036,15 @@ func normalizeFTSSurface(surface string) string {
 }
 
 func ftsSurfaceMatchesRelaxedConcept(normalizedSurface, token string) bool {
+	return ftsSurfaceMatchesQueryConcept(normalizedSurface, token, nil)
+}
+
+func ftsSurfaceMatchesQueryConcept(normalizedSurface, token string, queryTokens []string) bool {
 	if normalizedSurface == "" {
 		return false
 	}
 	words := strings.Fields(normalizedSurface)
-	for _, term := range relaxedConceptTerms(token) {
+	for _, term := range relaxedConceptTermsFor(token, queryTokens) {
 		if strings.Contains(term, " ") {
 			if strings.Contains(" "+normalizedSurface+" ", " "+term+" ") {
 				return true
@@ -2328,7 +2336,7 @@ func joinFTSTokens(tokens []string) string {
 	parts := make([]string, 0, len(tokens))
 	hasGroup := false
 	for _, tok := range tokens {
-		expanded := expandSynonyms(tok)
+		expanded := expandSynonymsInQuery(tok, tokens)
 		if strings.HasPrefix(expanded, "(") {
 			hasGroup = true
 		}
@@ -2399,7 +2407,12 @@ func basenameStemMatch(basename, tok string) bool {
 // quoted phrase, which FTS5 matches as adjacent-in-order. Already-lowercased
 // input.
 func expandSynonyms(tok string) string {
-	tokenSyns, hasTokenSyns := synonymsByToken[tok]
+	return expandSynonymsInQuery(tok, nil)
+}
+
+func expandSynonymsInQuery(tok string, queryTokens []string) string {
+	tokenSyns := synonymsForQueryToken(tok, queryTokens)
+	hasTokenSyns := len(tokenSyns) > 0
 	phrase, hasPhrase := phraseSynonyms[tok]
 	if !hasTokenSyns && !hasPhrase {
 		return `"` + tok + `"`

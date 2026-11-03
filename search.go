@@ -345,6 +345,48 @@ var sourceKeywordPhrases = map[string][][]string{
 	"ai-sdk":       {{"ai", "sdk"}, {"vercel", "ai", "sdk"}},
 }
 
+// sdkNamesProduct reports whether "sdk" is part of a product name rather than
+// a request for a language client library. "agent sdk" is the Claude Agent SDK
+// manual (claude-code/agent-sdk). "posthog node sdk" stays a library query.
+// Registered source phrases that already contain sdk, such as "ai sdk", count
+// the same way.
+func sdkNamesProduct(tokens []string) bool {
+	if containsTokenPhrase(tokens, []string{"agent", "sdk"}) {
+		return true
+	}
+	for _, phrases := range sourceKeywordPhrases {
+		for _, phrase := range phrases {
+			if !containsTokenPhrase(tokens, phrase) {
+				continue
+			}
+			for _, tok := range phrase {
+				if tok == "sdk" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// synonymsForQueryToken returns the synonym class for token. When sdk names a
+// product, the library/libraries expansion is omitted so /libraries/ pages do
+// not enter the candidate window ahead of the product manual.
+func synonymsForQueryToken(token string, queryTokens []string) []string {
+	syns := synonymsByToken[token]
+	if token != "sdk" || !sdkNamesProduct(queryTokens) {
+		return syns
+	}
+	filtered := make([]string, 0, len(syns))
+	for _, syn := range syns {
+		if syn == "library" || syn == "libraries" {
+			continue
+		}
+		filtered = append(filtered, syn)
+	}
+	return filtered
+}
+
 func init() {
 	mergeConfiguredSourceKeywords()
 	for src, kws := range sourceKeywordPairs {
@@ -556,7 +598,7 @@ var synonymClasses = [][]string{
 	{"docs", "documentation"},                            // "claude docs" matches "documentation"
 	{"k8s", "kubernetes"},                                // "k8s deploy" → kubernetes pages
 	{"js", "javascript"},                                 // "js sdk" matches "javascript sdk"
-	{"sdk", "library", "libraries"},                      // "posthog javascript web sdk" → docs/libraries/js.md
+	{"sdk", "library", "libraries"},                      // "posthog javascript web sdk" → docs/libraries/js.md; skipped when sdk is the product name ("agent sdk")
 	{"ts", "typescript"},                                 // "ts client" matches "typescript client"
 	{"count", "counting"},                                // "how do I count tokens with Anthropic" → token-counting.md
 	{"deploy", "deployment"},                             // "deploy Azure Functions from the CLI" → functionapp/deployment.md

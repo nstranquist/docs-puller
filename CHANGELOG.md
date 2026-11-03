@@ -8,6 +8,8 @@ must name both the old and new behavior.
 
 ### Fixed
 
+- A query that names an SDK product, such as `agent sdk` or `ai sdk`, no longer expands `sdk` to `library` / `libraries` and no longer lifts pages under `/libraries/`. Old behavior: that expansion filled the default candidate window with PostHog `docs/libraries*.md`, and `claude-code/agent-sdk/python.md` dropped out. A language client query such as `posthog node sdk` still expands and still lifts the matching `libraries/<runtime>` page. The checked-in BM25 suite after this change keeps `fixture.yaml` Hit@5 at 1.000 (151 queries). No checked-in fixture query uses the product-name exception.
+
 - Sitemap, llms.txt, page-data, and `--from` pulls drop copies of a page published for other docs versions (for example `/docs/0.85/intro` or `/docs/next/intro` when `/docs/intro` is listed, or `/versions/v58.0.0/x` when `/versions/latest/x` is listed). A URL is dropped only when its unversioned or `latest` twin is in the same set. Old behavior: an uncapped React Native sitemap pull was 2,670 URLs for 225 current pages, and Expo added about 950 old-SDK copies. New behavior: 247 and 714 URLs.
 
 ## v0.8.2 — 2026-11-02

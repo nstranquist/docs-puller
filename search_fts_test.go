@@ -58,6 +58,19 @@ func TestFTSBuildQueryExpandsSynonyms(t *testing.T) {
 	if got := ftsBuildQuery("posthog javascript web sdk", false); !strings.Contains(got, `("sdk" OR "library" OR "libraries")`) {
 		t.Errorf("ftsBuildQuery(posthog javascript web sdk) = %q, want sdk/library expansion", got)
 	}
+	for _, query := range []string{"agent sdk", "claude agent sdk", "agent sdk python", "vercel ai sdk"} {
+		got := ftsBuildQuery(query, false)
+		if strings.Contains(got, "library") {
+			t.Errorf("ftsBuildQuery(%q) = %q, want no library synonym for a product-named sdk", query, got)
+		}
+		if !strings.Contains(got, `"sdk"`) {
+			t.Errorf("ftsBuildQuery(%q) = %q, want the sdk token kept", query, got)
+		}
+	}
+	relaxed, _, _ := ftsBuildRelaxedQuery("agent sdk python", "")
+	if strings.Contains(relaxed, "library") {
+		t.Errorf("relaxed agent sdk query = %q, want no library synonym", relaxed)
+	}
 }
 
 func TestOpenFTSIndexMigratesContentFingerprintSchema(t *testing.T) {
@@ -254,6 +267,37 @@ func TestFTSSDKQueryLiftsMatchingLibraryRuntime(t *testing.T) {
 	}
 	if len(hits) == 0 || hits[0].Path != "posthog/docs/libraries/node.md" {
 		t.Fatalf("SDK runtime hits = %+v, want matching libraries basename first", hits)
+	}
+}
+
+func TestFTSAgentSDKQueryPrefersProductManualOverLibraries(t *testing.T) {
+	out := t.TempDir()
+	writeFTSDoc(t, filepath.Join(out, "claude-code"), "agent-sdk/python.md",
+		"# Python\n\nInstall the Agent SDK for Python.\n")
+	libraryBody := "# Libraries\n\n" + strings.Repeat("PostHog agent SDK library and libraries reference. ", 40)
+	writeFTSDoc(t, filepath.Join(out, "posthog"), "docs/libraries.md", libraryBody)
+	writeFTSDoc(t, filepath.Join(out, "posthog"), "docs/libraries/python.md",
+		"# Python\n\n"+strings.Repeat("PostHog Python agent SDK library. ", 40))
+
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	if err := idx.rebuild(out); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := idx.search("agent sdk python", "", 2, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 || hits[0].Path != "claude-code/agent-sdk/python.md" {
+		t.Fatalf("agent sdk hits = %+v, want the product manual first", hits)
+	}
+	for _, hit := range hits {
+		if strings.Contains(hit.Path, "/libraries") && hit.Score > hits[0].Score {
+			t.Fatalf("libraries page outranked the product manual: %+v", hits)
+		}
 	}
 }
 
