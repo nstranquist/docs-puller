@@ -1015,6 +1015,43 @@ func (f *ftsIndex) rebuildFromMemory(docs []ftsMemoryDoc) error {
 	return tx.Commit()
 }
 
+// ftsPrewarmQueries read every page of the structures each query touches: the
+// FTS5 posting lists (docs_data), the segment index (docs_idx), per-document
+// sizes for bm25 (docs_docsize), and the path map (docs_path). They skip
+// docs_content, which holds the document bodies and is most of the file (117
+// of 154 MB on the Fly sidecar). Queries read content only for candidate rows.
+// sum(length(...)) forces SQLite to read each blob, overflow pages included.
+var ftsPrewarmQueries = []string{
+	`SELECT CAST(COALESCE(SUM(LENGTH(block)), 0) AS INTEGER) FROM docs_data`,
+	`SELECT CAST(COALESCE(SUM(LENGTH(term)), 0) AS INTEGER) FROM docs_idx`,
+	`SELECT CAST(COALESCE(SUM(LENGTH(sz)), 0) AS INTEGER) FROM docs_docsize`,
+	`SELECT CAST(COALESCE(SUM(LENGTH(path)), 0) AS INTEGER) FROM docs_path`,
+}
+
+// prewarmFTSIndex loads the query-path index structures into the page cache
+// through its own read-only connection, so it never holds the serving
+// connection's lock. It returns the logical bytes read. On a Fly shared-cpu-1x
+// machine the disk is capped at 16 MiB/s, so reading only these tables (~36 MB)
+// instead of the whole file (~154 MB) finishes in about a quarter of the time
+// and competes far less with the request that woke the machine.
+func prewarmFTSIndex(out string) (int64, time.Duration, error) {
+	start := time.Now()
+	idx, err := openFTSIndexReadOnly(out)
+	if err != nil {
+		return 0, time.Since(start), err
+	}
+	defer idx.close()
+	var total int64
+	for _, query := range ftsPrewarmQueries {
+		var n int64
+		if err := idx.db.QueryRowContext(context.Background(), query).Scan(&n); err != nil {
+			return total, time.Since(start), err
+		}
+		total += n
+	}
+	return total, time.Since(start), nil
+}
+
 // ftsDocSizeCountQuery counts FTS5's docsize shadow table. FTS5 writes exactly
 // one docsize row per document in the same transaction as the content row
 // (columnsize=1 is the default, and the runtime schema keeps it). COUNT(*) on

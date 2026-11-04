@@ -2534,3 +2534,31 @@ func TestFTSSnippetsLoadBodiesAfterRankingWithDocsPathFallback(t *testing.T) {
 		}
 	}
 }
+
+func TestPrewarmFTSIndexReadsIndexStructures(t *testing.T) {
+	out := t.TempDir()
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs := []ftsMemoryDoc{
+		{Path: "local/a.md", AbsPath: filepath.Join(out, "local/a.md"), Title: "A", Body: []byte("alpha beta gamma")},
+		{Path: "local/b.md", AbsPath: filepath.Join(out, "local/b.md"), Title: "B", Body: []byte("delta epsilon")},
+	}
+	if err := idx.updateFTSFromMemory(out, []string{"local/a.md", "local/b.md"}, docs, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.close(); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := prewarmFTSIndex(out)
+	if err != nil {
+		t.Fatalf("prewarm: %v", err)
+	}
+	if n <= int64(len("local/a.md")+len("local/b.md")) {
+		t.Fatalf("prewarm read %d bytes; want posting lists plus paths", n)
+	}
+	if _, _, err := prewarmFTSIndex(t.TempDir()); err == nil {
+		t.Fatal("prewarm of a missing index returned no error")
+	}
+}

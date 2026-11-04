@@ -336,9 +336,12 @@ The server picks up out-of-process `pull`/`reindex` runs automatically — no
 restart needed.
 
 On a host that starts cold, such as a scale-to-zero VM, add `--prewarm-index`.
-After the listener is up, the server reads `search.db` once in the background,
-so the first queries come from the page cache, not the disk. Do not use it on
-a laptop with a large corpus: the read puts the whole index in memory.
+After the listener is up, the server reads the FTS5 posting lists and lookup
+tables once in the background, through a separate read-only connection. It
+skips the document bodies. On the docs-serve-edge sidecar this is 36 MB of a
+154 MB `search.db`. Queries then read only candidate rows from the disk. Do not
+use it on a laptop with a large corpus: the read puts the posting lists in
+memory.
 
 `vscode-extension/` ships a VS Code client for the same endpoint. The v0.8.2
 GitHub release includes a checksummed `docs-puller-search-0.3.0.vsix`. The

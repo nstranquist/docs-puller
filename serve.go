@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -101,12 +100,12 @@ func cmdServe(args []string) {
 	fmt.Fprintf(os.Stderr, "docs-puller serve → %s  (auth: %s; Ctrl-C to stop)\n", url, authMode)
 	if *prewarmIndex && live != nil {
 		go func() {
-			n, elapsed, err := prewarmFile(ftsDBPath(o.out))
+			n, elapsed, err := prewarmFTSIndex(o.out)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "fts5: prewarm failed after %d bytes: %v\n", n, err)
 				return
 			}
-			fmt.Fprintf(os.Stderr, "fts5: prewarmed %.1f MB in %s\n", float64(n)/(1<<20), elapsed.Round(time.Millisecond))
+			fmt.Fprintf(os.Stderr, "fts5: prewarmed %.1f MB of index structures in %s\n", float64(n)/(1<<20), elapsed.Round(time.Millisecond))
 		}()
 	}
 	// CORS answers OPTIONS preflight before auth runs (browsers/RN send no
@@ -476,20 +475,4 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	if err := enc.Encode(body); err != nil {
 		log.Printf("docs-puller serve: write JSON response: %v", err)
 	}
-}
-
-// prewarmFile reads path sequentially once and discards the bytes, so the
-// kernel page cache holds it. On a freshly booted VM every FTS5 page read is a
-// disk read; on the Fly sidecar the first queries took up to 1.75 s cold versus
-// under 0.2 s when cached. The read runs after the listener is up, so it never
-// delays readiness.
-func prewarmFile(path string) (int64, time.Duration, error) {
-	start := time.Now()
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, time.Since(start), err
-	}
-	defer file.Close()
-	n, err := io.CopyBuffer(io.Discard, file, make([]byte, 1<<20))
-	return n, time.Since(start), err
 }
