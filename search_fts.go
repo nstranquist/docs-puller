@@ -56,6 +56,10 @@ const (
 type ftsIndex struct {
 	db *sql.DB
 	q  *ftsdb.Queries
+	// pathsComplete is true when docs_path maps every document. Only then may
+	// a source filter use the docs_path primary key instead of reading content
+	// rows. See ftsSourceFilterClause.
+	pathsComplete bool
 }
 
 const (
@@ -206,7 +210,60 @@ func openFTSIndexMode(out string, readOnly bool, readQuery url.Values) (*ftsInde
 			return nil, searchruntime.FTSIndexInitSchemaError(err)
 		}
 	}
-	return &ftsIndex{db: db, q: ftsdb.New(db)}, nil
+	idx := &ftsIndex{db: db, q: ftsdb.New(db)}
+	idx.pathsComplete = ftsPathsComplete(db)
+	return idx, nil
+}
+
+// ftsPathsComplete reports whether every document has exactly one docs_path
+// row. An interrupted historical write can leave a document unmapped; then a
+// docs_path-based source filter would drop it, so the caller falls back to
+// filtering on the content row. Cost: one primary-key lookup per document.
+func ftsPathsComplete(db *sql.DB) bool {
+	var docs, mapped int64
+	if err := db.QueryRowContext(context.Background(), ftsDocSizeCountQuery).Scan(&docs); err != nil {
+		return false
+	}
+	err := db.QueryRowContext(context.Background(),
+		`SELECT CAST(COUNT(DISTINCT p.rowid) AS INTEGER) FROM docs_path AS p JOIN docs_docsize AS s ON s.id = p.rowid`,
+	).Scan(&mapped)
+	return err == nil && mapped == docs
+}
+
+// sourceFilterViaPaths reports whether this search may filter sources through
+// docs_path. The open-time check proves the history is fully mapped; the
+// per-search count check (under 1 ms on 39k docs) catches a document written
+// without a mapping after the handle opened.
+func (f *ftsIndex) sourceFilterViaPaths() bool {
+	if !f.pathsComplete {
+		return false
+	}
+	var equal bool
+	err := f.db.QueryRowContext(context.Background(),
+		`SELECT (SELECT COUNT(*) FROM docs_docsize) = (SELECT COUNT(*) FROM docs_path)`,
+	).Scan(&equal)
+	return err == nil && equal
+}
+
+// ftsSourceFilterClause returns the SQL and arguments that limit a tier to
+// one source. FTS5 stores source as an UNINDEXED column, so "source = ?" makes
+// SQLite load the full content row (body included) of every match: up to 28 MB
+// for one tier on the docs-serve-edge index. Every indexed path is
+// "<source>/<rel>" (splitFTSPath), so when docs_path is complete the filter is
+// a primary-key range scan on docs_path, and no content row is read.
+func ftsSourceFilterClause(source string, viaPaths bool) (string, []any) {
+	if source == "" {
+		return "", nil
+	}
+	if viaPaths {
+		// "0" is the byte after "/", so [source+"/", source+"0") is exactly
+		// the paths under source/. The unary "+" keeps SQLite from pushing the
+		// IN list into FTS5 as rowid constraints: FTS5 would then re-run the
+		// MATCH once per rowid in the source (150 ms vs 2 ms per tier).
+		return ` AND +rowid IN (SELECT rowid FROM docs_path WHERE path >= ? AND path < ?)`,
+			[]any{source + "/", source + "0"}
+	}
+	return ` AND source = ?`, []any{source}
 }
 
 func sqliteFileURI(path string, query url.Values) string {
@@ -1260,6 +1317,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if q == "" {
 		return nil, nil
 	}
+	sourceViaPaths := f.sourceFilterViaPaths()
 	scoringTokens := ftsScoringTokens(query, exact)
 	strongSource, hasStrongSource := configurationPayloadSourceIntent(scoringTokens)
 	if !hasStrongSource {
@@ -1285,8 +1343,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    source — without that, "sentry releases cli" with "sentry" stripped
 	//    would flood the pool with Slack changelog pages whose title also
 	//    has "cli". Explicit --source filter wins over inferred.
-	const titleSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 1, 0, 0) AS rank
-	                        FROM docs WHERE docs MATCH ?`
+	const titleSQL = `SELECT rowid AS r, bm25(docs, 1, 0, 0) AS rank FROM docs WHERE docs MATCH ?`
 	titleQ, inferredSource := ftsBuildTitleQuery(query, exact)
 	titleSourceFilter := source
 	if titleSourceFilter == "" {
@@ -1294,7 +1351,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	titleLimit := limit*2 + 5
 	if titleQ != "" {
-		if err := f.runTier(candByPath, titleSQL, titleQ, titleSourceFilter, titleLimit, true, false, false, false); err != nil {
+		if err := f.runTier(candByPath, titleSQL, titleQ, titleSourceFilter, titleLimit, true, false, false, false, sourceViaPaths); err != nil {
 			return nil, err
 		}
 	}
@@ -1319,8 +1376,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//     floor and depth-penalty rerank. The body-tier fetch ratio
 	//     (sqlLimit = limit*5 + 10) is the right baseline; bump slightly
 	//     so chrome-grade verbose hierarchies fit comfortably.
-	const pathSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 0, 1, 0) AS rank
-	                       FROM docs WHERE docs MATCH ?`
+	const pathSQL = `SELECT rowid AS r, bm25(docs, 0, 1, 0) AS rank FROM docs WHERE docs MATCH ?`
 	pathQ, pathInferredSource := ftsBuildPathQuery(query, exact)
 	pathSourceFilter := source
 	if pathSourceFilter == "" {
@@ -1328,7 +1384,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	pathLimit := limit*8 + 30
 	if pathQ != "" {
-		if err := f.runTier(candByPath, pathSQL, pathQ, pathSourceFilter, pathLimit, false, true, false, false); err != nil {
+		if err := f.runTier(candByPath, pathSQL, pathQ, pathSourceFilter, pathLimit, false, true, false, false, sourceViaPaths); err != nil {
 			return nil, err
 		}
 	}
@@ -1338,9 +1394,8 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    encodes the topic ("clickhouse-introspection.md" should beat docs
 	//    that mention clickhouse and introspection only in body) but stays
 	//    below title since title is the strongest signal.
-	const bodySQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
-	                       FROM docs WHERE docs MATCH ?`
-	if err := f.runTier(candByPath, bodySQL, q, source, sqlLimit, false, false, false, false); err != nil {
+	const bodySQL = `SELECT rowid AS r, bm25(docs, 5, 3, 1) AS rank FROM docs WHERE docs MATCH ?`
+	if err := f.runTier(candByPath, bodySQL, q, source, sqlLimit, false, false, false, false, sourceViaPaths); err != nil {
 		return nil, err
 	}
 	// The global body tier can fill its bounded candidate window with duplicate
@@ -1351,7 +1406,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if hasStrongSource {
 		scopedBodyQ := ftsBuildSourceScopedQuery(query, false, strongSource)
 		if scopedBodyQ != "" {
-			if err := f.runTier(candByPath, bodySQL, scopedBodyQ, strongSource, sqlLimit, false, false, false, false); err != nil {
+			if err := f.runTier(candByPath, bodySQL, scopedBodyQ, strongSource, sqlLimit, false, false, false, false, sourceViaPaths); err != nil {
 				return nil, err
 			}
 		}
@@ -1369,12 +1424,11 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if !exact {
 		relaxedQ, relaxedSource, relaxedTokens := ftsBuildRelaxedQuery(query, source)
 		if relaxedTokens >= 4 && relaxedQ != "" {
-			const relaxedSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 0) AS rank
-				                          FROM docs WHERE docs MATCH ?`
+			const relaxedSQL = `SELECT rowid AS r, bm25(docs, 5, 3, 0) AS rank FROM docs WHERE docs MATCH ?`
 			relaxedLimit := limit*10 + 25
 			for _, sourceFilter := range ftsRelaxedSourceFilters(query, source, relaxedSource) {
 				scopedQ := ftsScopeRelaxedQuery(relaxedQ, sourceFilter)
-				if err := f.runTier(candByPath, relaxedSQL, scopedQ, sourceFilter, relaxedLimit, false, false, true, false); err != nil {
+				if err := f.runTier(candByPath, relaxedSQL, scopedQ, sourceFilter, relaxedLimit, false, false, true, false, sourceViaPaths); err != nil {
 					return nil, err
 				}
 				// The surface tier cannot recover concept-to-identifier cases such
@@ -1396,10 +1450,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 					// evidence and must not receive the reciprocal-rank fusion boost.
 					// Keep them in the title, path, strict-body, and relaxed-surface
 					// tiers; exclude them only from this semantic body pass.
-					const relaxedBodySQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
-					                              FROM docs WHERE docs MATCH ?
+					const relaxedBodySQL = `SELECT rowid AS r, bm25(docs, 5, 3, 1) AS rank FROM docs WHERE docs MATCH ?
 					                              AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
-					if err := f.runTier(candByPath, relaxedBodySQL, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true); err != nil {
+					if err := f.runTier(candByPath, relaxedBodySQL, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, sourceViaPaths); err != nil {
 						return nil, err
 					}
 				}
@@ -1913,16 +1966,21 @@ func canonicalContentCandidateLess(a, b *cand) bool {
 // and a search runs up to six tiers, so selecting body read megabytes of
 // content per query for candidates that ranking then discards. Snippet bodies
 // load after the final cut, in loadSnippetBodies.
-func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlBase, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed, fromRelaxedBody bool) error {
+func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlBase, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed, fromRelaxedBody, sourceViaPaths bool) error {
 	ctx := context.Background()
-	var rows *sql.Rows
-	var err error
-	if source != "" {
-		rows, err = f.db.QueryContext(ctx, sqlBase+` AND source = ? ORDER BY rank LIMIT ?`,
-			q, source, sqlLimit)
-	} else {
-		rows, err = f.db.QueryContext(ctx, sqlBase+` ORDER BY rank LIMIT ?`, q, sqlLimit)
-	}
+	// Two steps. The inner query ranks on rowid only, so it reads posting
+	// lists and docsize, never content. The outer join then loads content for
+	// the top sqlLimit rows only. A one-step "SELECT path, ... ORDER BY rank
+	// LIMIT n" made SQLite load the full content row of every match before the
+	// sort: 1,000-3,200 pages per tier versus 180-370 (measured 2026-11-04).
+	sourceClause, sourceArgs := ftsSourceFilterClause(source, sourceViaPaths)
+	args := append([]any{q}, sourceArgs...)
+	args = append(args, sqlLimit)
+	query := `SELECT d.path, d.source, d.title, d.url, d.content_fingerprint, t.rank
+		FROM (` + sqlBase + sourceClause + ` ORDER BY rank LIMIT ?) AS t
+		JOIN docs AS d ON d.rowid = t.r
+		ORDER BY t.rank, t.r`
+	rows, err := f.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		// Log title-tier / path-tier syntax errors but don't propagate; the
 		// body tier still works on its own.

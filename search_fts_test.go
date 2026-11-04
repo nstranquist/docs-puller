@@ -2562,3 +2562,62 @@ func TestPrewarmFTSIndexReadsIndexStructures(t *testing.T) {
 		t.Fatal("prewarm of a missing index returned no error")
 	}
 }
+
+func TestFTSSourceFilterViaDocsPathMatchesContentFilter(t *testing.T) {
+	out := t.TempDir()
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	var docs []ftsMemoryDoc
+	var paths []string
+	for _, path := range []string{"supa/guide.md", "supabase/guide.md", "supabase/deep/auth.md", "supa0/guide.md"} {
+		paths = append(paths, path)
+		docs = append(docs, ftsMemoryDoc{Path: path, AbsPath: filepath.Join(out, path), Title: path, Body: []byte("shared quartz term in " + path)})
+	}
+	if err := idx.updateFTSFromMemory(out, paths, docs, true); err != nil {
+		t.Fatal(err)
+	}
+	if !ftsPathsComplete(idx.db) {
+		t.Fatal("a fully written index is not reported as path-complete")
+	}
+	idx.pathsComplete = true
+	if !idx.sourceFilterViaPaths() {
+		t.Fatal("complete index does not use the docs_path source filter")
+	}
+	for _, source := range []string{"supa", "supabase", "supa0"} {
+		hits, err := idx.searchWithOptions("quartz", source, 10, false, nil, false, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(hits) == 0 {
+			t.Fatalf("source %q returned no hits", source)
+		}
+		for _, hit := range hits {
+			if hit.Source != source || !strings.HasPrefix(hit.Path, source+"/") {
+				t.Fatalf("source %q leaked hit %s (source %s)", source, hit.Path, hit.Source)
+			}
+		}
+	}
+
+	// A document written without a docs_path row must switch the search back
+	// to the content filter, or it would disappear from scoped results.
+	if _, err := idx.db.Exec(`DELETE FROM docs_path WHERE path = ?`, "supabase/deep/auth.md"); err != nil {
+		t.Fatal(err)
+	}
+	if idx.sourceFilterViaPaths() {
+		t.Fatal("an unmapped document did not disable the docs_path source filter")
+	}
+	hits, err := idx.searchWithOptions("quartz", "supabase", 10, false, nil, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, hit := range hits {
+		found = found || hit.Path == "supabase/deep/auth.md"
+	}
+	if !found {
+		t.Fatalf("unmapped document missing from scoped results: %+v", hits)
+	}
+}
