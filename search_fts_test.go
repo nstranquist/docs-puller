@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nstranquist/docs-puller/internal/ftsdb"
 )
 
 func TestSQLiteFileURIWindowsDriveIsRooted(t *testing.T) {
@@ -2428,5 +2430,63 @@ func TestFTSUpsertManyNewPathsScansOnce(t *testing.T) {
 	n, _ := idx.totalDocs()
 	if n != 2300 {
 		t.Fatalf("totalDocs = %d, want 2300", n)
+	}
+}
+
+func TestFTSTotalDocsUsesDocSizeAndMatchesContentCount(t *testing.T) {
+	out := t.TempDir()
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+
+	var docs []ftsMemoryDoc
+	var paths []string
+	for _, name := range []string{"a", "b", "c"} {
+		path := "local/" + name + ".md"
+		paths = append(paths, path)
+		docs = append(docs, ftsMemoryDoc{
+			Path: path, AbsPath: filepath.Join(out, path),
+			Body: []byte("body " + name), Title: "Title " + name,
+		})
+	}
+	if err := idx.updateFTSFromMemory(out, paths, docs, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.db.Exec(`DELETE FROM docs WHERE path = ?`, "local/b.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	var docsize int
+	if err := idx.db.QueryRow(ftsDocSizeCountQuery).Scan(&docsize); err != nil {
+		t.Fatalf("docsize shadow table is unavailable, so totalDocs would take the slow path: %v", err)
+	}
+	full, err := idx.q.CountDocs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	total, err := idx.totalDocs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || docsize != 2 || int(full) != 2 {
+		t.Fatalf("totalDocs=%d docsize=%d content=%d, want 2 each", total, docsize, full)
+	}
+}
+
+func TestFTSTotalDocsFallsBackWithoutDocSize(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "plain.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE docs (path TEXT); INSERT INTO docs VALUES ('x'), ('y')`); err != nil {
+		t.Fatal(err)
+	}
+	idx := &ftsIndex{db: db, q: ftsdb.New(db)}
+	total, err := idx.totalDocs()
+	if err != nil || total != 2 {
+		t.Fatalf("fallback totalDocs = %d, %v; want 2", total, err)
 	}
 }

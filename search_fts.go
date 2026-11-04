@@ -1015,8 +1015,23 @@ func (f *ftsIndex) rebuildFromMemory(docs []ftsMemoryDoc) error {
 	return tx.Commit()
 }
 
+// ftsDocSizeCountQuery counts FTS5's docsize shadow table. FTS5 writes exactly
+// one docsize row per document in the same transaction as the content row
+// (columnsize=1 is the default, and the runtime schema keeps it). COUNT(*) on
+// the docs virtual table instead reads every content row: on a 154 MB index
+// it took ~6 s cold on a Fly shared CPU and ~0.4 s warm locally, versus
+// ~0.01 s here. serve calls totalDocs on every search, so this is query-path
+// latency, not only startup.
+const ftsDocSizeCountQuery = `SELECT CAST(COUNT(*) AS INTEGER) FROM docs_docsize`
+
 func (f *ftsIndex) totalDocs() (int, error) {
-	n, err := f.q.CountDocs(context.Background())
+	ctx := context.Background()
+	var n int64
+	if err := f.db.QueryRowContext(ctx, ftsDocSizeCountQuery).Scan(&n); err == nil {
+		return int(n), nil
+	}
+	// No docsize table (columnsize=0 or a non-FTS5 schema): count content rows.
+	n, err := f.q.CountDocs(ctx)
 	return int(n), err
 }
 
