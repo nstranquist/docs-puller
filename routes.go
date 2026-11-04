@@ -94,6 +94,9 @@ var targetRoutes = []targetRoute{
 	// (docs.unity.com, which advertises native `<page>.md` mirrors).
 	simpleRoute("docs.unity3d.com", "unity", relHTMLPath),
 	simpleRoute("docs.unity.com", "unity", relMarkdownMirror),
+	// Cursor publishes https://cursor.com/llms.txt with native `<page>.md`
+	// mirrors for /docs and /help.
+	simpleRoute("cursor.com", "cursor", relMarkdownMirror),
 }
 
 // resolveTarget maps a URL to (sourceDir, relativePath under that source).

@@ -293,6 +293,8 @@ func TestResolveTarget(t *testing.T) {
 		{"https://code.claude.com/docs/en/hooks-guide.md",
 			"claude-code", "hooks-guide.md"},
 		{"https://code.claude.com/docs/en/mcp", "claude-code", "mcp.md"},
+		{"https://cursor.com/docs/skills.md", "cursor", "docs/skills.md"},
+		{"https://cursor.com/help/customization/skills.md", "cursor", "help/customization/skills.md"},
 		{"https://go.dev/doc/effective_go", "go", "doc/effective_go.md"},
 		{"https://go.dev/doc/articles/wiki/index.html",
 			"go", "doc/articles/wiki/index.md"},
