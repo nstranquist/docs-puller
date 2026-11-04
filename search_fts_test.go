@@ -2490,3 +2490,47 @@ func TestFTSTotalDocsFallsBackWithoutDocSize(t *testing.T) {
 		t.Fatalf("fallback totalDocs = %d, %v; want 2", total, err)
 	}
 }
+
+func TestFTSSnippetsLoadBodiesAfterRankingWithDocsPathFallback(t *testing.T) {
+	out := t.TempDir()
+	idx, err := openFTSIndex(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer idx.close()
+	docs := []ftsMemoryDoc{
+		{Path: "local/alpha.md", AbsPath: filepath.Join(out, "local/alpha.md"), Title: "Alpha", Body: []byte("intro\nthe zephyr gateway handles retries\nend")},
+		{Path: "local/beta.md", AbsPath: filepath.Join(out, "local/beta.md"), Title: "Beta", Body: []byte("other\nzephyr gateway timeouts are tunable\nend")},
+	}
+	if err := idx.updateFTSFromMemory(out, []string{"local/alpha.md", "local/beta.md"}, docs, true); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate an interrupted historical write: beta has no docs_path mapping.
+	if _, err := idx.db.Exec(`DELETE FROM docs_path WHERE path = ?`, "local/beta.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	bodies, err := idx.loadSnippetBodies([]string{"local/alpha.md", "local/beta.md", "local/missing.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bodies["local/alpha.md"], "retries") || !strings.Contains(bodies["local/beta.md"], "tunable") {
+		t.Fatalf("bodies = %v, want both via rowid join and path fallback", bodies)
+	}
+	if _, ok := bodies["local/missing.md"]; ok {
+		t.Fatal("missing path produced a body")
+	}
+
+	hits, err := idx.search("zephyr gateway", "", 10, false, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("hits = %d, want 2", len(hits))
+	}
+	for _, hit := range hits {
+		if len(hit.Snippets) == 0 || !strings.Contains(strings.ToLower(hit.Snippets[0].Text), "zephyr") {
+			t.Fatalf("hit %s has no query snippet: %+v", hit.Path, hit.Snippets)
+		}
+	}
+}

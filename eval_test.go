@@ -906,7 +906,10 @@ func BenchmarkFTSSearchBatchExternalIndex(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	opts := searchOpts{out: out, limit: 10, noSnippets: true, noProfile: true, ftsOnly: true, cachedFTSTotalDocs: totalDocs}
+	// NDEV_DOCS_PULLER_BENCH_SNIPPETS=1 measures the serve/API shape, which
+	// returns snippets. The default stays snippet-free for ranking-only runs.
+	noSnippets := os.Getenv("NDEV_DOCS_PULLER_BENCH_SNIPPETS") != "1"
+	opts := searchOpts{out: out, limit: 10, noSnippets: noSnippets, noProfile: true, ftsOnly: true, cachedFTSTotalDocs: totalDocs}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

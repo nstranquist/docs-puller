@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -69,7 +70,6 @@ const (
 // both `search` and the helper `runTier`.
 type cand struct {
 	hit                searchHit
-	body               string
 	contentFingerprint string
 	fromTitle          bool
 	fromPath           bool
@@ -1248,9 +1248,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    source — without that, "sentry releases cli" with "sentry" stripped
 	//    would flood the pool with Slack changelog pages whose title also
 	//    has "cli". Explicit --source filter wins over inferred.
-	const titleSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 1, 0, 0) AS rank
-	                  FROM docs WHERE docs MATCH ?`
-	const titleSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 1, 0, 0) AS rank
+	const titleSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 1, 0, 0) AS rank
 	                        FROM docs WHERE docs MATCH ?`
 	titleQ, inferredSource := ftsBuildTitleQuery(query, exact)
 	titleSourceFilter := source
@@ -1259,7 +1257,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	titleLimit := limit*2 + 5
 	if titleQ != "" {
-		if err := f.runTier(candByPath, titleSQL, titleSQLNoBody, titleQ, titleSourceFilter, titleLimit, true, false, false, false, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, titleSQL, titleQ, titleSourceFilter, titleLimit, true, false, false, false); err != nil {
 			return nil, err
 		}
 	}
@@ -1284,9 +1282,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//     floor and depth-penalty rerank. The body-tier fetch ratio
 	//     (sqlLimit = limit*5 + 10) is the right baseline; bump slightly
 	//     so chrome-grade verbose hierarchies fit comfortably.
-	const pathSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 0, 1, 0) AS rank
-	                 FROM docs WHERE docs MATCH ?`
-	const pathSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 0, 1, 0) AS rank
+	const pathSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 0, 1, 0) AS rank
 	                       FROM docs WHERE docs MATCH ?`
 	pathQ, pathInferredSource := ftsBuildPathQuery(query, exact)
 	pathSourceFilter := source
@@ -1295,7 +1291,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	}
 	pathLimit := limit*8 + 30
 	if pathQ != "" {
-		if err := f.runTier(candByPath, pathSQL, pathSQLNoBody, pathQ, pathSourceFilter, pathLimit, false, true, false, false, includeSnippets); err != nil {
+		if err := f.runTier(candByPath, pathSQL, pathQ, pathSourceFilter, pathLimit, false, true, false, false); err != nil {
 			return nil, err
 		}
 	}
@@ -1305,11 +1301,9 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	//    encodes the topic ("clickhouse-introspection.md" should beat docs
 	//    that mention clickhouse and introspection only in body) but stays
 	//    below title since title is the strongest signal.
-	const bodySQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 1) AS rank
-	                 FROM docs WHERE docs MATCH ?`
-	const bodySQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
+	const bodySQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
 	                       FROM docs WHERE docs MATCH ?`
-	if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, q, source, sqlLimit, false, false, false, false, includeSnippets); err != nil {
+	if err := f.runTier(candByPath, bodySQL, q, source, sqlLimit, false, false, false, false); err != nil {
 		return nil, err
 	}
 	// The global body tier can fill its bounded candidate window with duplicate
@@ -1320,7 +1314,7 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if hasStrongSource {
 		scopedBodyQ := ftsBuildSourceScopedQuery(query, false, strongSource)
 		if scopedBodyQ != "" {
-			if err := f.runTier(candByPath, bodySQL, bodySQLNoBody, scopedBodyQ, strongSource, sqlLimit, false, false, false, false, includeSnippets); err != nil {
+			if err := f.runTier(candByPath, bodySQL, scopedBodyQ, strongSource, sqlLimit, false, false, false, false); err != nil {
 				return nil, err
 			}
 		}
@@ -1338,14 +1332,12 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if !exact {
 		relaxedQ, relaxedSource, relaxedTokens := ftsBuildRelaxedQuery(query, source)
 		if relaxedTokens >= 4 && relaxedQ != "" {
-			const relaxedSQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 0) AS rank
-				                    FROM docs WHERE docs MATCH ?`
-			const relaxedSQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 0) AS rank
+			const relaxedSQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 0) AS rank
 				                          FROM docs WHERE docs MATCH ?`
 			relaxedLimit := limit*10 + 25
 			for _, sourceFilter := range ftsRelaxedSourceFilters(query, source, relaxedSource) {
 				scopedQ := ftsScopeRelaxedQuery(relaxedQ, sourceFilter)
-				if err := f.runTier(candByPath, relaxedSQL, relaxedSQLNoBody, scopedQ, sourceFilter, relaxedLimit, false, false, true, false, includeSnippets); err != nil {
+				if err := f.runTier(candByPath, relaxedSQL, scopedQ, sourceFilter, relaxedLimit, false, false, true, false); err != nil {
 					return nil, err
 				}
 				// The surface tier cannot recover concept-to-identifier cases such
@@ -1367,13 +1359,10 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 					// evidence and must not receive the reciprocal-rank fusion boost.
 					// Keep them in the title, path, strict-body, and relaxed-surface
 					// tiers; exclude them only from this semantic body pass.
-					const relaxedBodySQL = `SELECT path, source, title, url, content_fingerprint, body, bm25(docs, 5, 3, 1) AS rank
-					                        FROM docs WHERE docs MATCH ?
-					                        AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
-					const relaxedBodySQLNoBody = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
+					const relaxedBodySQL = `SELECT path, source, title, url, content_fingerprint, bm25(docs, 5, 3, 1) AS rank
 					                              FROM docs WHERE docs MATCH ?
 					                              AND instr(lower(body), 'this article has multiple variants. fetch one of the following urls') = 0`
-					if err := f.runTier(candByPath, relaxedBodySQL, relaxedBodySQLNoBody, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true, includeSnippets); err != nil {
+					if err := f.runTier(candByPath, relaxedBodySQL, scopedBodyQ, sourceFilter, relaxedLimit, false, false, true, true); err != nil {
 						return nil, err
 					}
 				}
@@ -1676,16 +1665,77 @@ func (f *ftsIndex) searchWithOptions(query, source string, limit int, exact bool
 	if limit > 0 && len(cands) > limit {
 		cands = cands[:limit]
 	}
+	var bodies map[string]string
+	if includeSnippets {
+		paths := make([]string, len(cands))
+		for i, c := range cands {
+			paths[i] = c.hit.Path
+		}
+		var err error
+		if bodies, err = f.loadSnippetBodies(paths); err != nil {
+			return nil, err
+		}
+	}
 	hits := make([]searchHit, len(cands))
 	for i, c := range cands {
 		if includeSnippets {
-			c.hit.Snippets = extractSnippetsFromText(c.body, qLower)
+			c.hit.Snippets = extractSnippetsFromText(bodies[c.hit.Path], qLower)
 		} else {
 			c.hit.Snippets = nil
 		}
 		hits[i] = c.hit
 	}
 	return hits, nil
+}
+
+// loadSnippetBodies reads bodies for the final hits only. docs_path maps each
+// path to its FTS5 rowid through a primary key, so each body is one rowid read.
+// A path without a docs_path row (an interrupted historical write) falls back
+// to a path match on the FTS table, which scans but stays correct.
+func (f *ftsIndex) loadSnippetBodies(paths []string) (map[string]string, error) {
+	bodies := make(map[string]string, len(paths))
+	if len(paths) == 0 {
+		return bodies, nil
+	}
+	ctx := context.Background()
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(paths)), ",")
+	args := make([]any, len(paths))
+	for i, path := range paths {
+		args[i] = path
+	}
+	rows, err := f.db.QueryContext(ctx,
+		`SELECT p.path, d.body FROM docs_path AS p JOIN docs AS d ON d.rowid = p.rowid WHERE p.path IN (`+placeholders+`)`,
+		args...)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var path, body string
+		if err := rows.Scan(&path, &body); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		bodies[path] = body
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		if _, ok := bodies[path]; ok {
+			continue
+		}
+		var body string
+		err := f.db.QueryRowContext(ctx, `SELECT body FROM docs WHERE path = ? LIMIT 1`, path).Scan(&body)
+		if err == nil {
+			bodies[path] = body
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+	}
+	return bodies, nil
 }
 
 // explicitPathSurfaceIntent returns a path-level documentation interface only
@@ -1821,12 +1871,13 @@ func canonicalContentCandidateLess(a, b *cand) bool {
 // expression are logged and ignored — the body tier alone still gives a
 // usable result, which is the right degradation for a Tier-1 search-quality
 // optimization (no full-search outage if SQL syntax is off).
-func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutBody, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed, fromRelaxedBody bool, includeBody bool) error {
+//
+// Tiers never select body. Each tier returns up to limit*5+10 (or more) rows,
+// and a search runs up to six tiers, so selecting body read megabytes of
+// content per query for candidates that ranking then discards. Snippet bodies
+// load after the final cut, in loadSnippetBodies.
+func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlBase, q, source string, sqlLimit int, fromTitle, fromPath, fromRelaxed, fromRelaxedBody bool) error {
 	ctx := context.Background()
-	sqlBase := sqlWithBody
-	if !includeBody {
-		sqlBase = sqlWithoutBody
-	}
 	var rows *sql.Rows
 	var err error
 	if source != "" {
@@ -1854,18 +1905,11 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		rowRank++
 		var (
 			h                  searchHit
-			body               string
 			contentFingerprint sql.NullString
 			rank               float64
 		)
-		if includeBody {
-			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &contentFingerprint, &body, &rank); err != nil {
-				return err
-			}
-		} else {
-			if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &contentFingerprint, &rank); err != nil {
-				return err
-			}
+		if err := rows.Scan(&h.Path, &h.Source, &h.Title, &h.URL, &contentFingerprint, &rank); err != nil {
+			return err
 		}
 		fingerprint := contentFingerprint.String
 		// BM25 returns negative-magnitude scores; flip + scale to int.
@@ -1877,9 +1921,6 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 			}
 			if existing.contentFingerprint == "" {
 				existing.contentFingerprint = fingerprint
-			}
-			if includeBody && existing.body == "" {
-				existing.body = body
 			}
 			if fromTitle {
 				existing.fromTitle = true
@@ -1900,7 +1941,7 @@ func (f *ftsIndex) runTier(candByPath map[string]*cand, sqlWithBody, sqlWithoutB
 		if fromRelaxedBody {
 			bodyRank = rowRank
 		}
-		candByPath[h.Path] = &cand{hit: h, body: body, contentFingerprint: fingerprint, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
+		candByPath[h.Path] = &cand{hit: h, contentFingerprint: fingerprint, fromTitle: fromTitle, fromPath: fromPath, fromRelaxed: fromRelaxed, relaxedBodyRank: bodyRank}
 	}
 	return rows.Err()
 }
