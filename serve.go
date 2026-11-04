@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -36,6 +38,7 @@ func cmdServe(args []string) {
 	addr := fs.String("addr", "127.0.0.1", "bind address (use 0.0.0.0 for LAN)")
 	authToken := fs.String("auth-token", "", "require `Authorization: Bearer <token>` on every request (or --auth-token-file / $DOCS_SERVE_TOKEN)")
 	authTokenFile := fs.String("auth-token-file", "", "read the bearer token from the first line of this file")
+	prewarmIndex := fs.Bool("prewarm-index", false, "after binding, read search.db once in the background so a cold host (scale-to-zero VM) serves first queries from page cache")
 	bindOpts(fs, &o)
 	if err := fs.Parse(args); err != nil {
 		die(err)
@@ -91,10 +94,24 @@ func cmdServe(args []string) {
 	if token != "" {
 		authMode = "bearer token required"
 	}
+	listener, err := net.Listen("tcp", listen)
+	if err != nil {
+		die(err)
+	}
 	fmt.Fprintf(os.Stderr, "docs-puller serve → %s  (auth: %s; Ctrl-C to stop)\n", url, authMode)
+	if *prewarmIndex && live != nil {
+		go func() {
+			n, elapsed, err := prewarmFile(ftsDBPath(o.out))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fts5: prewarm failed after %d bytes: %v\n", n, err)
+				return
+			}
+			fmt.Fprintf(os.Stderr, "fts5: prewarmed %.1f MB in %s\n", float64(n)/(1<<20), elapsed.Round(time.Millisecond))
+		}()
+	}
 	// CORS answers OPTIONS preflight before auth runs (browsers/RN send no
 	// Authorization on preflight); withAuth gates every real request.
-	if err := http.ListenAndServe(listen, withCORS(withAuth(token, mux))); err != nil {
+	if err := http.Serve(listener, withCORS(withAuth(token, mux))); err != nil {
 		die(err)
 	}
 }
@@ -459,4 +476,20 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	if err := enc.Encode(body); err != nil {
 		log.Printf("docs-puller serve: write JSON response: %v", err)
 	}
+}
+
+// prewarmFile reads path sequentially once and discards the bytes, so the
+// kernel page cache holds it. On a freshly booted VM every FTS5 page read is a
+// disk read; on the Fly sidecar the first queries took up to 1.75 s cold versus
+// under 0.2 s when cached. The read runs after the listener is up, so it never
+// delays readiness.
+func prewarmFile(path string) (int64, time.Duration, error) {
+	start := time.Now()
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, time.Since(start), err
+	}
+	defer file.Close()
+	n, err := io.CopyBuffer(io.Discard, file, make([]byte, 1<<20))
+	return n, time.Since(start), err
 }

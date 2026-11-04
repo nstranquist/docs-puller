@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -281,5 +282,20 @@ func TestStatusAPIHandler(t *testing.T) {
 	}
 	if got.Root != dir {
 		t.Errorf("root = %q, want %q", got.Root, dir)
+	}
+}
+
+func TestPrewarmFileReadsWholeFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "search.db")
+	want := bytes.Repeat([]byte("x"), 3<<20+17)
+	if err := os.WriteFile(path, want, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := prewarmFile(path)
+	if err != nil || n != int64(len(want)) {
+		t.Fatalf("prewarmFile = %d, %v; want %d bytes", n, err, len(want))
+	}
+	if _, _, err := prewarmFile(filepath.Join(t.TempDir(), "missing.db")); err == nil {
+		t.Fatal("missing file prewarmed without error")
 	}
 }
