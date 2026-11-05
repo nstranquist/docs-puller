@@ -1,0 +1,238 @@
+{
+  "recorded_at": "2026-11-05T20:43:14.645641+00:00",
+  "source_commit": "f07e4a8318241e2da156aee93872f7cbde8eda8d",
+  "command": "DOCS_PULLER_QUERY_LOG=0 bin/docs-puller eval-suite --json",
+  "corpus_manifest_sha256": "9ec0543b29d71c1e00848232e4d870d43f7d4a31080dc1e00ad970b363a6c856",
+  "corpus_fts_rows": 40212,
+  "ranking_changes": false,
+  "rows": [
+    {
+      "fixture": "blender.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 40,
+        "hit_at_1": 0.85,
+        "hit_at_3": 1,
+        "hit_at_5": 1,
+        "hit_at_10": 1,
+        "recall_at_5": 1,
+        "mrr": 0.9208333333333332,
+        "p50_ms": 39.653,
+        "p99_ms": 85.978,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 1,
+        "p50_tokens_returned": 346,
+        "p99_tokens_returned": 428
+      }
+    },
+    {
+      "fixture": "fixture.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 151,
+        "hit_at_1": 0.8079470198675497,
+        "hit_at_3": 0.9602649006622517,
+        "hit_at_5": 0.9933774834437086,
+        "hit_at_10": 1,
+        "recall_at_5": 0.9514348785871966,
+        "mrr": 0.8828918322295806,
+        "p50_ms": 23.999,
+        "p99_ms": 80.484,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 1,
+        "p50_tokens_returned": 339,
+        "p99_tokens_returned": 638
+      }
+    },
+    {
+      "fixture": "heldout-v0.6-final.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 35,
+        "hit_at_1": 0.45714285714285713,
+        "hit_at_3": 0.9142857142857143,
+        "hit_at_5": 0.9428571428571428,
+        "hit_at_10": 0.9428571428571428,
+        "recall_at_5": 0.9428571428571428,
+        "mrr": 0.677142857142857,
+        "p50_ms": 63.073,
+        "p99_ms": 321.996,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.9428571428571428,
+        "p50_tokens_returned": 274,
+        "p99_tokens_returned": 381
+      }
+    },
+    {
+      "fixture": "heldout-v0.6-generalization.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 35,
+        "hit_at_1": 0.5428571428571428,
+        "hit_at_3": 0.9428571428571428,
+        "hit_at_5": 0.9714285714285714,
+        "hit_at_10": 0.9714285714285714,
+        "recall_at_5": 0.9428571428571428,
+        "mrr": 0.7342857142857143,
+        "p50_ms": 140.43,
+        "p99_ms": 371.871,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.9714285714285714,
+        "p50_tokens_returned": 332,
+        "p99_tokens_returned": 498
+      }
+    },
+    {
+      "fixture": "heldout-v0.6-independent.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 35,
+        "hit_at_1": 0.4,
+        "hit_at_3": 0.7714285714285715,
+        "hit_at_5": 0.8571428571428571,
+        "hit_at_10": 0.8571428571428571,
+        "recall_at_5": 0.8571428571428571,
+        "mrr": 0.6023809523809524,
+        "p50_ms": 48.442,
+        "p99_ms": 129.698,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.8571428571428571,
+        "p50_tokens_returned": 274,
+        "p99_tokens_returned": 385
+      }
+    },
+    {
+      "fixture": "heldout-v0.6.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 35,
+        "hit_at_1": 0.5142857142857142,
+        "hit_at_3": 0.7714285714285715,
+        "hit_at_5": 0.8857142857142857,
+        "hit_at_10": 0.9714285714285714,
+        "recall_at_5": 0.8380952380952381,
+        "mrr": 0.6705555555555555,
+        "p50_ms": 78.704,
+        "p99_ms": 296.562,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.9714285714285714,
+        "p50_tokens_returned": 332,
+        "p99_tokens_returned": 502
+      }
+    },
+    {
+      "fixture": "heldout-v0.8.1-final.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 30,
+        "hit_at_1": 0.6333333333333333,
+        "hit_at_3": 0.8666666666666667,
+        "hit_at_5": 0.9333333333333333,
+        "hit_at_10": 0.9666666666666667,
+        "recall_at_5": 0.9333333333333333,
+        "mrr": 0.7563888888888888,
+        "p50_ms": 66.84,
+        "p99_ms": 329.564,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.9666666666666667,
+        "p50_tokens_returned": 275,
+        "p99_tokens_returned": 375
+      }
+    },
+    {
+      "fixture": "natural-language.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 33,
+        "hit_at_1": 0.7272727272727273,
+        "hit_at_3": 1,
+        "hit_at_5": 1,
+        "hit_at_10": 1,
+        "recall_at_5": 0.8762626262626262,
+        "mrr": 0.8636363636363636,
+        "p50_ms": 30.377,
+        "p99_ms": 85.186,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 1,
+        "p50_tokens_returned": 358,
+        "p99_tokens_returned": 734
+      }
+    },
+    {
+      "fixture": "nl-questions.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 30,
+        "hit_at_1": 0.6,
+        "hit_at_3": 0.7666666666666667,
+        "hit_at_5": 0.8,
+        "hit_at_10": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 0.6805555555555556,
+        "p50_ms": 31.669,
+        "p99_ms": 161.658,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.8,
+        "p50_tokens_returned": 356,
+        "p99_tokens_returned": 518
+      }
+    },
+    {
+      "fixture": "production-telemetry.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 27,
+        "hit_at_1": 0.4074074074074074,
+        "hit_at_3": 0.4074074074074074,
+        "hit_at_5": 0.4074074074074074,
+        "hit_at_10": 0.4074074074074074,
+        "recall_at_5": 0.3888888888888889,
+        "mrr": 0.4074074074074074,
+        "p50_ms": 14.238,
+        "p99_ms": 38.579,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.4074074074074074,
+        "p50_tokens_returned": 337,
+        "p99_tokens_returned": 415
+      }
+    },
+    {
+      "fixture": "refs-dissections.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 7,
+        "hit_at_1": 0.42857142857142855,
+        "hit_at_3": 0.42857142857142855,
+        "hit_at_5": 0.42857142857142855,
+        "hit_at_10": 0.5714285714285714,
+        "recall_at_5": 0.35714285714285715,
+        "mrr": 0.4523809523809524,
+        "p50_ms": 10.438,
+        "p99_ms": 19.269,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.5714285714285714,
+        "p50_tokens_returned": 348,
+        "p99_tokens_returned": 372
+      }
+    },
+    {
+      "fixture": "unity.yaml",
+      "summary": {
+        "mode": "fts5",
+        "n": 31,
+        "hit_at_1": 0.8387096774193549,
+        "hit_at_3": 0.9354838709677419,
+        "hit_at_5": 0.967741935483871,
+        "hit_at_10": 0.967741935483871,
+        "recall_at_5": 0.967741935483871,
+        "mrr": 0.8951612903225806,
+        "p50_ms": 22.553,
+        "p99_ms": 90.292,
+        "token_budget_tokens": 4000,
+        "token_budget_hit_rate": 0.967741935483871,
+        "p50_tokens_returned": 272,
+        "p99_tokens_returned": 320
+      }
+    }
+  ]
+}

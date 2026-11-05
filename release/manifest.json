@@ -16,6 +16,7 @@
   "release_manifest_name": "release-manifest.json",
   "commands": [
     "config",
+    "context",
     "crawl-refs",
     "curation",
     "demo",
@@ -40,6 +41,7 @@
     "pull-pdf",
     "pull-pins",
     "pull-url",
+    "reconcile",
     "refresh",
     "reindex",
     "search",
@@ -51,7 +53,9 @@
     "version"
   ],
   "capabilities": [
+    "context.evidence.v1",
     "contract.version-json.v1",
+    "corpus.reconcile.v1",
     "demo.isolated.v1",
     "embed.stale-prune.v1",
     "pull.docc",

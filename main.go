@@ -123,6 +123,7 @@ var topLevelCommandHandlers = map[string]func([]string){
 	"crawl-refs":       cmdCrawlRefs,
 	"curation":         cmdCuration,
 	"demo":             cmdDemo,
+	"context":          cmdContext,
 	"embed":            cmdEmbed,
 	"emit-llmstxt":     cmdEmitLLMsTxt,
 	"eval":             cmdEval,
@@ -146,6 +147,7 @@ var topLevelCommandHandlers = map[string]func([]string){
 	"pull-url":         cmdPullURL,
 	"refresh":          cmdRefresh,
 	"reindex":          cmdReindex,
+	"reconcile":        cmdReconcile,
 	"search":           cmdSearch,
 	"search-batch":     cmdSearchBatch,
 	"serve":            cmdServe,
@@ -207,6 +209,8 @@ CORE
   version [--json] [--expect V]
   demo | init | config init|path | pull … | pull-url | pull-article | pull-pdf | pdf-doctor | pull-local-batch
   reindex | status [--check] | list | show | search <q> [--json] [--compact]
+  reconcile [--out DIR] [--json]
+  context <q> [--max-bytes N] | context --path SOURCE/DOC.md [--line N]
   eval | eval-suite | eval-leaderboard | emit-llmstxt | embed | serve
   pins … | crawl-refs | telemetry … | help [--compact] [--json]
 
