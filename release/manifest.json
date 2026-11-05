@@ -65,6 +65,7 @@
     "pull.github-repo",
     "pull.llms-txt",
     "pull.local",
+    "pull.local-batch-origin.v1",
     "pull.native-markdown-mirror.v1",
     "pull.pdf-inspector.doctor.v1",
     "pull.pdf-inspector.v1",

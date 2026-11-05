@@ -84,11 +84,12 @@ type localIngestStats struct {
 }
 
 type localIngestDoc struct {
-	result  result
-	body    []byte
-	absOut  string
-	title   string
-	changed bool
+	result       result
+	body         []byte
+	absOut       string
+	title        string
+	changed      bool
+	indexChanged bool
 }
 
 type localBatchCollectResult struct {
@@ -229,10 +230,12 @@ func cmdPullLocalBatch(args []string) {
 	o := defaultOpts()
 	fs := flag.NewFlagSet("pull-local-batch", flag.ExitOnError)
 	var sources stringSliceFlag
+	var origins stringSliceFlag
 	var excludes stringSliceFlag
 	jsonOut := fs.Bool("json", false, "emit JSON summary")
 	allowLargePrune := fs.Bool("allow-large-prune", false, "with --replace-source: allow a guarded large source deletion after reviewing discovery input")
 	fs.Var(&sources, "source", "local source in NAME=PATH form (repeatable)")
+	fs.Var(&origins, "origin-base", "stable origin in NAME=URL form for a batch source (repeatable)")
 	fs.Var(&excludes, "exclude", "skip paths matching glob for all sources (repeatable)")
 	bindOpts(fs, &o)
 	fs.Parse(args)
@@ -274,6 +277,23 @@ func cmdPullLocalBatch(args []string) {
 		})
 	}
 
+	for _, spec := range origins {
+		name, base, ok := strings.Cut(spec, "=")
+		if !ok || strings.TrimSpace(base) == "" {
+			die(fmt.Errorf("--origin-base requires NAME=URL"))
+		}
+		found := false
+		for i := range batchSources {
+			if batchSources[i].name == name {
+				batchSources[i].originBase = base
+				found = true
+				break
+			}
+		}
+		if !found {
+			die(fmt.Errorf("--origin-base names unknown source %q", name))
+		}
+	}
 	cmdArgs := append([]string{"pull-local-batch"}, args...)
 	summary, err := ingestLocalBatch(batchSources, o, cmdArgs, excludes)
 	if err != nil {
@@ -808,8 +828,7 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		}
 		info, err := d.Info()
 		if err != nil {
-			stats.skipped++
-			return nil
+			return fmt.Errorf("stat discovered local document %s: %w", p, err)
 		}
 		if info.Size() > localFileSizeLimit {
 			fmt.Fprintf(os.Stderr, "  SKIP %s — file > %d bytes\n", p, localFileSizeLimit)
@@ -831,8 +850,7 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 
 		data, err := os.ReadFile(p)
 		if err != nil {
-			stats.skipped++
-			return nil
+			return fmt.Errorf("read discovered local document %s: %w", p, err)
 		}
 		if strings.EqualFold(filepath.Ext(rel), ".rst") {
 			data = rstToMarkdown(data)
@@ -872,12 +890,16 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 			SHA256:    sha,
 			FetchedAt: now,
 		}
+		if !changed && prior.URL == url {
+			r.FetchedAt = prior.FetchedAt
+		}
 		docs = append(docs, localIngestDoc{
-			result:  r,
-			body:    data,
-			absOut:  outPath,
-			title:   title,
-			changed: changed,
+			result:       r,
+			body:         data,
+			absOut:       outPath,
+			title:        title,
+			changed:      changed,
+			indexChanged: changed || prior.URL != r.URL || prior.Mode != r.Mode,
 		})
 		stats.copied++
 		return nil
@@ -1030,9 +1052,27 @@ func localBatchSourceWorkers(sourceCount int) int {
 }
 
 func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, excludes []string) (localBatchSummary, error) {
+	var summary localBatchSummary
+	started := time.Now()
+	err := withWriteLock(o.out, func() error {
+		wait := durationMillis(time.Since(started))
+		var err error
+		summary, err = ingestLocalBatchLocked(sources, o, cmdArgs, excludes)
+		summary.LockMs = wait
+		return err
+	})
+	return summary, err
+}
+
+func ingestLocalBatchLocked(sources []localBatchSource, o pullOpts, cmdArgs []string, excludes []string) (localBatchSummary, error) {
 	start := time.Now()
 	now := start.UTC().Format(time.RFC3339)
 	var summary localBatchSummary
+	if o.replaceSource && !o.allowLargePrune {
+		if err := preflightLocalReplacement(sources, o.out, excludes); err != nil {
+			return summary, err
+		}
+	}
 	preExistingSources, err := listSources(o.out)
 	if err != nil {
 		return localBatchSummary{}, err
@@ -1095,7 +1135,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 	ftsCompactError := ""
 	ftsCompactMs := float64(0)
 	lockStart := time.Now()
-	if err := withWriteLock(o.out, func() error {
+	if err := func() error {
 		manifestStart := time.Now()
 		var prunedPaths []string
 		if err := writeManifestsWithPolicy(o.out, manifestResults, o.replaceSource, o.allowLargePrune, &prunedPaths); err != nil {
@@ -1114,8 +1154,34 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 				return err
 			}
 		} else {
-			if err := regenerateIndex(o.out, allSources); err != nil {
-				return err
+			// Rebuild only sources whose bodies or index metadata changed. A
+			// missing index still requires repair, even on an unchanged pull.
+			touched := map[string]bool{}
+			for _, doc := range allDocs {
+				if doc.indexChanged {
+					touched[doc.result.Source] = true
+				}
+			}
+			for _, p := range prunedPaths {
+				if source, _, ok := strings.Cut(filepath.ToSlash(p), "/"); ok {
+					touched[source] = true
+				}
+			}
+			for _, source := range allSources {
+				if _, err := os.Stat(filepath.Join(o.out, source, "_INDEX.md")); err != nil {
+					touched[source] = true
+				}
+			}
+			var changedSources []string
+			for source := range touched {
+				changedSources = append(changedSources, source)
+			}
+			sort.Strings(changedSources)
+			_, topErr := os.Stat(filepath.Join(o.out, "_INDEX.md"))
+			if len(changedSources) > 0 || topErr != nil {
+				if err := regenerateIndex(o.out, changedSources); err != nil {
+					return err
+				}
 			}
 		}
 		summary.IndexRegenMs = durationMillis(time.Since(indexStart))
@@ -1181,7 +1247,7 @@ func ingestLocalBatch(sources []localBatchSource, o pullOpts, cmdArgs []string, 
 		}
 		summary.LogMs = durationMillis(time.Since(logStart))
 		return nil
-	}); err != nil {
+	}(); err != nil {
 		return localBatchSummary{}, err
 	}
 	summary.LockMs = durationMillis(time.Since(lockStart))
