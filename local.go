@@ -1200,10 +1200,13 @@ func ingestLocalBatchLocked(sources []localBatchSource, o pullOpts, cmdArgs []st
 		ftsStart := time.Now()
 		if idx, err := openFTSIndex(o.out); err == nil {
 			coversCorpus := len(preExistingSources) == 0
+			beforeCount, _ := idx.totalDocs()
 			if rerr := idx.updateFTSFromMemory(o.out, changedPaths, localFTSMemoryDocs(allDocs, coversCorpus), coversCorpus); rerr != nil {
 				fmt.Fprintf(os.Stderr, "fts5: update failed: %v\n", rerr)
 			} else {
-				ftsUpdated = true
+				// A populated index with no changed paths needs no FTS writes.
+				// Still open and check it so a missing index is rebuilt.
+				ftsUpdated = len(changedPaths) > 0 || (beforeCount == 0 && len(allDocs) > 0)
 				if n, err := idx.totalDocs(); err == nil {
 					ftsDocCount = n
 				}

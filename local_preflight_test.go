@@ -94,7 +94,7 @@ func TestLocalBatchStableOriginNoopAndIndexRepair(t *testing.T) {
 		before[p] = string(body)
 	}
 	s, err := ingestLocalBatch(sources, o, nil, nil)
-	if err != nil || s.WriteCount != 0 || s.ChangedPathCount != 0 {
+	if err != nil || s.WriteCount != 0 || s.ChangedPathCount != 0 || s.FTSUpdated {
 		t.Fatalf("no-op: %+v %v", s, err)
 	}
 	for _, p := range paths {
@@ -102,6 +102,13 @@ func TestLocalBatchStableOriginNoopAndIndexRepair(t *testing.T) {
 		if err != nil || string(body) != before[p] {
 			t.Fatalf("no-op changed %s: %v", p, err)
 		}
+	}
+	if err := os.Remove(ftsDBPath(out)); err != nil {
+		t.Fatal(err)
+	}
+	s, err = ingestLocalBatch(sources, o, nil, nil)
+	if err != nil || !s.FTSUpdated || s.FTSDocCount != 1 || s.WriteCount != 0 {
+		t.Fatalf("missing FTS repair: %+v %v", s, err)
 	}
 	os.Remove(filepath.Join(out, "stable", "_INDEX.md"))
 	if _, err := ingestLocalBatch(sources, o, nil, nil); err != nil {
