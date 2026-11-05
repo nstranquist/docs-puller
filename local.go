@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -870,7 +871,10 @@ func collectLocalIngestResults(walkRoot, source, outRoot string, urlFor func(rel
 		}
 		if ok && canonicalLogicalPath(prior.Path) == logicalPath && prior.SHA256 == sha {
 			if info, err := os.Stat(outPath); err == nil && info.Size() == int64(len(data)) {
-				changed = false
+				// Size alone cannot establish artifact integrity: a same-size
+				// edit must be repaired before FTS and manifest reuse are valid.
+				existing, err := os.ReadFile(outPath)
+				changed = err != nil || !bytes.Equal(existing, data)
 			}
 		}
 		if changed {

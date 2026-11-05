@@ -120,3 +120,43 @@ func TestLocalBatchStableOriginNoopAndIndexRepair(t *testing.T) {
 		t.Fatalf("stale index: %s", body)
 	}
 }
+
+func TestLocalReplacementRejectsInvalidManifestBeforeCopy(t *testing.T) {
+	for _, name := range []string{manifestFile, legacyManifestFile} {
+		t.Run(name, func(t *testing.T) {
+			source, out := t.TempDir(), t.TempDir()
+			os.WriteFile(filepath.Join(source, "a.md"), []byte("# New\n"), 0600)
+			dest := filepath.Join(out, "safe")
+			os.MkdirAll(dest, 0700)
+			os.WriteFile(filepath.Join(dest, "a.md"), []byte("# Old\n"), 0600)
+			os.WriteFile(filepath.Join(dest, name), []byte("{broken"), 0600)
+			_, err := ingestLocalBatch([]localBatchSource{{name: "safe", walkRoot: source}}, pullOpts{out: out, replaceSource: true}, nil, nil)
+			if err == nil || !strings.Contains(err.Error(), "replacement manifest") {
+				t.Fatalf("%v", err)
+			}
+			body, err := os.ReadFile(filepath.Join(dest, "a.md"))
+			if err != nil || string(body) != "# Old\n" {
+				t.Fatalf("copy before validation: %q %v", body, err)
+			}
+		})
+	}
+}
+
+func TestLocalBatchRepairsSameSizeArtifactCorruption(t *testing.T) {
+	source, out := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(source, "a.md"), []byte("# Original\n"), 0600)
+	sources := []localBatchSource{{name: "safe", walkRoot: source}}
+	opts := pullOpts{out: out, replaceSource: true}
+	if _, err := ingestLocalBatch(sources, opts, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(out, "safe", "a.md"), []byte("# Modified\n"), 0600)
+	summary, err := ingestLocalBatch(sources, opts, nil, nil)
+	if err != nil || summary.WriteCount != 1 {
+		t.Fatalf("%+v %v", summary, err)
+	}
+	body, _ := os.ReadFile(filepath.Join(out, "safe", "a.md"))
+	if string(body) != "# Original\n" {
+		t.Fatalf("unrepaired: %q", body)
+	}
+}

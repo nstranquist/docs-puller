@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -45,7 +46,10 @@ func preflightLocalReplacement(sources []localBatchSource, out string, excludes 
 		if err != nil {
 			return fmt.Errorf("replacement discovery %s: %w", src.name, err)
 		}
-		prior := readManifestEntriesNoMigrate(filepath.Join(out, src.name))
+		prior, err := replacementManifestEntries(filepath.Join(out, src.name))
+		if err != nil {
+			return fmt.Errorf("replacement manifest %s: %w", src.name, err)
+		}
 		paths, err := sourceDocPaths(out, src.name)
 		if err != nil && !os.IsNotExist(err) {
 			return err
@@ -75,4 +79,43 @@ func preflightLocalReplacement(sources []localBatchSource, out string, excludes 
 		}
 	}
 	return nil
+}
+
+// Read without migration: a rejected replacement must not change corpus state.
+// Unlike the best-effort reuse reader, this safety check cannot ignore errors.
+func replacementManifestEntries(dir string) (map[string]result, error) {
+	data, err := os.ReadFile(filepath.Join(dir, manifestFile))
+	if err == nil {
+		var m manifest
+		if err := json.Unmarshal(data, &m); err != nil {
+			return nil, err
+		}
+		normalizeManifestPaths(&m)
+		return m.Entries, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+	data, err = os.ReadFile(filepath.Join(dir, legacyManifestFile))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	entries := map[string]result{}
+	for i, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var r result
+		if err := json.Unmarshal([]byte(line), &r); err != nil {
+			return nil, fmt.Errorf("legacy line %d: %w", i+1, err)
+		}
+		if r.URL != "" {
+			r.Path = canonicalLogicalPath(r.Path)
+			entries[r.URL] = r
+		}
+	}
+	return entries, nil
 }
