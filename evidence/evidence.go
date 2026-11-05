@@ -110,9 +110,9 @@ func read(root *os.Root, req Request) (Passage, error) {
 		return p, fmt.Errorf("document is not UTF-8")
 	}
 	lines := strings.Split(strings.TrimSuffix(string(b), "\n"), "\n")
-	start := req.Line - 1
-	if start < 0 {
-		start = 0
+	start := 0
+	if req.Line > 0 {
+		start = req.Line - 1
 	}
 	if start >= len(lines) {
 		return p, fmt.Errorf("line outside document")
@@ -121,13 +121,14 @@ func read(root *os.Root, req Request) (Passage, error) {
 	if n <= 0 {
 		n = 60
 	}
-	end := min(len(lines), start+n)
+	end := start + min(n, len(lines)-start)
 	// Expand boundaries around fenced blocks. A too-large complete block is
 	// skipped by Build instead of returning malformed or misleading code.
 	fenceStart := -1
 	marker := ""
 	width := 0
 	headings := []string{}
+	headingLevels := []int{}
 	for i, line := range lines {
 		t := strings.TrimSpace(line)
 		ch := ""
@@ -151,10 +152,12 @@ func read(root *os.Root, req Request) (Passage, error) {
 					level++
 				}
 				if level <= 6 && level < len(t) && t[level] == ' ' {
-					for len(headings) >= level {
+					for len(headingLevels) > 0 && headingLevels[len(headingLevels)-1] >= level {
 						headings = headings[:len(headings)-1]
+						headingLevels = headingLevels[:len(headingLevels)-1]
 					}
 					headings = append(headings, strings.TrimSpace(t[level:]))
+					headingLevels = append(headingLevels, level)
 				}
 			}
 		} else if ch == marker && w >= width && strings.TrimSpace(t[w:]) == "" {

@@ -76,3 +76,28 @@ func TestRejectOversizedAndInvalidDocuments(t *testing.T) {
 		}
 	}
 }
+
+func TestHeadingPathWithSkippedLevels(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "a.md"), []byte("# Root\n### First\ntext\n### Second\nbody\n"), 0600)
+	p, err := Build(context.Background(), root, []Request{{Path: "a.md", Line: 5, Lines: 1}}, 1000)
+	if err != nil || len(p.Passages) != 1 {
+		t.Fatalf("%+v %v", p, err)
+	}
+	got := strings.Join(p.Passages[0].Headings, "/")
+	if got != "Root/Second" {
+		t.Fatalf("heading path=%q", got)
+	}
+}
+
+func TestExtremeWindowCannotOverflow(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "a.md"), []byte("first\nsecond\nthird\n"), 0600)
+	p, err := Build(context.Background(), root, []Request{{Path: "a.md", Line: 2, Lines: int(^uint(0) >> 1)}}, 1000)
+	if err != nil || len(p.Passages) != 1 {
+		t.Fatalf("%+v %v", p, err)
+	}
+	if p.Passages[0].EndLine != 3 {
+		t.Fatal(p.Passages[0])
+	}
+}
