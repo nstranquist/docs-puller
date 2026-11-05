@@ -61,3 +61,16 @@ explicit header, read, write, and idle timeouts.
 Eval-suite JSON adds `coverage` per fixture: expected-path count, missing-path
 count, and queries with no available expected alternative. Historical ranking
 metrics are retained without silently dropping unsupported queries.
+
+## Content-bound repair preview
+
+`docs-puller reconcile plan --out CORPUS --json` emits
+`docs-puller.repair-plan.v1`. Each unique orphan has a SHA-256 content hash,
+byte count, and `review_required` disposition. The state digest includes manifest
+bytes, membership diagnostics, and candidate hashes. Identical inputs produce
+identical plan digests. The command does not create archives or move files.
+
+Planning rejects symlink paths and detects membership changes during its scan.
+It is not a transactional snapshot: future apply must revalidate inputs under
+the publication protocol. Collector classification, archive apply/restore, and
+stale-plan enforcement at apply remain required before live corpus repair.

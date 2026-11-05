@@ -164,6 +164,10 @@ func reconcileCorpus(out string) (reconciliation, error) {
 }
 
 func cmdReconcile(args []string) {
+	plan := len(args) > 0 && args[0] == "plan"
+	if plan {
+		args = args[1:]
+	}
 	fs := flag.NewFlagSet("reconcile", flag.ExitOnError)
 	out := fs.String("out", defaultOpts().out, "corpus directory")
 	fs.Bool("json", true, "emit read-only membership report")
@@ -171,6 +175,16 @@ func cmdReconcile(args []string) {
 	absolute, err := filepath.Abs(*out)
 	if err != nil {
 		die(err)
+	}
+	if plan {
+		report, err := buildRepairPlan(absolute)
+		if err != nil {
+			die(err)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+			die(err)
+		}
+		return
 	}
 	report, err := reconcileCorpus(absolute)
 	if err != nil {
