@@ -14,10 +14,11 @@ import (
 )
 
 type evalSuiteRow struct {
-	Fixture string           `json:"fixture"`
-	Summary evalSummary      `json:"summary"`
-	Error   string           `json:"error,omitempty"`
-	Results []evalCaseResult `json:"-"`
+	Coverage *evalFixtureCoverage `json:"coverage,omitempty"`
+	Fixture  string               `json:"fixture"`
+	Summary  evalSummary          `json:"summary"`
+	Error    string               `json:"error,omitempty"`
+	Results  []evalCaseResult     `json:"-"`
 }
 
 type evalSuiteReport struct {
@@ -274,7 +275,7 @@ func runEvalSuiteWithProgress(paths []string, outDir string, useScan bool, limit
 		}
 		applyDefaultQueryType(fix, path)
 		results, summary := runEvalWithIdx(fix, outDir, useScan, limit, nil, perQueryOpts, tokenBudget, answerContext)
-		rows = append(rows, evalSuiteRow{Fixture: path, Summary: summary, Results: results})
+		rows = append(rows, evalSuiteRow{Fixture: path, Summary: summary, Results: results, Coverage: fixtureCoverage(fix, outDir)})
 	}
 	return rows
 }
@@ -376,4 +377,32 @@ func printEvalSuiteDiff(baselinePath string, diff *evalSuiteDiffReport) {
 	for _, name := range diff.MissingBaseline {
 		fmt.Printf("missing baseline fixture: %s\n", name)
 	}
+}
+
+// Coverage is reported separately: an unavailable target is not a ranking miss.
+// Existing metrics remain unchanged for historical comparison.
+type evalFixtureCoverage struct {
+	ExpectedPaths                 int `json:"expected_paths"`
+	MissingPaths                  int `json:"missing_paths"`
+	QueriesWithoutAvailableTarget int `json:"queries_without_available_target"`
+}
+
+func fixtureCoverage(fix *evalFixture, root string) *evalFixtureCoverage {
+	c := &evalFixtureCoverage{}
+	for _, q := range fix.Queries {
+		available := 0
+		for _, path := range q.Expect {
+			c.ExpectedPaths++
+			info, err := os.Stat(searchruntime.EvalCheckFixturePath(root, path))
+			if err != nil || !info.Mode().IsRegular() {
+				c.MissingPaths++
+			} else {
+				available++
+			}
+		}
+		if len(q.Expect) > 0 && available == 0 {
+			c.QueriesWithoutAvailableTarget++
+		}
+	}
+	return c
 }

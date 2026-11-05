@@ -79,6 +79,7 @@ func cmdServe(args []string) {
 	mux.HandleFunc("/api/sources", sourcesAPIHandler(o))
 	mux.HandleFunc("/api/status", statusAPIHandler(o, live))
 	mux.HandleFunc("/api/doc", docAPIHandler(o))
+	mux.HandleFunc("/api/evidence", evidenceAPIHandler(o))
 
 	// Serve embedded web/ at /. embed strips the "web" prefix.
 	sub, err := stripFS(webFS, "web")
@@ -110,7 +111,8 @@ func cmdServe(args []string) {
 	}
 	// CORS answers OPTIONS preflight before auth runs (browsers/RN send no
 	// Authorization on preflight); withAuth gates every real request.
-	if err := http.Serve(listener, withCORS(withAuth(token, mux))); err != nil {
+	server := &http.Server{Handler: withCORS(withAuth(token, mux)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
+	if err := server.Serve(listener); err != nil {
 		die(err)
 	}
 }

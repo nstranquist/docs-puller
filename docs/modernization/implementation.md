@@ -52,3 +52,12 @@ may change concurrently, so repeat diagnostics after active pulls finish.
 Research defaults: 5 minutes, 3 rounds, 24 fetched pages, 60,000 observable model
 tokens. Modes: local, suggest sources, discover and fetch. Private session data
 stays private until explicit promotion; optional auto-file starts disabled.
+
+The existing authenticated HTTP server now exposes `GET /api/evidence` with
+`path`, `line`, `lines`, and `max_bytes` query parameters. It uses the same
+reader and hashes as the CLI, with at most 65,536 content bytes. The server has
+explicit header, read, write, and idle timeouts.
+
+Eval-suite JSON adds `coverage` per fixture: expected-path count, missing-path
+count, and queries with no available expected alternative. Historical ranking
+metrics are retained without silently dropping unsupported queries.

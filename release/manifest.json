@@ -76,6 +76,7 @@
     "search.hybrid-source-scope.v1",
     "serve.auth-loopback-guard.v1",
     "serve.document-window.v1",
+    "serve.evidence.v1",
     "serve.http.v1",
     "telemetry.provenance.v1"
   ],
