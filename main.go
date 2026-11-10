@@ -1177,6 +1177,16 @@ func fetchAndConvert(rawURL string) ([]byte, error) {
 		host = u.Host
 	}
 	title := extractHTMLTitle(body)
+	if docspackEnabled() {
+		// Optional docspack path (docspack_wire.go), default OFF:
+		// segment-allowlist cleaning instead of extractMain +
+		// html-to-markdown. Same title-prepend + cleanMarkdown fixups.
+		md := cleanMarkdown(convertWithDocspack(body))
+		if title != "" && !bodyHasMatchingH1(md, title) {
+			md = "# " + title + "\n\n" + md
+		}
+		return []byte(md), nil
+	}
 	main := extractMain(host, body)
 	md, err := htmltomd.ConvertString(string(main))
 	if err != nil {

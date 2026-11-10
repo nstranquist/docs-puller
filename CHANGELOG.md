@@ -6,6 +6,10 @@ must name both the old and new behavior.
 
 ## Unreleased
 
+### Added
+
+- Optional docspack HTML→Markdown conversion path, off by default. Old behavior: `fetchAndConvert` always converts via `extractMain` + html-to-markdown. New behavior: with `DOCS_PULLER_DOCSPACK=1`, conversion instead uses the new `internal/docspack` segment-allowlist cleaning (headings/code preserved, nav/footer chrome dropped), rendered as Markdown by `convertWithDocspack`. No measured retrieval-quality claim yet — the corpus diff and eval run required before any default change are specified in `internal/docspack/INTEGRATION.md`.
+
 ### Fixed
 
 - Sitemap, llms.txt, page-data, and `--from` pulls drop copies of a page published for other docs versions (for example `/docs/0.85/intro` or `/docs/next/intro` when `/docs/intro` is listed, or `/versions/v58.0.0/x` when `/versions/latest/x` is listed). A URL is dropped only when its unversioned or `latest` twin is in the same set. Old behavior: an uncapped React Native sitemap pull was 2,670 URLs for 225 current pages, and Expo added about 950 old-SDK copies. New behavior: 247 and 714 URLs.
