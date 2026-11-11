@@ -344,8 +344,8 @@ func TestIngestLocalBatchEndToEnd(t *testing.T) {
 	if warmSummary.ChangedPathCount != 0 {
 		t.Fatalf("warm changed paths = %d, want 0", warmSummary.ChangedPathCount)
 	}
-	if !warmSummary.FTSUpdated {
-		t.Fatalf("warm summary did not report FTS update: %+v", warmSummary)
+	if warmSummary.FTSUpdated {
+		t.Fatalf("unchanged warm ingest reported an FTS write: %+v", warmSummary)
 	}
 	if warmSummary.FTSDocCount != 2 || warmSummary.FTSSizeBytes == 0 {
 		t.Fatalf("warm fts summary = docs:%d size:%d, want docs=2 and nonzero size", warmSummary.FTSDocCount, warmSummary.FTSSizeBytes)
