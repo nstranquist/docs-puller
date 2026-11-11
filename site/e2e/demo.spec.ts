@@ -20,7 +20,7 @@ test("searches, previews a document, and keeps the primary journey accessible", 
   await page.goto("/demo/")
 
   await expect(
-    page.getByRole("heading", { name: "Ask the engine. Inspect the evidence." })
+    page.getByRole("heading", { name: "Search the public sample" })
   ).toBeVisible()
   await expect(page.getByText("SQLite FTS5 Extension")).toBeVisible()
   await expect(page.getByText("1 result from the public sample")).toBeVisible()

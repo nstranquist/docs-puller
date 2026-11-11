@@ -98,13 +98,6 @@
 
   body {
     @apply bg-background text-foreground min-h-screen;
-    background-image:
-      radial-gradient(circle at 8% -10%, var(--wash), transparent 31rem),
-      radial-gradient(
-        circle at 92% 2%,
-        oklch(0.78 0.12 195 / 0.1),
-        transparent 27rem
-      );
   }
 
   button,
@@ -121,14 +114,6 @@
 }
 
 @layer components {
-  .page-grid {
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: linear-gradient(to bottom, black 0%, transparent 72%);
-  }
-
   .section-wrap {
     @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12;
   }
@@ -137,31 +122,22 @@
     @apply border-border/70 border-t;
   }
 
-  .eyebrow {
-    @apply text-primary inline-flex items-center gap-2 font-mono text-[0.68rem] leading-none font-semibold tracking-[0.14em] uppercase;
-  }
-
   .display-title {
-    @apply font-heading text-[clamp(2.75rem,8vw,6.75rem)] leading-[0.91] font-semibold tracking-[-0.062em];
+    @apply font-heading text-[clamp(2.4rem,5vw,4rem)] leading-[1.02] font-semibold tracking-[-0.04em];
     text-wrap: balance;
   }
 
   .section-title {
-    @apply font-heading text-[clamp(2rem,5vw,4rem)] leading-[0.98] font-semibold tracking-[-0.048em];
+    @apply font-heading text-[clamp(1.55rem,3vw,2.3rem)] leading-[1.1] font-semibold tracking-[-0.03em];
     text-wrap: balance;
   }
 
   .lede {
-    @apply text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl;
-  }
-
-  .signal-dot {
-    @apply bg-primary relative inline-flex size-2 rounded-full;
-    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary), transparent 86%);
+    @apply text-muted-foreground max-w-2xl text-base leading-relaxed sm:text-lg;
   }
 
   .terminal-shell {
-    @apply overflow-hidden rounded-2xl border border-white/10 bg-[#101827] text-slate-100 shadow-[0_30px_90px_rgba(15,24,39,.22)];
+    @apply overflow-hidden rounded-xl border border-white/10 bg-[#101827] text-slate-100 shadow-[0_10px_30px_rgba(15,24,39,.14)];
   }
 
   .terminal-chrome {

@@ -38,23 +38,17 @@ const sources = [
   title="Method"
   description="Audit the docs-puller public demo corpus, retrieval baseline, privacy boundary, architecture, and reproducible commands."
 >
-  <section class="relative overflow-hidden pt-16 pb-16 sm:pt-24 sm:pb-24">
-    <div class="page-grid pointer-events-none absolute inset-0 -z-10"></div>
+  <section class="pt-14 pb-14 sm:pt-20 sm:pb-20">
     <div class="section-wrap grid gap-10 lg:grid-cols-[1fr_18rem] lg:items-end">
       <div>
-        <p class="eyebrow">Transparent by design</p>
-        <h1
-          class="font-heading mt-6 text-[clamp(3rem,8vw,6.5rem)] leading-[.91] font-semibold tracking-[-.062em]"
-        >
-          The method,<br /><span class="text-primary">not the mystique.</span>
-        </h1>
+        <h1 class="display-title">Method</h1>
         <p class="lede mt-7">
           The public demo is small enough to audit and complete enough to prove
           the full retrieval path.
         </p>
       </div>
       <nav
-        class="border-border/70 bg-background/65 grid gap-1 rounded-xl border p-2 text-sm"
+        class="border-border/70 grid gap-1 rounded-xl border p-2 text-sm"
         aria-label="Method sections"
       >
         <a
@@ -89,17 +83,14 @@ const sources = [
   <section id="architecture" class="section-rule scroll-mt-24 py-20 sm:py-28">
     <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
       <div>
-        <p class="eyebrow">Architecture</p>
-        <h2 class="section-title mt-5">
-          One engine.<br />Two hard boundaries.
-        </h2>
+        <h2 class="section-title">Architecture</h2>
       </div>
       <div>
         <div
           class="grid gap-3 font-mono text-xs sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center"
         >
           <div class="border-border bg-card rounded-xl border p-5">
-            <p class="text-primary">01 / BROWSER</p><p
+            <p class="text-muted-foreground">01 / BROWSER</p><p
               class="mt-4 font-sans text-sm font-semibold"
             >
               Static Astro site
@@ -111,7 +102,7 @@ const sources = [
           </div>
           <span class="text-muted-foreground hidden sm:block">→</span>
           <div class="border-border bg-card rounded-xl border p-5">
-            <p class="text-primary">02 / EDGE</p><p
+            <p class="text-muted-foreground">02 / EDGE</p><p
               class="mt-4 font-sans text-sm font-semibold"
             >
               Cloudflare BFF
@@ -122,22 +113,20 @@ const sources = [
             </p>
           </div>
           <span class="text-muted-foreground hidden sm:block">→</span>
-          <div
-            class="border-border rounded-xl border bg-[#101827] p-5 text-slate-100"
-          >
-            <p class="text-emerald-300">03 / ORIGIN</p><p
+          <div class="border-border bg-card rounded-xl border p-5">
+            <p class="text-muted-foreground">03 / ORIGIN</p><p
               class="mt-4 font-sans text-sm font-semibold"
             >
               Go + SQLite FTS5
             </p><p
-              class="mt-2 font-sans text-xs leading-relaxed text-slate-400"
+              class="text-muted-foreground mt-2 font-sans text-xs leading-relaxed"
             >
               Token-gated and read-only on Fly.
             </p>
           </div>
         </div>
         <div class="mt-8 grid gap-4 sm:grid-cols-2">
-          <div class="bg-muted/55 rounded-xl p-5">
+          <div class="border-border rounded-xl border p-5">
             <h3 class="font-semibold">The browser can ask</h3><p
               class="text-muted-foreground mt-2 text-sm leading-relaxed"
             >
@@ -145,7 +134,7 @@ const sources = [
               from 1 to 10.
             </p>
           </div>
-          <div class="bg-muted/55 rounded-xl p-5">
+          <div class="border-border rounded-xl border p-5">
             <h3 class="font-semibold">The browser cannot reach</h3><p
               class="text-muted-foreground mt-2 text-sm leading-relaxed"
             >
@@ -161,10 +150,7 @@ const sources = [
   <section id="corpus" class="section-rule scroll-mt-24 py-20 sm:py-28">
     <div class="section-wrap">
       <div class="max-w-3xl">
-        <p class="eyebrow">Corpus v1</p>
-        <h2 class="section-title mt-5">
-          24 public pages.<br />Every input named.
-        </h2>
+        <h2 class="section-title">Corpus</h2>
         <p class="text-muted-foreground mt-6 text-lg leading-relaxed">
           The deployment accepts only the files in its signed manifest. A new
           content digest requires review and a fresh eval.
@@ -184,7 +170,7 @@ const sources = [
           sources.map((source) => (
             <div class="border-border/70 grid gap-3 border-b px-5 py-5 last:border-0 sm:grid-cols-[1fr_7rem_1.2fr_1.4fr] sm:items-center sm:gap-5 sm:px-6">
               <h3 class="font-semibold">{source.name}</h3>
-              <p class="text-primary font-mono text-sm">{source.pages}</p>
+              <p class="font-mono text-sm">{source.pages}</p>
               <p class="text-muted-foreground text-sm">{source.license}</p>
               <p class="text-muted-foreground text-sm leading-relaxed">
                 {source.use}
@@ -208,8 +194,7 @@ const sources = [
     <div class="section-wrap">
       <div class="grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
         <div>
-          <p class="eyebrow">Frozen baseline</p>
-          <h2 class="section-title mt-5">Claims with a replay button.</h2>
+          <h2 class="section-title">Baseline</h2>
           <p class="text-muted-foreground mt-6 leading-relaxed">
             The public fixture contains 24 identifier-style and natural-language
             queries. It uses BM25 only. No reranker or model call can improve
@@ -222,7 +207,7 @@ const sources = [
           {
             metrics.map(([label, value, note]) => (
               <div class="bg-card p-6 sm:p-8">
-                <p class="text-primary font-mono text-[0.65rem] font-bold tracking-[.08em] uppercase">
+                <p class="text-muted-foreground font-mono text-[0.65rem] font-bold tracking-[.08em] uppercase">
                   {label}
                 </p>
                 <p class="mt-5 font-mono text-4xl font-semibold tracking-[-.06em]">
@@ -237,15 +222,15 @@ const sources = [
         </div>
       </div>
       <div class="mt-10 grid gap-4 sm:grid-cols-2">
-        <div class="border-primary/18 bg-primary/[.055] rounded-xl border p-5">
-          <p class="text-primary font-semibold">This proves</p><p
+        <div class="border-border rounded-xl border p-5">
+          <p class="font-semibold">This proves</p><p
             class="text-muted-foreground mt-2 text-sm leading-relaxed"
           >
             The exact engine and corpus can retrieve expected public pages at
             the published floor.
           </p>
         </div>
-        <div class="border-border bg-muted/35 rounded-xl border p-5">
+        <div class="border-border rounded-xl border p-5">
           <p class="font-semibold">This does not prove</p><p
             class="text-muted-foreground mt-2 text-sm leading-relaxed"
           >
@@ -260,8 +245,7 @@ const sources = [
   <section id="privacy" class="section-rule scroll-mt-24 py-20 sm:py-28">
     <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
       <div>
-        <p class="eyebrow">Privacy and limits</p>
-        <h2 class="section-title mt-5">Safe by a small surface.</h2>
+        <h2 class="section-title">Privacy and limits</h2>
       </div>
       <div class="grid gap-6 sm:grid-cols-2">
         <div>
@@ -325,9 +309,7 @@ const sources = [
             </dd>
           </dl>
         </div>
-        <div
-          class="border-border bg-muted/35 rounded-xl border p-5 sm:col-span-2"
-        >
+        <div class="border-border rounded-xl border p-5 sm:col-span-2">
           <p class="text-muted-foreground text-sm leading-relaxed">
             <strong class="text-foreground font-semibold"
               >Rate enforcement:</strong
@@ -343,8 +325,7 @@ const sources = [
   <section id="reproduce" class="section-rule scroll-mt-24 py-20 sm:py-28">
     <div class="section-wrap grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20">
       <div>
-        <p class="eyebrow">Reproduce it</p>
-        <h2 class="section-title mt-5">No special access required.</h2>
+        <h2 class="section-title">Reproduce</h2>
         <p class="text-muted-foreground mt-6 leading-relaxed">
           Build the exact reviewed corpus and run its fixture with the open CLI.
           The optional network replay checks current vendor pages for drift.
