@@ -37,7 +37,7 @@ VM-only human authority or implement shared synchronization.
   (`serve.go`, `serve_auth.go`). No listener was found on default port 7799.
 - [ ] Run `pnpm check` from `site` when host admission permits it.
 - [ ] Obtain current VM working-state proof before claiming VM convergence.
-- [ ] Verify central authority and audit register deliveries land.
+- [x] Central authority `da71314d9d155c77f85deec3104ae7aa22a2583b` and register `5e65f8bf145cdca283338415b2e3fe0a43f8ef59` landed and were verified.
 
 The first frontend check request used an unregistered workload and did not run.
 The corrected `candidate-verify-path` request timed out after 60 seconds waiting
@@ -49,3 +49,9 @@ custom-port listener; sensitive browser/live exposure remains unproved.
 Journal: the older audit pin `3c1735c1` is historical and superseded for current
 source assessment. Divergence alone was not a correctness defect. H02 is resolved
 at source-authority level; H08 remains an exposure question, not a confirmed leak.
+
+Dated continuation: WORK-340 owns the remaining frontend acceptance. A fresh
+2026-11-11 05:24 UTC host sample was red at 95.8% CPU, so there was no repeat
+local admission loop. A read-only probe of active runner 3 found no `node` or
+`pnpm` on PATH; no runtime was installed and no remote gate was submitted.
+The site check remains unrun, not failed or passed.
