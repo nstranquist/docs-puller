@@ -209,7 +209,7 @@ CORE
   version [--json] [--expect V]
   demo | init | config init|path | pull … | pull-url | pull-article | pull-pdf | pdf-doctor | pull-local-batch
   reindex | status [--check] | list | show | search <q> [--json] [--compact]
-  reconcile [--out DIR] [--json]
+  reconcile [plan | verify --plan FILE] [--out DIR] [--json]
   context <q> [--max-bytes N] | context --path SOURCE/DOC.md [--line N]
   eval | eval-suite | eval-leaderboard | emit-llmstxt | embed | serve
   pins … | crawl-refs | telemetry … | help [--compact] [--json]
@@ -261,6 +261,8 @@ Usage:
   docs-puller refresh --stale [--stale-days N] [--dry-run]  # replay every stale/partial source
   docs-puller reindex [--out DIR] [--reclaim-space] [--prune-orphans]
                                              # rebuild FTS5; optionally compact it
+  docs-puller reconcile [plan | verify --plan FILE] [--out DIR] [--json]
+                                             # read-only preview or stale-input verification
   docs-puller status [--out DIR] [--check] [--check-embeddings] [--check-ingest-log]
                                              # health summary for corpus + FTS5
   docs-puller list                           [--out DIR] [--json]

@@ -42,6 +42,23 @@ Read the [install guide](docs/user/install.md), the
 [first-hour guide](docs/user/first-hour.md), or the complete
 [user-guide index](docs/user/README.md).
 
+## Review a repair preview
+
+Reconciliation and preview verification are read-only. Save a preview outside
+its corpus, review it, then check whether its inputs are still current:
+
+```sh
+docs-puller reconcile plan --out /path/to/corpus > repair-plan.json
+docs-puller reconcile verify --out /path/to/corpus --plan repair-plan.json
+```
+
+Verification returns JSON with `valid: true` and the matching digests. It fails
+if the plan was changed, belongs to another corpus, or its observed inputs have
+changed. Regenerate and review a stale preview. Success describes this check
+only; it does not reserve the corpus or authorize a repair. Neither command
+archives or removes files. A future mutation must recheck under exclusive
+mutation ownership.
+
 ## Showcase
 
 <img src="https://raw.githubusercontent.com/nstranquist/docs-puller/main/assets/brand/docs-puller.png" width="96" height="96" alt="docs-puller application icon">

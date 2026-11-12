@@ -56,6 +56,7 @@
     "context.evidence.v1",
     "contract.version-json.v1",
     "corpus.reconcile.v1",
+    "corpus.repair-verify.v1",
     "demo.isolated.v1",
     "embed.stale-prune.v1",
     "pull.docc",
@@ -82,12 +83,36 @@
     "telemetry.provenance.v1"
   ],
   "targets": [
-    {"goos": "darwin", "goarch": "amd64", "archive": "tar.gz"},
-    {"goos": "darwin", "goarch": "arm64", "archive": "tar.gz"},
-    {"goos": "linux", "goarch": "amd64", "archive": "tar.gz"},
-    {"goos": "linux", "goarch": "arm64", "archive": "tar.gz"},
-    {"goos": "windows", "goarch": "amd64", "archive": "zip"},
-    {"goos": "windows", "goarch": "arm64", "archive": "zip"}
+    {
+      "goos": "darwin",
+      "goarch": "amd64",
+      "archive": "tar.gz"
+    },
+    {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "archive": "tar.gz"
+    },
+    {
+      "goos": "linux",
+      "goarch": "amd64",
+      "archive": "tar.gz"
+    },
+    {
+      "goos": "linux",
+      "goarch": "arm64",
+      "archive": "tar.gz"
+    },
+    {
+      "goos": "windows",
+      "goarch": "amd64",
+      "archive": "zip"
+    },
+    {
+      "goos": "windows",
+      "goarch": "arm64",
+      "archive": "zip"
+    }
   ],
   "consumers": {
     "nship_launch": "nship-launch.yaml",

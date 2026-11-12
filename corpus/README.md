@@ -16,3 +16,5 @@ research and user documentation remain in the linked sources.
 Glossary: canonical means the source root used for new audit work; shared writers
 means authorized Mac and VM contributors, not automatic concurrent Git merging;
 landed means local source ancestry, not remote publication or installed behavior.
+
+- [Read-only repair verification proof and open checks](repair-verification-2026-11-12.md)

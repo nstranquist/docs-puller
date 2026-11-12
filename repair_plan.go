@@ -148,3 +148,36 @@ func buildRepairPlan(out string) (repairPlan, error) {
 	p.PlanDigest, err = digestJSON(p)
 	return p, err
 }
+
+// verifyRepairPlan is a read-only check at the current observation point. A
+// future apply must perform the same check while holding mutation ownership;
+// this command does not reserve the corpus or authorize archive/removal.
+func verifyRepairPlan(out string, saved repairPlan) (repairPlan, error) {
+	if saved.SchemaVersion != "docs-puller.repair-plan.v1" || !saved.ReadOnly {
+		return repairPlan{}, fmt.Errorf("unsupported repair plan schema or mutation mode")
+	}
+	absolute, err := filepath.Abs(out)
+	if err != nil {
+		return repairPlan{}, err
+	}
+	if saved.Corpus != absolute {
+		return repairPlan{}, fmt.Errorf("repair plan corpus does not match requested root")
+	}
+	want := saved.PlanDigest
+	saved.PlanDigest = ""
+	got, err := digestJSON(saved)
+	if err != nil {
+		return repairPlan{}, err
+	}
+	if want == "" || want != got {
+		return repairPlan{}, fmt.Errorf("repair plan digest mismatch: regenerate the preview")
+	}
+	current, err := buildRepairPlan(absolute)
+	if err != nil {
+		return repairPlan{}, err
+	}
+	if current.StateDigest != saved.StateDigest || current.PlanDigest != want {
+		return repairPlan{}, fmt.Errorf("stale repair plan: corpus inputs changed; regenerate and review the preview")
+	}
+	return current, nil
+}

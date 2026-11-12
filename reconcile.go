@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -165,16 +166,53 @@ func reconcileCorpus(out string) (reconciliation, error) {
 
 func cmdReconcile(args []string) {
 	plan := len(args) > 0 && args[0] == "plan"
-	if plan {
+	verify := len(args) > 0 && args[0] == "verify"
+	if plan || verify {
 		args = args[1:]
 	}
 	fs := flag.NewFlagSet("reconcile", flag.ExitOnError)
 	out := fs.String("out", defaultOpts().out, "corpus directory")
+	planPath := fs.String("plan", "", "saved repair preview to verify (verify subcommand only)")
 	fs.Bool("json", true, "emit read-only membership report")
 	fs.Parse(args)
+	if fs.NArg() != 0 || (verify && *planPath == "") || (!verify && *planPath != "") {
+		die(fmt.Errorf("usage: reconcile [plan | verify --plan FILE] [--out DIR] [--json]"))
+	}
 	absolute, err := filepath.Abs(*out)
 	if err != nil {
 		die(err)
+	}
+	if verify {
+		f, err := os.Open(*planPath)
+		if err != nil {
+			die(err)
+		}
+		defer f.Close()
+		decoder := json.NewDecoder(f)
+		decoder.DisallowUnknownFields()
+		var saved repairPlan
+		if err := decoder.Decode(&saved); err != nil {
+			die(fmt.Errorf("read repair plan: %w", err))
+		}
+		var extra any
+		if err := decoder.Decode(&extra); err != io.EOF {
+			die(fmt.Errorf("repair plan must contain exactly one JSON object"))
+		}
+		current, err := verifyRepairPlan(absolute, saved)
+		if err != nil {
+			die(err)
+		}
+		result := struct {
+			SchemaVersion string `json:"schema_version"`
+			ReadOnly      bool   `json:"read_only"`
+			Valid         bool   `json:"valid"`
+			PlanDigest    string `json:"plan_digest"`
+			StateDigest   string `json:"state_digest"`
+		}{"docs-puller.repair-verification.v1", true, true, current.PlanDigest, current.StateDigest}
+		if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+			die(err)
+		}
+		return
 	}
 	if plan {
 		report, err := buildRepairPlan(absolute)
