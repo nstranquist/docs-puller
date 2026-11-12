@@ -1,6 +1,6 @@
 # Read-only repair preview verification
 
-Status: 2026-11-12 implemented; candidate CLI and runner checks passed.
+Status: 2026-11-12 source landed and normal installed CLI verified.
 Owner: Codex session 01a1c82a-4cc8-7950-ad12-380eb2d1ecce; WORK-5.
 
 ## Decision 1
@@ -31,7 +31,7 @@ explicit acceptance evidence, not adoption or long-term reliability evidence.
 
 ## Open items
 
-- [ ] Verify normal installed entrypoint after guarded source publication.
+- [x] Verify normal installed entrypoint after guarded source publication.
 - [ ] Implement reviewed archive/apply and restore with ownership-bound rechecks.
 - [ ] Prove generation crash recovery and immutable reader behavior.
 - [ ] Complete retrieval/evaluation/client parity acceptance in WORK-5.
@@ -40,3 +40,9 @@ explicit acceptance evidence, not adoption or long-term reliability evidence.
 
 2026-11-12: implemented verification without granting deletion authority. Kept
 WORK-5 open because this is one modernization capability, not the complete task.
+
+2026-11-12 installed closeout: source commit `31f11385d98e4b7ef33615ac21f41bba1f88d404`
+was rebuilt on runner 3 job f5607a40-381d-4cde-9932-bea861562245. The normal
+entrypoint reports that exact commit and `corpus.repair-verify.v1`, accepts the
+unchanged preview and rejects same-size content drift. Previous installed bytes
+were retained before atomic replacement. [Installed identity and outcomes](research/repair-verification-installed-2026-11-12.json).
