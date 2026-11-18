@@ -52,7 +52,10 @@ jobs:
         run: |
           set -o pipefail
           go run -tags sqlite_fts5 ./deploy/demo/cmd/corpus-builder \
-            --corpus "${RUNNER_TEMP}/public-sample" | tee corpus-lock-verification.json
+            --corpus "${RUNNER_TEMP}/public-sample" 2> corpus-lock-verification.stderr \
+            | tee corpus-lock-verification.json && rc=0 || rc=$?
+          cat corpus-lock-verification.stderr >&2
+          exit "$rc"
       - name: Summarize metrics
         if: always()
         run: test ! -f public-sample-result.json || jq '.summary' public-sample-result.json
@@ -64,6 +67,7 @@ jobs:
           path: |
             public-sample-result.json
             corpus-lock-verification.json
+            corpus-lock-verification.stderr
           if-no-files-found: ignore
       - name: Manage upstream drift issue
         if: always()
@@ -81,7 +85,9 @@ jobs:
               state: "open",
               per_page: 100,
             });
-            const openIssue = issues.find((issue) => issue.title === title);
+            const openIssue = issues.find((issue) =>
+              issue.title === title && !issue.pull_request && issue.user?.login === "github-actions[bot]"
+            );
             const ok = process.env.EVALUATION_OUTCOME === "success" &&
               process.env.LOCK_OUTCOME === "success";
 
@@ -97,9 +103,31 @@ jobs:
               }
               return;
             }
-            if (openIssue) return;
-
             const runURL = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const begin = "<!-- public-sample-replay:latest:start -->";
+            const end = "<!-- public-sample-replay:latest:end -->";
+            const latest = [
+              begin,
+              "### Latest replay",
+              `Run: ${runURL}`,
+              `Evaluation: ${process.env.EVALUATION_OUTCOME || "skipped"}`,
+              `Content lock: ${process.env.LOCK_OUTCOME || "skipped"}`,
+              end,
+            ].join("\n\n");
+
+            if (openIssue) {
+              const body = openIssue.body ?? "";
+              const start = body.lastIndexOf(begin);
+              const stop = body.indexOf(end, start + begin.length);
+              const nextBody = start >= 0 && stop >= 0
+                ? body.slice(0, start) + latest + body.slice(stop + end.length)
+                : [body, latest].filter(Boolean).join("\n\n");
+              if (nextBody !== body) {
+                await github.rest.issues.update({ owner, repo, issue_number: openIssue.number, body: nextBody });
+              }
+              return;
+            }
+
             await github.rest.issues.create({
               owner,
               repo,
@@ -107,12 +135,12 @@ jobs:
               body: [
                 "The weekly live replay no longer matches the reviewed production snapshot or its retrieval floor.",
                 "",
-                `Run: ${runURL}`,
-                `Evaluation: ${process.env.EVALUATION_OUTCOME}`,
-                `Content lock: ${process.env.LOCK_OUTCOME}`,
+                `First failing run: ${runURL}`,
                 "",
                 "Production still uses the frozen, reviewed snapshot. Inspect the upstream diff, license status, and retrieval metrics before changing the lock or deploying new bytes.",
                 "Use deploy/demo/CORPUS.md for the review procedure.",
+                "",
+                latest,
               ].join("\n"),
             });
       - name: Mark the replay run failed

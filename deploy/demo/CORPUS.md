@@ -48,7 +48,9 @@ or any file that is not needed at runtime.
 The scheduled replay workflow pulls all 24 URLs and verifies the existing
 lock. This live pull is a drift detector. It never updates production content
 or the tracked snapshot. It opens one issue when upstream content or retrieval
-quality changes. It closes that issue after a later replay passes.
+quality changes and updates that issue with the latest run and check outcomes.
+The run artifact includes the retrieval results and the corpus builder's error
+output. A later passing replay closes the issue.
 
 If upstream bytes change:
 
