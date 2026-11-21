@@ -1,0 +1,6 @@
+schema_version: nicos.commit-delivery.policy.v1
+repository_id: docs-puller
+target_ref: refs/heads/main
+agent_auto_delivery: true
+remote:
+  require_visibility: PUBLIC
