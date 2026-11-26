@@ -46,14 +46,18 @@ var replayableModes = map[string]bool{
 // fixture URL lists (inputs/*-fixture.txt) over full-site sources. A
 // newest-wins rule would then keep claude-code, bun, clickhouse, and others
 // pinned to a handful of pages forever.
-func latestReplayableIngest(entries []logEntry, source string) (logEntry, bool) {
+func latestReplayableIngest(entries []logEntry, source string, currentOut ...string) (logEntry, bool) {
+	out := ""
+	if len(currentOut) > 0 {
+		out = currentOut[0]
+	}
 	var fallback *logEntry
 	for i := range entries {
 		e := entries[i]
 		if !replayableModes[e.Mode] || len(e.Args) == 0 || e.Args[0] != "pull" {
 			continue
 		}
-		if !localInputsReplayable(e.Args) || !ingestOwnsSource(e, source) {
+		if !localInputsReplayable(e.Args, out) || !ingestOwnsSource(e, source) {
 			continue
 		}
 		if isDiscoveryRecipe(e) {
@@ -157,10 +161,43 @@ func describeLocalInput(path string) string {
 	return fmt.Sprintf("missing (%s)", path)
 }
 
+// remapLocalInput rewrites a recorded absolute local input path that lived
+// under the recorded --out directory onto currentOut when the original path
+// is missing (for example after migrating a docs corpus between Macs with
+// different home directories) and the remapped path exists.
+func remapLocalInput(val, recordedOut, currentOut string) (string, bool) {
+	if val == "" || strings.Contains(val, "://") || !filepath.IsAbs(val) {
+		return val, false
+	}
+	if _, err := os.Stat(val); err == nil {
+		return val, false
+	}
+	if recordedOut == "" || currentOut == "" {
+		return val, false
+	}
+	recClean := filepath.Clean(recordedOut)
+	valClean := filepath.Clean(val)
+	rel, err := filepath.Rel(recClean, valClean)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return val, false
+	}
+	candidate := filepath.Join(currentOut, rel)
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate, true
+	}
+	return val, false
+}
+
 // localInputsReplayable reports whether every --from/--local filesystem
-// input is an absolute path that still exists. A relative recipe only worked
-// from its original cwd; a missing one was usually a test temp dir.
-func localInputsReplayable(args []string) bool {
+// input is an absolute path that still exists (directly or remapped under
+// currentOut). A relative recipe only worked from its original cwd; a
+// missing one was usually a test temp dir.
+func localInputsReplayable(args []string, currentOut ...string) bool {
+	out := ""
+	if len(currentOut) > 0 {
+		out = currentOut[0]
+	}
+	recordedOut := flagValue(args, "out")
 	for _, f := range []string{"from", "local"} {
 		v := flagValue(args, f)
 		if v == "" || strings.Contains(v, "://") {
@@ -170,7 +207,9 @@ func localInputsReplayable(args []string) bool {
 			return false
 		}
 		if _, err := os.Stat(v); err != nil {
-			return false
+			if _, ok := remapLocalInput(v, recordedOut, out); !ok {
+				return false
+			}
 		}
 	}
 	return true
@@ -209,8 +248,10 @@ func otherSources(sources []string, skip string) []string {
 
 // replayArgs turns recorded pull args into refresh args. It drops --max: a
 // refresh exists to restore full coverage, so it never truncates. It drops
-// --out so the replay writes to the current corpus root.
+// --out so the replay writes to the current corpus root, and remaps migrated
+// local --from/--local paths under the recorded --out onto out.
 func replayArgs(recorded []string, out string) []string {
+	recordedOut := flagValue(recorded, "out")
 	args := make([]string, 0, len(recorded)+2)
 	for i := 0; i < len(recorded); i++ {
 		a := recorded[i]
@@ -223,6 +264,24 @@ func replayArgs(recorded []string, out string) []string {
 			strings.HasPrefix(a, "--out=") || strings.HasPrefix(a, "-out=") {
 			continue
 		}
+		if strings.HasPrefix(a, "-") && (name == "from" || name == "local") && i+1 < len(recorded) {
+			val := recorded[i+1]
+			if mapped, ok := remapLocalInput(val, recordedOut, out); ok {
+				val = mapped
+			}
+			args = append(args, a, val)
+			i++
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			if key, val, hasEq := strings.Cut(name, "="); hasEq && (key == "from" || key == "local") {
+				if mapped, ok := remapLocalInput(val, recordedOut, out); ok {
+					prefix := a[:len(a)-len(val)]
+					args = append(args, prefix+mapped)
+					continue
+				}
+			}
+		}
 		args = append(args, a)
 	}
 	return append(args, "--out", out)
@@ -231,16 +290,16 @@ func replayArgs(recorded []string, out string) []string {
 // resolveReplay returns the entry and uncapped args that refresh replays for
 // source, or an error that names the right fix for a non-replayable source.
 func resolveReplay(entries []logEntry, source, out string) (logEntry, []string, error) {
-	e, ok := latestReplayableIngest(entries, source)
+	e, ok := latestReplayableIngest(entries, source, out)
 	if !ok {
 		if last, found := latestIngestForSource(entries, source); found {
 			if strings.Contains(strings.Join(last.Args, " "), "ndev-crawl-nicos") {
 				return logEntry{}, nil, fmt.Errorf("source %q is owned by `ndev docs crawl-nicos`; rerun that", source)
 			}
-			if replayableModes[last.Mode] && last.Args[0] == "pull" && !localInputsReplayable(last.Args) {
+			if replayableModes[last.Mode] && last.Args[0] == "pull" && !localInputsReplayable(last.Args, out) {
 				return logEntry{}, nil, fmt.Errorf("source %q: the local input of its last pull is %s; restore it or pull from a new path", source, describeLocalInput(localInputPath(last.Args)))
 			}
-			if replayableModes[last.Mode] && localInputsReplayable(last.Args) {
+			if replayableModes[last.Mode] && localInputsReplayable(last.Args, out) {
 				return logEntry{}, nil, fmt.Errorf("source %q has no owning pull; it only collects cross-links from other pulls (latest: %s via %s). Refresh those sources instead",
 					source, strings.Join(otherSources(last.Sources, source), ", "), last.Mode)
 			}

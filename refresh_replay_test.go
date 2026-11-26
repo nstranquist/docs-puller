@@ -214,3 +214,30 @@ func TestStatusCappedSourcesIgnoreDeletedSources(t *testing.T) {
 		t.Fatalf("CappedSources = %+v, want only kept", status.CappedSources)
 	}
 }
+
+func TestResolveReplayRemapsMigratedOutRoot(t *testing.T) {
+	out := t.TempDir()
+	manifest := filepath.Join(out, "cloudflare", "manifest.json")
+	if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries := []logEntry{
+		{
+			Mode:      "from-file",
+			StartedAt: "2026-11-15T12:31:49Z",
+			Sources:   []string{"cloudflare"},
+			Args:      []string{"pull", "--from", "/Users/oldhost/code/docs/cloudflare/manifest.json", "--concurrency", "4", "--out", "/Users/oldhost/code/docs"},
+		},
+	}
+	_, args, err := resolveReplay(entries, "cloudflare", out)
+	if err != nil {
+		t.Fatalf("resolveReplay failed on migrated --out prefix: %v", err)
+	}
+	want := []string{"pull", "--from", manifest, "--concurrency", "4", "--out", out}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+}
