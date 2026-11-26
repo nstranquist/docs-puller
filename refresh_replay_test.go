@@ -229,7 +229,7 @@ func TestResolveReplayRemapsMigratedOutRoot(t *testing.T) {
 			Mode:      "from-file",
 			StartedAt: "2026-11-15T12:31:49Z",
 			Sources:   []string{"cloudflare"},
-			Args:      []string{"pull", "--from", "/Users/oldhost/code/docs/cloudflare/manifest.json", "--concurrency", "4", "--out", "/Users/oldhost/code/docs"},
+			Args:      []string{"pull", "--from", "/srv/old-corpus/cloudflare/manifest.json", "--concurrency", "4", "--out", "/srv/old-corpus"},
 		},
 	}
 	_, args, err := resolveReplay(entries, "cloudflare", out)
