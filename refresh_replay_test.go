@@ -224,12 +224,15 @@ func TestResolveReplayRemapsMigratedOutRoot(t *testing.T) {
 	if err := os.WriteFile(manifest, []byte("{}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The recorded --out must be absolute on the host OS, so it carries the
+	// temp dir's volume on Windows (C:\srv\old-corpus) and none elsewhere.
+	recordedOut := filepath.VolumeName(out) + filepath.FromSlash("/srv/old-corpus")
 	entries := []logEntry{
 		{
 			Mode:      "from-file",
 			StartedAt: "2026-11-15T12:31:49Z",
 			Sources:   []string{"cloudflare"},
-			Args:      []string{"pull", "--from", "/srv/old-corpus/cloudflare/manifest.json", "--concurrency", "4", "--out", "/srv/old-corpus"},
+			Args:      []string{"pull", "--from", filepath.Join(recordedOut, "cloudflare", "manifest.json"), "--concurrency", "4", "--out", recordedOut},
 		},
 	}
 	_, args, err := resolveReplay(entries, "cloudflare", out)

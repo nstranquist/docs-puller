@@ -2161,10 +2161,6 @@ func expandRelaxedSynonyms(token string, queryTokens []string) string {
 	return "(" + strings.Join(quoted, " OR ") + ")"
 }
 
-func relaxedConceptTerms(token string) []string {
-	return relaxedConceptTermsFor(token, nil)
-}
-
 func relaxedConceptTermsFor(token string, queryTokens []string) []string {
 	terms := []string{token}
 	terms = appendUniqueStrings(terms, synonymsForQueryToken(token, queryTokens)...)
@@ -2551,16 +2547,12 @@ func basenameStemMatch(basename, tok string) bool {
 	return false
 }
 
-// expandSynonyms returns either a quoted token ("foo") or — when the token
-// has token-level synonyms or an acronym-phrase expansion — a parenthesized
-// OR group. Token-level alternatives come from synonymsByToken; an acronym
-// phrase expansion (e.g. "rls" → "row level security") is appended as a
-// quoted phrase, which FTS5 matches as adjacent-in-order. Already-lowercased
-// input.
-func expandSynonyms(tok string) string {
-	return expandSynonymsInQuery(tok, nil)
-}
-
+// expandSynonymsInQuery returns either a quoted token ("foo") or — when the
+// token has token-level synonyms or an acronym-phrase expansion — a
+// parenthesized OR group. Token-level alternatives come from synonymsByToken
+// (filtered by the other queryTokens); an acronym phrase expansion (e.g.
+// "rls" → "row level security") is appended as a quoted phrase, which FTS5
+// matches as adjacent-in-order. Already-lowercased input.
 func expandSynonymsInQuery(tok string, queryTokens []string) string {
 	tokenSyns := synonymsForQueryToken(tok, queryTokens)
 	hasTokenSyns := len(tokenSyns) > 0

@@ -36,8 +36,7 @@ func reconcileCorpus(out string) (reconciliation, error) {
 	}
 	defer root.Close()
 	indexed := map[string]bool{}
-	indexURL := url.URL{Scheme: "file", Path: filepath.Join(out, ".cache", "search.db"), RawQuery: "mode=ro"}
-	db, err := sql.Open("sqlite", indexURL.String())
+	db, err := sql.Open("sqlite", sqliteFileURI(ftsDBPath(out), url.Values{"mode": []string{"ro"}}))
 	if err != nil {
 		return report, err
 	}

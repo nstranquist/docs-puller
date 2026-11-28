@@ -2,6 +2,8 @@ module github.com/nstranquist/docs-puller
 
 go 1.26.10
 
+toolchain go1.26.11
+
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
 	github.com/PuerkitoBio/goquery v1.13.0
