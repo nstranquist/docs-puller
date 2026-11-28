@@ -34,6 +34,18 @@ jobs:
           test "$(jq -r '.tag' release/manifest.json)" = "$RELEASE_TAG"
           test -f "release/notes-${RELEASE_TAG}.md"
           go run ./cmd/release-tool check --version "$RELEASE_TAG" --json
+      - name: Public hygiene scan
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          PUBLIC_CHECK_PATTERNS: ${{ secrets.PUBLIC_CHECK_PATTERNS }}
+        run: |
+          if [ -z "$PUBLIC_CHECK_PATTERNS" ]; then
+            echo "::error::secret PUBLIC_CHECK_PATTERNS is not set; the release refuses to build without the private-name check"
+            exit 1
+          fi
+          patterns="$RUNNER_TEMP/public-check-patterns.txt"
+          printf '%s\n' "$PUBLIC_CHECK_PATTERNS" > "$patterns"
+          NICOS_PUBLIC_CHECK_PATTERNS="$patterns" perl scripts/public-hygiene-scan release "$RELEASE_TAG"
       - name: Test release source
         run: |
           go mod verify

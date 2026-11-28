@@ -1,0 +1,250 @@
+#!/usr/bin/env perl
+# public-hygiene-scan: fail when a private name is in the public tree or history.
+#
+# This repository is public. The private patterns (one Perl regex per line,
+# lines that start with '#' are comments) live outside the repository, in the
+# file named by NICOS_PUBLIC_CHECK_PATTERNS, else
+# ~/.nicos-dev/public-repo-check/patterns.txt. The list itself is private, so
+# this script prints only the place and the rule number of a match, never the
+# matched text. It fails closed (exit 2) when the pattern file is missing,
+# empty or invalid.
+#
+# Usage:
+#   public-hygiene-scan tree [REV]        files at REV (default HEAD): path
+#                                         names and contents
+#   public-hygiene-scan history [REV...]  every object that REV reaches (for
+#                                         example v0.8.2..HEAD): commit and tag
+#                                         messages, path names and file
+#                                         contents. With no REV: all refs,
+#                                         their names and annotated tags.
+#   public-hygiene-scan release [REV]     the release gate: tree of REV, plus
+#                                         history of REV after the previous
+#                                         release tag and after the commit in
+#                                         scripts/public-hygiene-history-base.
+#
+# The history base holds one commit ID. Commits it reaches were public before
+# this check existed and were fixed forward, not rewritten, so the gate checks
+# only what is newer.
+# Exit status: 0 clean, 1 match, 2 setup error.
+#
+# Perl, not Go: the patterns use the Perl regex dialect (look-ahead), and the
+# repository commit hook reads the same file with Perl.
+use strict;
+use warnings;
+
+my $max_print = 100;
+
+sub fail_setup {
+    print STDERR "public-hygiene-scan: $_[0]\n";
+    exit 2;
+}
+
+my $mode = shift @ARGV // '';
+fail_setup("usage: public-hygiene-scan tree [REV] | history [REV...] | release [REV]")
+    unless $mode eq 'tree' || $mode eq 'history' || $mode eq 'release';
+fail_setup("$mode takes at most one REV") if $mode ne 'history' && @ARGV > 1;
+
+my $file = $ENV{NICOS_PUBLIC_CHECK_PATTERNS}
+    // (($ENV{HOME} // '') . '/.nicos-dev/public-repo-check/patterns.txt');
+open my $pf, '<', $file
+    or fail_setup("private pattern file unreadable (set NICOS_PUBLIC_CHECK_PATTERNS)");
+my @rules;
+my $n = 0;
+while (my $line = <$pf>) {
+    chomp $line;
+    $line =~ s/\r$//;
+    next if $line =~ /^\s*(#|$)/;
+    $n++;
+    my $re = eval { qr/$line/ };
+    fail_setup("private pattern rule $n does not compile") unless $re;
+    push @rules, [$n, $re];
+}
+close $pf;
+fail_setup("private pattern file has no rules") unless @rules;
+
+my $hits = 0;
+my %by_rule;
+
+# check reports each rule that matches $text at $place.
+sub check {
+    my ($place, $text) = @_;
+    for my $r (@rules) {
+        next unless $text =~ $r->[1];
+        $hits++;
+        $by_rule{$r->[0]}++;
+        print "$place (rule $r->[0])\n" if $hits <= $max_print;
+    }
+}
+
+# check_lines checks each line of $body and names the line number.
+sub check_lines {
+    my ($place, $body) = @_;
+    my $ln = 0;
+    for my $l (split /\n/, $body, -1) {
+        $ln++;
+        check("$place:$ln", $l);
+    }
+}
+
+# git_out runs git with arguments and returns its whole output.
+sub git_out {
+    my @cmd = ('git', @_);
+    open my $h, '-|', @cmd or fail_setup("cannot run git");
+    local $/;
+    my $out = <$h> // '';
+    close $h or fail_setup("git $_[0] failed (exit " . ($? >> 8) . ")");
+    return $out;
+}
+
+# git_try runs git with arguments and returns its trimmed output, or undef
+# when git exits non-zero.
+sub git_try {
+    open my $saved, '>&', \*STDERR or fail_setup("cannot save stderr");
+    open STDERR, '>', '/dev/null' or fail_setup("cannot silence git");
+    my $ok = open my $h, '-|', 'git', @_;
+    open STDERR, '>&', $saved or exit 2;
+    fail_setup("cannot run git") unless $ok;
+    local $/;
+    my $out = <$h> // '';
+    close $h or return undef;
+    $out =~ s/\s+\z//;
+    return $out;
+}
+
+# Read objects through one cat-file process. $want is a list of [oid, label].
+sub scan_objects {
+    my ($want, $handler) = @_;
+    return unless @$want;
+    require IPC::Open2;
+    my ($out, $in);
+    my $pid = IPC::Open2::open2($out, $in, 'git', 'cat-file', '--batch');
+    binmode $out;
+    # Write in a child so a large list cannot fill both pipes.
+    my $writer = fork();
+    fail_setup("fork failed") unless defined $writer;
+    if ($writer == 0) {
+        close $out;
+        print {$in} "$_->[0]\n" for @$want;
+        close $in;
+        exit 0;
+    }
+    close $in;
+    for my $w (@$want) {
+        my $header = <$out>;
+        fail_setup("cat-file ended early") unless defined $header;
+        chomp $header;
+        my ($oid, $type, $size) = split / /, $header;
+        fail_setup("object missing: $w->[0]") if !defined $size || $type eq 'missing';
+        my $body = '';
+        my $read = 0;
+        while ($read < $size) {
+            my $got = read($out, my $chunk, $size - $read);
+            fail_setup("short read") unless $got;
+            $body .= $chunk;
+            $read += $got;
+        }
+        read($out, my $nl, 1);
+        $handler->($w, $type, $body);
+    }
+    waitpid($writer, 0);
+    close $out;
+    waitpid($pid, 0);
+}
+
+# scan_tree checks the path names and file contents at $rev.
+sub scan_tree {
+    my ($rev) = @_;
+    my @want;
+    for my $entry (split /\0/, git_out('ls-tree', '-r', '-z', '--full-tree', $rev)) {
+        next unless length $entry;
+        my ($meta, $path) = split /\t/, $entry, 2;
+        my (undef, $type, $oid) = split / /, $meta;
+        check("path $path", $path);
+        push @want, [$oid, $path] if $type eq 'blob';
+    }
+    scan_objects(\@want, sub {
+        my ($w, $type, $body) = @_;
+        check_lines($w->[1], $body);
+    });
+}
+
+# scan_history checks every object that the rev-list arguments reach. With
+# $refs set, it also checks every ref name and annotated tag object.
+sub scan_history {
+    my ($refs, @revs) = @_;
+    my @want;
+    my %seen_path;
+    for my $line (split /\n/, git_out('rev-list', '--objects', @revs, '--')) {
+        my ($oid, $path) = split / /, $line, 2;
+        if (defined $path && length $path && !$seen_path{$path}++) {
+            check("path $path", $path);
+        }
+        push @want, [$oid, $path // ''];
+    }
+    if ($refs) {
+        for my $line (split /\n/, git_out('for-each-ref', '--format=%(objectname) %(objecttype) %(refname)')) {
+            my ($oid, $type, $ref) = split / /, $line, 3;
+            check("ref $ref", $ref);
+            push @want, [$oid, $ref] if $type eq 'tag';
+        }
+    }
+    scan_objects(\@want, sub {
+        my ($w, $type, $body) = @_;
+        if ($type eq 'blob') {
+            check_lines("blob $w->[0] $w->[1]", $body);
+        } elsif ($type eq 'commit' || $type eq 'tag') {
+            # Skip the header (tree, parents, author, committer, tagger); the
+            # author identity is the public git identity. Keep the tag name.
+            my ($head, $msg) = split /\n\n/, $body, 2;
+            if ($type eq 'tag' && $head =~ /^tag (.*)$/m) {
+                check("$type $w->[0] name", $1);
+            }
+            check_lines("$type $w->[0] message", $msg // '');
+        }
+        # Tree objects: their names are checked through the paths above.
+    });
+}
+
+if ($mode eq 'tree') {
+    scan_tree($ARGV[0] // 'HEAD');
+} elsif ($mode eq 'history') {
+    # With no REV: all refs, plus ref names and annotated tag objects. With
+    # REV (for example v0.8.2..HEAD): only what the range adds.
+    @ARGV ? scan_history(0, @ARGV) : scan_history(1, '--all');
+} else {
+    my $rev = $ARGV[0] // 'HEAD';
+    my $commit = git_try('rev-parse', '--verify', '-q', "$rev^{commit}")
+        // fail_setup("not a commit: $rev");
+    # The previous release tag: the newest tag before $rev when $rev itself
+    # is tagged, else the newest tag that $rev reaches.
+    my $prev = defined git_try('describe', '--tags', '--exact-match', $commit)
+        ? git_try('describe', '--tags', '--abbrev=0', "$commit^")
+        : git_try('describe', '--tags', '--abbrev=0', $commit);
+    my @exclude;
+    push @exclude, "^$prev" if defined $prev && length $prev;
+    my $top = git_try('rev-parse', '--show-toplevel') // fail_setup("not in a git worktree");
+    my $base_file = "$top/scripts/public-hygiene-history-base";
+    if (-e $base_file) {
+        open my $bf, '<', $base_file or fail_setup("history base unreadable");
+        my @ids = grep { /\S/ && !/^\s*#/ } map { s/\s+//gr } <$bf>;
+        close $bf;
+        fail_setup("history base must hold one commit ID")
+            unless @ids == 1 && $ids[0] =~ /\A[0-9a-f]{40}\z/;
+        defined git_try('cat-file', '-e', "$ids[0]^{commit}")
+            or fail_setup("history base commit is not in this clone (fetch the full history)");
+        push @exclude, "^$ids[0]";
+    }
+    scan_tree($commit);
+    scan_history(0, $commit, @exclude);
+    print STDERR "public-hygiene-scan: release: history after "
+        . (@exclude ? join(' and ', map { substr($_, 1, 12) } @exclude) : 'the first commit') . "\n";
+}
+
+if ($hits) {
+    my $summary = join(', ', map { "rule $_: $by_rule{$_}" } sort { $a <=> $b } keys %by_rule);
+    print STDERR "public-hygiene-scan: $mode: $hits matches ($summary)"
+        . ($hits > $max_print ? "; first $max_print shown" : '') . "\n";
+    exit 1;
+}
+print STDERR "public-hygiene-scan: $mode: clean (" . scalar(@rules) . " rules)\n";
+exit 0;

@@ -2,7 +2,7 @@
 
 SHELL := /bin/bash -euo pipefail
 
-.PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan \
+.PHONY: help build test test-race vet fmt staticcheck vulncheck secret-scan public-hygiene \
 	verify publish-ready install smoke demo-smoke version help-sizes fuzz-smoke \
 	extension-check extension-package site-check verify-public-snapshot verify-public-sample verify-held-out \
 	verify-retrieval-regression stage-public-demo \
@@ -45,7 +45,7 @@ help:
 	@echo "  make release-sync-check NDEV_ROOT=/path/to/nicos-tools"
 
 # Complete local publication gate. It does not push or publish.
-publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan fuzz-smoke extension-package site-check verify-public-snapshot
+publish-ready: verify help-sizes smoke test-race staticcheck vulncheck secret-scan public-hygiene fuzz-smoke extension-package site-check verify-public-snapshot
 
 build:
 	go build $(GO_TAG_FLAGS) -o bin/docs-puller .
@@ -77,6 +77,13 @@ secret-scan:
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks is required" >&2; exit 1; }
 	gitleaks dir . --no-banner --redact
 	gitleaks git . --no-banner --redact
+
+# This repository is public. Fail on a private name (host, address, home path,
+# private handle) in the tree or in the commits since the last release. The
+# patterns are private: they come from NICOS_PUBLIC_CHECK_PATTERNS or
+# ~/.nicos-dev/public-repo-check/patterns.txt. See scripts/public-hygiene-scan.
+public-hygiene:
+	perl scripts/public-hygiene-scan release
 
 verify: fmt vet test build demo-smoke extension-check
 

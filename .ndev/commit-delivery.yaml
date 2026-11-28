@@ -2,5 +2,13 @@ schema_version: nicos.commit-delivery.policy.v1
 repository_id: docs-puller
 target_ref: refs/heads/main
 agent_auto_delivery: true
+# Capture runs the repo-owned hook (.ndev/hooks/pre-commit, installed as
+# .git/hooks/pre-commit). Its capture profile refuses private names and
+# secrets in added lines and new files under corpus/, because this repository
+# is public. Install it with
+# cp .ndev/hooks/pre-commit "$(git rev-parse --git-path hooks/pre-commit)".
+capture_checks:
+  hook_profile: capture
+  timeout_ms: 30000
 remote:
   require_visibility: PUBLIC

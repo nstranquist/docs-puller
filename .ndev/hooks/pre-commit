@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# docs-puller:pre-commit v1 (repo-owned; install as .git/hooks/pre-commit)
+#
+# This repository is public. Before a change lands, this hook refuses:
+#   public-names    added lines or new file names that match a private pattern
+#                   (host names, tailnet addresses, home paths, internal work
+#                   item keys, the private workers.dev handle). The patterns
+#                   live outside the repo in
+#                   ~/.nicos-dev/public-repo-check/patterns.txt (one Perl regex
+#                   per line), because the list itself is private.
+#   public-secrets  added lines that gitleaks flags.
+#   public-papers   new or changed files under corpus/. Working papers name
+#                   internal hosts, plans and work items, so the maintainer
+#                   keeps the project corpus in a private repository.
+#   conflict-markers, go-format  as in the other enrolled repos.
+# It fails closed when the pattern file or gitleaks is missing. It prints the
+# file and rule number of a match, never the matched text.
+#
+# Shell plus Perl, not Go: the hook must start inside the 30 s capture budget
+# with no build step, and Perl gives the same regex dialect as the history
+# scrub that produced the patterns. It never changes the worktree or index.
+set -euo pipefail
+
+patterns="${NICOS_PUBLIC_CHECK_PATTERNS:-$HOME/.nicos-dev/public-repo-check/patterns.txt}"
+
+# json_str prints its argument as a JSON string.
+json_str() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\t'/\\t}"; s="${s//$'\r'/\\r}"; s="${s//$'\n'/\\n}"
+  printf '"%s"' "$s"
+}
+
+# gate_fail prints the typed failure line and exits 1.
+gate_fail() {
+  local id="$1" repair="$2" detail="$3"; shift 3
+  local paths="" p
+  for p in "$@"; do paths="${paths:+$paths,}$(json_str "$p")"; done
+  if [ "${NICOS_PRECOMMIT_PROFILE:-}" = "capture" ]; then
+    printf 'NICOS_PRECOMMIT_GATE_JSON={"schema_version":1,"gate":{"id":"%s","repairs":[%s],"capture":true},"exit_code":1,"detail":%s,"paths":[%s]}\n' \
+      "$id" "$(json_str "$repair")" "$(json_str "$detail")" "$paths" >&2
+  else
+    printf 'pre-commit: %s: %s\n  repair: %s\n' "$id" "$detail" "$repair" >&2
+    for p in "$@"; do printf '  %s\n' "$p" >&2; done
+  fi
+  exit 1
+}
+
+# changed_files prints the NUL-separated added, copied, modified and renamed
+# paths between the base and the index.
+changed_files() {
+  git diff --cached --name-only -z --no-renames --diff-filter=ACMR "$1" --
+}
+
+# added_lines prints "+" lines of the staged diff, each prefixed by its path
+# and a tab. File names of new paths are emitted as "path\t@name".
+added_lines() {
+  git diff --cached -U0 --no-color --no-ext-diff --no-renames "$1" -- | perl -ne '
+    if (/^\+\+\+ (?:b\/)?(.*)$/) { $f = $1; $f =~ s/\t.*$//; print "$f\t\@name\n" if $f ne "/dev/null"; next }
+    next if /^(?:---|diff |index |@@)/;
+    print "$f\t$1\n" if defined $f && /^\+(.*)$/;'
+}
+
+check_public_names() {
+  local base="$1" out rc
+  if [ ! -r "$patterns" ]; then
+    gate_fail public-names "restore the private pattern file ($patterns, or set NICOS_PUBLIC_CHECK_PATTERNS), then capture again" \
+      "private pattern file is missing; this public repo refuses captures without it"
+  fi
+  out="$(added_lines "$base" | PATTERNS="$patterns" perl -e '
+    open my $p, "<", $ENV{PATTERNS} or exit 3;
+    my (@rules, $n);
+    while (<$p>) { chomp; next if /^\s*(#|$)/; $n++; my $re = eval { qr/$_/ }; exit 4 unless $re; push @rules, [$n, $re] }
+    exit 4 unless @rules;
+    my %hit;
+    while (my $l = <STDIN>) {
+      chomp $l; my ($f, $text) = split /\t/, $l, 2; $text //= "";
+      my $subject = $text eq "\@name" ? $f : $text;
+      for my $r (@rules) { $hit{"$f (rule $r->[0])"} = 1 if $subject =~ $r->[1] }
+    }
+    print "$_\n" for sort keys %hit;
+    exit(%hit ? 1 : 0);')" && rc=0 || rc=$?
+  case "$rc" in
+    0) return 0 ;;
+    1) local hits=()
+       while IFS= read -r line; do hits+=("$line"); done <<< "$out"
+       gate_fail public-names "replace the private name with a generic one (for example runner-N, a placeholder path), then capture again" \
+         "${#hits[@]} added line or file name match(es) of a private pattern in a public repo" "${hits[@]}" ;;
+    *) gate_fail public-names "fix the private pattern file: every non-comment line must be a valid Perl regex" \
+         "private pattern file unreadable or invalid (perl exit $rc)" ;;
+  esac
+}
+
+check_public_secrets() {
+  local base="$1" gitleaks rc
+  gitleaks="$(command -v gitleaks || true)"
+  if [ -z "$gitleaks" ]; then
+    gate_fail public-secrets "install gitleaks (brew install gitleaks), then capture again" \
+      "gitleaks is not on PATH; this public repo refuses captures without a secret scan"
+  fi
+  added_lines "$base" | perl -ne 'print "$1\n" if /^[^\t]*\t(?!\@name$)(.*)$/' \
+    | "$gitleaks" stdin --redact --no-banner --log-level error >/dev/null 2>&1 && rc=0 || rc=$?
+  case "$rc" in
+    0) return 0 ;;
+    1) gate_fail public-secrets "remove the secret from the change and keep it in nvault, then capture again" \
+         "gitleaks found a likely secret in the added lines (run: git diff --cached | gitleaks stdin --redact)" ;;
+    *) gate_fail public-secrets "check that gitleaks runs (gitleaks version), then capture again" \
+         "gitleaks failed with exit $rc" ;;
+  esac
+}
+
+check_public_papers() {
+  local base="$1" bad=() f
+  while IFS= read -r -d '' f; do
+    case "$f" in corpus/*) bad+=("$f") ;; esac
+  done < <(changed_files "$base")
+  if [ "${#bad[@]}" -gt 0 ]; then
+    gate_fail public-papers "write working papers to the private project corpus, not this public repository, then capture again" \
+      "${#bad[@]} staged file(s) under corpus/ in a public repo" "${bad[@]}"
+  fi
+}
+
+check_conflict_markers() {
+  local base="$1" bad=() f
+  while IFS= read -r -d '' f; do
+    # Process substitution, not a pipe: grep -q exits early, and pipefail
+    # would turn the SIGPIPE into "no match".
+    if LC_ALL=C grep -Eq '^(<<<<<<<|>>>>>>>)( |$)' < <(git show ":$f" 2>/dev/null); then bad+=("$f"); fi
+  done < <(changed_files "$base")
+  if [ "${#bad[@]}" -gt 0 ]; then
+    gate_fail conflict-markers "resolve every <<<<<<< / >>>>>>> block in the listed files, then capture again" \
+      "unresolved merge conflict markers in ${#bad[@]} staged file(s)" "${bad[@]}"
+  fi
+}
+
+check_go_format() {
+  local base="$1" gofmt_bin="$2" bad=() f
+  while IFS= read -r -d '' f; do
+    case "$f" in *.go) ;; *) continue ;; esac
+    case "/$f" in */testdata/*|*/vendor/*|*/third_party/*) continue ;; esac
+    if [ -n "$(git show ":$f" | "$gofmt_bin" -l 2>&1)" ]; then bad+=("$f"); fi
+  done < <(changed_files "$base")
+  if [ "${#bad[@]}" -gt 0 ]; then
+    gate_fail go-format "gofmt -w <listed files>, then capture again (or --replace <delivery-id>)" \
+      "${#bad[@]} staged Go file(s) are not gofmt-formatted" "${bad[@]}"
+  fi
+}
+
+run_checks() {
+  local base="$1" gofmt_bin
+  gofmt_bin="$(command -v gofmt || true)"
+  check_public_names "$base"
+  check_public_secrets "$base"
+  check_public_papers "$base"
+  check_conflict_markers "$base"
+  if [ -n "$gofmt_bin" ]; then check_go_format "$base" "$gofmt_bin"; fi
+}
+
+if [ -n "${NICOS_PRECOMMIT_PROFILE:-}" ]; then
+  if [ "$NICOS_PRECOMMIT_PROFILE" != "capture" ]; then
+    echo "pre-commit: unknown NICOS_PRECOMMIT_PROFILE \"$NICOS_PRECOMMIT_PROFILE\"; known profiles: capture" >&2
+    exit 2
+  fi
+  if [ "${NICOS_PREFLIGHT_READ_ONLY:-}" != "1" ]; then
+    echo "pre-commit: NICOS_PRECOMMIT_PROFILE=capture needs a read-only private-index preflight (NICOS_PREFLIGHT_READ_ONLY=1)" >&2
+    exit 2
+  fi
+  gates='"public-names","public-secrets","public-papers","conflict-markers"'
+  if command -v gofmt >/dev/null 2>&1; then gates="$gates,\"go-format\""; fi
+  printf 'NICOS_PRECOMMIT_PROFILE_JSON={"schema_version":1,"profile":"capture","gates":[%s]}\n' "$gates" >&2
+  run_checks "${NICOS_PREFLIGHT_BASE_HEAD:-HEAD}"
+  exit 0
+fi
+
+# A plain git commit: compare the index with HEAD (or the empty tree on the
+# first commit).
+base="HEAD"
+git rev-parse --verify -q HEAD >/dev/null || base="$(git hash-object -t tree /dev/null)"
+run_checks "$base"
